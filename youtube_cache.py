@@ -1,0 +1,160 @@
+#!/usr/bin/env python
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+#
+# For configuration and how to use, see README file.
+#
+
+__author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
+__version__ = 0.1
+__docformat__ = 'plaintext'
+
+import logging
+import os
+import rfc822
+import stat
+import sys
+import time
+import urlgrabber
+import urlparse
+
+# ---------------- Edit This -----------------------------
+# Global Configuration. Please edit this according to your needs
+# cache_dir => Directory where squid this program will cache the youtube videos.
+cache_dir = '/var/spool/squid/youtube/'
+# cache_url => The url for serving the cached youtube videos. 
+# Proxy_IP => The IP or domain name of the machine on which you are running squid.
+cache_url = 'http://<Proxy_IP>/youtube/'
+# logfile => Location where this program will log the actions.
+logfile = '/var/spool/squid/youtube/youtube.log'
+redirect = '303'
+format = '%-12s %-12s %s'
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    filename=logfile,
+                    filemode='a')
+log = logging.info
+
+def fork(f):
+    """This function is highly inspired from concurrency in python
+    tutorial at http://blog.buffis.com/?p=63 .
+    Generator for creating a forked process from a function"""
+    # Perform double fork
+    r = ''
+    if os.fork(): # Parent
+        # Return a function
+        return  lambda *x, **kw: r 
+
+    # Otherwise, we are the child 
+    # Perform second fork
+    os.setsid()
+    os.umask(077)
+    os.chdir('/')
+    if os.fork():
+        os._exit(0) 
+
+    def wrapper(*args, **kwargs):
+        """Wrapper function to be returned from generator.
+        Executes the function bound to the generator and then
+        exits the process"""
+        f(*args, **kwargs)
+        os._exit(0)
+
+    return wrapper
+
+def download_from_source(url, path, mode):
+    """This function downloads the file from remote source and caches it."""
+    file = urlgrabber.urlgrab(url, path)
+    os.chmod(file, mode)
+    log(format%(os.path.basename(path).split('.')[0], 'DOWNLOAD', 'Package was downloaded and cached.'))
+    return thread
+
+def cache_video(url):
+    """This function check whether a video is in cache or not. If not, it fetches
+    it from the remote source and cache it and also streams it to the client."""
+    # The expected mode of the cached file, so that it is readable by apache
+    # to stream it to the client.
+    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+    params = urlparse.urlsplit(url)[3]
+    video_id = params.split('&')[0].split('=')[1]
+    video = cache_dir + video_id + '.flv'
+    if os.path.isfile(video):
+        log(format%(video_id, 'CACHE_HIT', 'Requested package was found in cache.'))
+        try:
+            local_size = os.stat(video).st_size
+            modified_time = os.stat(video).st_mtime
+            remote_file = urlgrabber.urlopen(url)
+            remote_time = rfc822.mktime_tz(remote_file.info().getdate_tz('last-modified'))
+            remote_size = remote_file.info().get('content-length')
+            remote_file.close()
+            log(format%(video_id, 'LOCAL_SIZE', 'Local Size: ' + str(local_size) + ' bytes.'))
+            log(format%(video_id, 'REMOTE_SIZE', 'Remote Size: ' + str(remote_size) + ' bytes.'))
+            if int(local_size) != int(remote_size):
+                return ''
+            if remote_time > modified_time:
+                log(format%(video_id, 'REFRESH_MISS', 'Requested package was older.'))
+                # If remote file is newer, cache the new one
+                forked = fork(download_from_source)
+                forked(url, video, mode)
+                return '' 
+            else:
+                log(format%(video_id, 'REFRESH_HIT', 'Cached package was uptodate.'))
+        except urlgrabber.grabber.URLGrabError, e:
+            log(format%(video_id, 'URLError', 'Could not retrieve timestamp for remote package. Trying to serve from cache.'))
+            pass
+
+        cur_mode = os.stat(video)[stat.ST_MODE]
+        if stat.S_IMODE(cur_mode) == mode:
+            log(format%(video_id, 'CACHE_SERVE', 'Package was served from cache.'))
+            return redirect + ':' + cache_url + video_id + '.flv'
+    else:
+        try:
+            log(format%(video_id, 'CACHE_MISS', 'Requested package was found in cache.'))
+            forked = fork(download_from_source)
+            forked(url, video, mode)
+            return ''
+        except urlgrabber.grabber.URLGrabError, e:
+            log(format%(video_id, 'URLError', 'An error occured while retrieving the package.'))
+            pass
+    return '' 
+
+def squid_part():
+    """This function will tap requests from squid. If the request is for a youtube
+    video, they will be forwarded to function cache_video() for further processing.
+    Finally this function will flush a cache_url if package found in cache or a
+    blank line in case on a miss to stdout. This is the only function where we deal
+    with squid, rest of the program/project doesn't interact with squid at all."""
+    while True:
+        # Read url from stdin ( this is provided by squid)
+        url = sys.stdin.readline().strip().split(' ')
+        new_url = '\n';
+        # Retrieve the basename from the request url
+        fragments = urlparse.urlsplit(url[0])
+        host = fragments[1]
+        path = fragments[2]
+        if host.find('youtube.com') > -1 and path.find('get_video') > -1:
+            log(format%('-'*11, 'URL_HIT', 'Request for ' + url[0]))
+            new_url = cache_video(url[0]) + new_url
+        # Flush the new url to stdout for squid to process
+        sys.stdout.write(new_url)
+        sys.stdout.flush()
+
+if __name__ == '__main__':
+    # For testing with squid, use this function
+    squid_part()
+
