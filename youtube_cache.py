@@ -23,7 +23,9 @@ __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
 __version__ = 0.1
 __docformat__ = 'plaintext'
 
+from config import readMainConfig, readStartupConfig
 import logging
+import md5
 import os
 import rfc822
 import stat
@@ -32,15 +34,17 @@ import time
 import urlgrabber
 import urlparse
 
-# ---------------- Edit This -----------------------------
-# Global Configuration. Please edit this according to your needs
+mainconf =  readMainConfig(readStartupConfig('/etc/sysconfig/youtube_cache.conf', '/'))
+
 # cache_dir => Directory where squid this program will cache the youtube videos.
-cache_dir = '/var/spool/squid/youtube/'
+cache_dir = mainconf.cachedir
+# temp_dir => Directory to download packages temporarily
+temp_dir = mainconf.tempdir
 # cache_url => The url for serving the cached youtube videos. 
-# Proxy_IP => The IP or domain name of the machine on which you are running squid.
-cache_url = 'http://<Proxy_IP>/youtube/'
+cache_url = mainconf.cacheurl
 # logfile => Location where this program will log the actions.
-logfile = '/var/spool/squid/youtube/youtube.log'
+logfile = mainconf.logfile
+http_proxy = mainconf.http_proxy
 redirect = '303'
 format = '%-12s %-12s %s'
 
@@ -49,6 +53,8 @@ logging.basicConfig(level=logging.DEBUG,
                     filename=logfile,
                     filemode='a')
 log = logging.info
+
+grabber = urlgrabber.grabber.URLGrabber(proxies = {'http': http_proxy})
 
 def fork(f):
     """This function is highly inspired from concurrency in python
@@ -79,10 +85,15 @@ def fork(f):
 
 def download_from_source(url, path, mode):
     """This function downloads the file from remote source and caches it."""
-    file = urlgrabber.urlgrab(url, path)
-    os.chmod(file, mode)
-    log(format%(os.path.basename(path).split('.')[0], 'DOWNLOAD', 'Package was downloaded and cached.'))
-    return thread
+    try:
+        download_path = os.path.join(temp_dir, md5.md5(os.path.basename(path)).hexdigest())
+        open(download_path, 'a').close()
+        file = grabber.urlgrab(url, download_path)
+        os.rename(file, path)
+        os.chmod(path, mode)
+        log(format%(os.path.basename(path).split('.')[0], 'DOWNLOAD', 'Package was downloaded and cached.'))
+    except urlgrabber.grabber.URLGrabError, e:
+        log(format%(video_id, 'URL_ERROR', 'An error occured while retrieving the package.'))
 
 def cache_video(url):
     """This function check whether a video is in cache or not. If not, it fetches
@@ -95,42 +106,18 @@ def cache_video(url):
     video = cache_dir + video_id + '.flv'
     if os.path.isfile(video):
         log(format%(video_id, 'CACHE_HIT', 'Requested package was found in cache.'))
-        try:
-            local_size = os.stat(video).st_size
-            modified_time = os.stat(video).st_mtime
-            remote_file = urlgrabber.urlopen(url)
-            remote_time = rfc822.mktime_tz(remote_file.info().getdate_tz('last-modified'))
-            remote_size = remote_file.info().get('content-length')
-            remote_file.close()
-            log(format%(video_id, 'LOCAL_SIZE', 'Local Size: ' + str(local_size) + ' bytes.'))
-            log(format%(video_id, 'REMOTE_SIZE', 'Remote Size: ' + str(remote_size) + ' bytes.'))
-            if int(local_size) != int(remote_size):
-                return ''
-            if remote_time > modified_time:
-                log(format%(video_id, 'REFRESH_MISS', 'Requested package was older.'))
-                # If remote file is newer, cache the new one
-                forked = fork(download_from_source)
-                forked(url, video, mode)
-                return '' 
-            else:
-                log(format%(video_id, 'REFRESH_HIT', 'Cached package was uptodate.'))
-        except urlgrabber.grabber.URLGrabError, e:
-            log(format%(video_id, 'URLError', 'Could not retrieve timestamp for remote package. Trying to serve from cache.'))
-            pass
-
         cur_mode = os.stat(video)[stat.ST_MODE]
         if stat.S_IMODE(cur_mode) == mode:
             log(format%(video_id, 'CACHE_SERVE', 'Package was served from cache.'))
             return redirect + ':' + cache_url + video_id + '.flv'
+    elif os.path.isfile(os.path.join(temp_dir, md5.md5(os.path.basename(video)).hexdigest())):
+        log(format%(video_id, 'INCOMPLETE', 'Video is still being downloaded.'))
+        return ''
     else:
-        try:
-            log(format%(video_id, 'CACHE_MISS', 'Requested package was found in cache.'))
-            forked = fork(download_from_source)
-            forked(url, video, mode)
-            return ''
-        except urlgrabber.grabber.URLGrabError, e:
-            log(format%(video_id, 'URLError', 'An error occured while retrieving the package.'))
-            pass
+        log(format%(video_id, 'CACHE_MISS', 'Requested package was not found in cache.'))
+        forked = fork(download_from_source)
+        forked(url, video, mode)
+        return ''
     return '' 
 
 def squid_part():
@@ -154,7 +141,30 @@ def squid_part():
         sys.stdout.write(new_url)
         sys.stdout.flush()
 
+def cmd_squid_part():
+    """This function will tap requests from squid. If the request is for a youtube
+    video, they will be forwarded to function cache_video() for further processing.
+    Finally this function will flush a cache_url if package found in cache or a
+    blank line in case on a miss to stdout. This is the only function where we deal
+    with squid, rest of the program/project doesn't interact with squid at all."""
+    while True:
+        # Read url from stdin ( this is provided by squid)
+        url = sys.argv[1].strip().split(' ')
+        new_url = '\n';
+        # Retrieve the basename from the request url
+        fragments = urlparse.urlsplit(url[0])
+        host = fragments[1]
+        path = fragments[2]
+        if host.find('youtube.com') > -1 and path.find('get_video') > -1:
+            log(format%('-'*11, 'URL_HIT', 'Request for ' + url[0]))
+            new_url = cache_video(url[0]) + new_url
+        # Flush the new url to stdout for squid to process
+        print 'new_url:', new_url.strip()
+        break
+
 if __name__ == '__main__':
     # For testing with squid, use this function
     squid_part()
+    # For testing on command line, use this function
+    #cmd_squid_part()
 
