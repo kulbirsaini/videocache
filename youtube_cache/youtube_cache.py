@@ -37,11 +37,11 @@ import urlparse
 mainconf =  readMainConfig(readStartupConfig('/etc/sysconfig/youtube_cache.conf', '/'))
 
 # cache_dir => Directory where squid this program will cache the youtube videos.
-cache_dir = mainconf.cachedir
+cache_dir = mainconf.cache_dir + '/'
 # temp_dir => Directory to download packages temporarily
-temp_dir = mainconf.tempdir
+temp_dir = mainconf.temp_dir + '/'
 # cache_url => The url for serving the cached youtube videos. 
-cache_url = mainconf.cacheurl
+cache_url = mainconf.cache_url + '/'
 # logfile => Location where this program will log the actions.
 logfile = mainconf.logfile
 http_proxy = mainconf.http_proxy
