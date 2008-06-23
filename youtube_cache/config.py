@@ -572,11 +572,11 @@ class YumConf(StartupConf):
 
     Note: see also options inherited from StartupConf
     '''
-    cachedir = Option('/var/spool/squid/youtube/')
-    tempdir = Option('/var/spool/squid/youtube/temp/')
-    cacheurl = Option('http://localhost/youtube/')
-    logfile = Option('/var/spool/squid/youtube/youtube.log')
-    http_proxy = Option('http://localhost:3128')
+    cache_dir = Option('/var/spool/squid/youtube/')
+    temp_dir = Option('/var/spool/squid/youtube/temp/')
+    cache_url = Option('http://localhost.localdomain/youtube/')
+    logfile = Option('/var/log/squid/youtube_cache.log')
+    http_proxy = Option('http://localhost.localdomain:3128')
 
     _reposlist = []
 
@@ -623,7 +623,7 @@ def readMainConfig(startupconf):
     yumconf.populate(startupconf._parser, 'main')
 
     # Apply the installroot to directory options
-    for option in ('cachedir', 'logfile', 'tempdir'):
+    for option in ('cache_dir', 'logfile', 'temp_dir'):
         path = getattr(yumconf, option)
         setattr(yumconf, option, yumconf.installroot + path)
     
