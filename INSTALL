@@ -1,0 +1,70 @@
+1. Requires
+===========
+1. squid
+2. httpd ( Apache ) or any other webserver
+3. python
+4. python-urlgrabber
+
+2. Installation (for Redhat and derivatives)
+============================================
+a) Download latest version of youtube_cache from http://kulbirsaini.fedorapeople.org/stuff/youtube_cache/ .
+b) Untar the package.
+[root@localhost root]# tar -xvzf youtube_cache-x.x-x.tar.gz
+
+c) Go to youtube_cache-x.x-x directory
+[root@localhost youtube_cache-x.x-x]# cd youtube_cache-x.x-x
+
+d) Copy youtube_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
+[root@localhost youtube_cache-x.x-x]# cp youtube_httpd.conf /etc/httpd/conf.d/youtube_cache.conf
+
+e) Copy youtube_sysconf.conf to /etc/sysconfig/youtube_cache.conf
+[root@localhost youtube_cache-x.x-x]# cp youtube_sysconf.conf /etc/sysconfig/youtube_cache.conf
+
+f) Copy youtube_cache directory to /etc/squid/
+[root@localhost youtube_cache-x.x-x]# cp -r youtube_cache /etc/squid/
+
+g) Create directories to cache youtube videos
+[root@localhost root]# cd /var/spool/
+[root@localhost spool]# chmod 751 squid
+[root@localhost spool]# cd squid
+[root@localhost squid]# mkdir youtube
+[root@localhost squid]# chown squid:squid youtube
+[root@localhost squid]# chmod 755 youtube
+[root@localhost squid]# cd youtube
+[root@localhost youtube]# mkdir temp
+[root@localhost youtube]# chown squid:squid temp
+[root@localhost youtube]# chmod 755 temp
+
+3. Configuration
+================
+Assuming you have squid and apache installed. The following configurations are
+required to get it running. Newbies are instructed to stick with default configuration
+as much as possible otherwise you'll be lost in directory permissions.
+
+3.1 Configuring Apache
+======================
+For configuring cache url edit /etc/httpd/conf.d/youtube_cache.conf and
+reload httpd service using
+[root@proxy root]# service httpd reload
+
+3.2 Configuring squid
+=====================
+Add the following lines to your squid.conf which is generally found in
+/etc/squid/squid.conf .
+
+#### BEGIN Add to squid.conf ####
+redirect_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
+redirect_children 10
+#### END Add to squid.conf ####
+
+Save squid.conf and reload the squid service using
+[root@proxy root]# service squid reload
+
+4. Bugs, Suggestions, Comments
+===========================
+Mail them to Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+
+5. Online Help
+===========
+1. How to configure squid http://fedora.co.in/content/how-configure-squid-proxy-server
+2. How to write custorm squid redirector in python http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
