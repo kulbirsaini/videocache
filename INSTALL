@@ -1,9 +1,9 @@
 1. Requires
 ===========
 1. squid
-2. httpd ( Apache ) or any other webserver
-3. python
-4. python-urlgrabber
+2. python
+3. python-urlgrabber
+4. python-iniparse
 
 2. Installation (for Redhat and derivatives)
 ============================================
@@ -14,11 +14,8 @@ b) Untar the package.
 c) Go to youtube_cache-x.x-x directory
 [root@localhost youtube_cache-x.x-x]# cd youtube_cache-x.x-x
 
-d) Copy youtube_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
-[root@localhost youtube_cache-x.x-x]# cp youtube_httpd.conf /etc/httpd/conf.d/youtube_cache.conf
-
-e) Copy youtube_sysconf.conf to /etc/sysconfig/youtube_cache.conf
-[root@localhost youtube_cache-x.x-x]# cp youtube_sysconf.conf /etc/sysconfig/youtube_cache.conf
+d) Copy youtube_sysconf.conf to /etc/sysconfig/youtube_cache.conf
+[root@localhost youtube_cache-x.x-x]# cp youtube_cache.conf /etc/sysconfig/youtube_cache.conf
 
 f) Copy youtube_cache directory to /etc/squid/
 [root@localhost youtube_cache-x.x-x]# cp -r youtube_cache /etc/squid/
@@ -37,28 +34,22 @@ g) Create directories to cache youtube videos
 
 3. Configuration
 ================
-Assuming you have squid and apache installed. The following configurations are
-required to get it running. Newbies are instructed to stick with default configuration
-as much as possible otherwise you'll be lost in directory permissions.
+Assuming you have squid installed. The following configurations are required to get it running.
+Newbies are instructed to stick with default configuration as much as possible otherwise
+you'll be lost in directory permissions.
 
-3.1 Configuring Apache
-======================
-For configuring cache url edit /etc/httpd/conf.d/youtube_cache.conf and
-reload httpd service using
-[root@proxy root]# service httpd reload
-
-3.2 Configuring squid
-=====================
 Add the following lines to your squid.conf which is generally found in
 /etc/squid/squid.conf .
 
 #### BEGIN Add to squid.conf ####
 redirect_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
-redirect_children 10
+redirect_children 20
 #### END Add to squid.conf ####
 
 Save squid.conf and reload the squid service using
 [root@proxy root]# service squid reload
+
+SEE README FILE FOR MORE CONFIGURATION OPTIONS.
 
 4. Bugs, Suggestions, Comments
 ===========================

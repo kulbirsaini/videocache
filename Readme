@@ -9,11 +9,16 @@
        arate directory (other than squid cache) in a browsable fashion and can serve the subsequent requests from the cache. It helps in sav-
        ing bandwidth and loading time.
 
-4. CONFIGURATION
-       To configure youtube_cache, you need to configure Apache Webserver (httpd), Proxy Server (squid), and the global youtube_cache config-
-       uration file. Below are the steps to configure youtube_cache.
+4. REQUIRES
+       1. python
+       2. python-iniparse
+       3. squid
 
-4.1 Squid Configuration
+5. CONFIGURATION
+       To configure youtube_cache, you need to configure Proxy Server (squid), and the global youtube_cache configuration file. Below are the
+       steps to configure youtube_cache.
+
+5.1 Squid Configuration
        To configure squid to use, youtube_cache as a redirector, you need to add the following lines to your sqiud configuration file (gener-
        ally found in /etc/squid/squid.conf )
 
@@ -22,14 +27,8 @@
        redirect_children 20
        # --END-- youtube_cache config #
 
-4.2 Apache Webserver (httpd) Configuration
-       Config file : /etc/httpd/conf.d/youtube_cache.conf
-       Modify the configuration file the way you want and reload the httpd service using the following command.
-
-       [root@localhost root]# service httpd reload
-
-4.3 youtube_cache Global Configuration
-       Config file : /etc/sysconfig/youtube_cache.conf
+5.2 youtube_cache Global Configuration
+       Config file : /etc/youtube_cache.conf
 
        cache_dir
               Directory to cache youtube videos.
@@ -43,31 +42,29 @@
               Proxy server to use for caching youtube videos.
               Default : http://localhost.localdomain:3128/
 
-       cache_url
-              URL to serve the cached youtube videos. If you change this, don’t forget to modify /etc/httpd/conf.d/youtube_cache.conf accord-
-              ingly and reload the httpd service.
-              Default : http://localhost.localdomain/youtube/
+       cache_host
+              Hostname or IP Address of the server from where the cached videos will be served.
+              Default : localhost.localdomain
 
        logfile
               File to log all the youtube_cache activities.
               Default : /var/log/squid/youtube_cache.log
 
-5. FILES
-       /etc/sysconfig/youtube_cache.conf
-       /etc/httpd/conf.d/youtube_cache.conf
+6. FILES
+       /etc/youtube_cache.conf
        /etc/squid/youtube_cache/
        /var/spool/squid/youtube/
        /var/log/squid/youtube_cache.log
 
-6. SEE ALSO
+7. SEE ALSO
        squid (8)
-       http://fedora.co.in/
+       http://fedora.co.in/youtube_cache/
        How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
        How to write custorm squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
 
-7. AUTHORS
+8. AUTHORS
        Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 
-8. BUGS
+9. BUGS
        Mail bugs/suggestions to Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 

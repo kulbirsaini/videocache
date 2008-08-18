@@ -23,6 +23,7 @@ __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
 __version__ = 0.1
 __docformat__ = 'plaintext'
 
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from config import readMainConfig, readStartupConfig
 import logging
 import md5
@@ -34,17 +35,23 @@ import time
 import urlgrabber
 import urlparse
 
-mainconf =  readMainConfig(readStartupConfig('/etc/sysconfig/youtube_cache.conf', '/'))
+mainconf =  readMainConfig(readStartupConfig('/etc/youtube_cache.conf', '/'))
 
 # cache_dir => Directory where squid this program will cache the youtube videos.
 cache_dir = mainconf.cache_dir + '/'
+# cachce_host => Hostname or IP Address of the caching server.
+cache_host = mainconf.cache_host
 # temp_dir => Directory to download packages temporarily
 temp_dir = mainconf.temp_dir + '/'
-# cache_url => The url for serving the cached youtube videos. 
-cache_url = mainconf.cache_url + '/'
 # logfile => Location where this program will log the actions.
 logfile = mainconf.logfile
+# http_proxy => The proxy to use for http requests.
 http_proxy = mainconf.http_proxy
+# http_port => The port to use dummy http server.
+http_port = mainconf.http_port
+
+cache_url = 'http://' + str(cache_host) + ':' + str(http_port) + '/' 
+
 redirect = '303'
 format = '%-12s %-12s %s'
 
@@ -55,6 +62,31 @@ logging.basicConfig(level=logging.DEBUG,
 log = logging.info
 
 grabber = urlgrabber.grabber.URLGrabber(proxies = {'http': http_proxy})
+
+class HTTPHandler(BaseHTTPRequestHandler):
+    """
+    Class to serve youtube videos via python webserver.
+    """
+    def do_GET(self):
+        try:
+            if self.path.endswith(".flv"):
+                f = open(cache_dir + '/' + self.path)
+                self.send_response(200)
+                self.send_header('Content-type', 'video/x-flv')
+                self.end_headers()
+                self.wfile.write(f.read())
+                f.close()
+                return
+        except IOError:
+            self.send_error(404,'File Not Found: %s' % self.path)
+
+# If python webserver is running already, it won't be started again.
+try:
+    server = HTTPServer(('', int(http_port)), HTTPHandler)
+    log(format%('-'*11, 'HTTP_SERVER', 'Starting python web server on port ' + str(http_port)))
+    server.serve_forever()
+except:
+    pass
 
 def fork(f):
     """This function is highly inspired from concurrency in python
@@ -137,6 +169,7 @@ def squid_part():
         if host.find('youtube.com') > -1 and path.find('get_video') > -1:
             log(format%('-'*11, 'URL_HIT', 'Request for ' + url[0]))
             new_url = cache_video(url[0]) + new_url
+            log(format%('-'*11, 'NEW_URL', new_url.strip('\n')))
         # Flush the new url to stdout for squid to process
         sys.stdout.write(new_url)
         sys.stdout.flush()
