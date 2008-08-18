@@ -24,14 +24,11 @@ Configuration parser and default values for yum.
 
 import os
 import warnings
-import rpm
 import copy
 import urlparse
 from parser import ConfigPreProcessor
 from iniparse.compat import NoSectionError, NoOptionError, ConfigParser
 from iniparse.compat import ParsingError
-import rpmUtils.transaction
-import rpmUtils.arch
 import Errors
 
 class Option(object):
@@ -573,10 +570,11 @@ class YumConf(StartupConf):
     Note: see also options inherited from StartupConf
     '''
     cache_dir = Option('/var/spool/squid/youtube/')
+    cache_host = Option('localhost.localdomain')
     temp_dir = Option('/var/spool/squid/youtube/temp/')
-    cache_url = Option('http://localhost.localdomain/youtube/')
     logfile = Option('/var/log/squid/youtube_cache.log')
     http_proxy = Option('http://localhost.localdomain:3128')
+    http_port = Option('8100')
 
     _reposlist = []
 
