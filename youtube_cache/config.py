@@ -561,7 +561,7 @@ class StartupConf(BaseConfig):
     errorlevel = IntOption(2, 0, 10)
 
     installroot = Option('/')
-    config_file_path = Option('/etc/sysconfig/intelligentmirror.conf')
+    config_file_path = Option('/etc/youtube_cache.conf')
 
 class YumConf(StartupConf):
     '''
@@ -569,12 +569,23 @@ class YumConf(StartupConf):
 
     Note: see also options inherited from StartupConf
     '''
-    cache_dir = Option('/var/spool/squid/youtube/')
+    # Global Options
+    base_dir = Option('/var/spool/squid/video_cache/')
+    temp_dir = Option('tmp')
     cache_host = Option('localhost.localdomain')
-    temp_dir = Option('/var/spool/squid/youtube/temp/')
+    rpc_host = Option('localhost.localdomain')
+    rpc_port = Option(9100)
     logfile = Option('/var/log/squid/youtube_cache.log')
-    http_proxy = Option('http://localhost.localdomain:3128')
-    http_port = Option('8100')
+    proxy = Option('http://localhost.localdomain:3128/')
+    proxy_username = Option()
+    proxy_password = Option()
+
+    # Youtube Specific Options
+    enable_youtube_cache = Option(1)
+    youtube_cache_dir = Option('youtube')
+    youtube_cache_size = Option(0)
+    max_youtube_video_size = Option(0)
+    min_youtube_video_size = Option(0)
 
     _reposlist = []
 
@@ -621,9 +632,9 @@ def readMainConfig(startupconf):
     yumconf.populate(startupconf._parser, 'main')
 
     # Apply the installroot to directory options
-    for option in ('cache_dir', 'logfile', 'temp_dir'):
-        path = getattr(yumconf, option)
-        setattr(yumconf, option, yumconf.installroot + path)
+    option = 'base_dir'
+    path = getattr(yumconf, option)
+    setattr(yumconf, option, yumconf.installroot + path)
     
     # items related to the originating config file
     yumconf.config_file_path = startupconf.config_file_path
@@ -656,9 +667,3 @@ def getOption(conf, section, name, option):
         return option.default
     return option.parse(val)
 
-#def main():
-#    mainconf = readMainConfig(readStartupConfig('/etc/sysconfig/intelligentmirror.conf', '/'))
-#    print mainconf
-#
-#if __name__ == '__main__':
-#    main()
