@@ -28,65 +28,91 @@ from config import readMainConfig, readStartupConfig
 import logging
 import md5
 import os
-import rfc822
 import stat
 import sys
-import time
 import urlgrabber
 import urlparse
+from xmlrpclib import ServerProxy
+from SimpleXMLRPCServer import SimpleXMLRPCServer
 
 mainconf =  readMainConfig(readStartupConfig('/etc/youtube_cache.conf', '/'))
 
-# cache_dir => Directory where squid this program will cache the youtube videos.
-cache_dir = mainconf.cache_dir + '/'
-# cachce_host => Hostname or IP Address of the caching server.
+# Gloabl Options
+base_dir = mainconf.base_dir
+temp_dir = os.path.join(base_dir, mainconf.temp_dir)
 cache_host = mainconf.cache_host
-# temp_dir => Directory to download packages temporarily
-temp_dir = mainconf.temp_dir + '/'
-# logfile => Location where this program will log the actions.
+rpc_host = mainconf.rpc_host
+rpc_port = int(mainconf.rpc_port)
 logfile = mainconf.logfile
-# http_proxy => The proxy to use for http requests.
-http_proxy = mainconf.http_proxy
-# http_port => The port to use dummy http server.
-http_port = mainconf.http_port
-
-cache_url = 'http://' + str(cache_host) + ':' + str(http_port) + '/' 
+proxy = mainconf.proxy
+proxy_username = mainconf.proxy_username
+proxy_password = mainconf.proxy_password
 
 redirect = '303'
-format = '%-12s %-12s %s'
+format = '%-12s %-12s %-10s %s'
+cache_url = 'http://' + str(cache_host) + '/' 
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    filename=logfile,
-                    filemode='a')
-log = logging.info
+# Youtube specific options
+enable_youtube_cache = int(mainconf.enable_youtube_cache)
+youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
+youtube_cache_size = int(mainconf.youtube_cache_size)
+max_youtube_video_size = int(mainconf.max_youtube_video_size)
+min_youtube_video_size = int(mainconf.min_youtube_video_size)
 
-grabber = urlgrabber.grabber.URLGrabber(proxies = {'http': http_proxy})
+def set_proxy():
+    if proxy_username and proxy_password:
+        proxy_parts = urlparse.urlsplit(proxy)
+        new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+    else:
+        new_proxy = proxy
+    return urlgrabber.grabber.URLGrabber(proxies = {'http': new_proxy})
 
-class HTTPHandler(BaseHTTPRequestHandler):
+def set_logging():
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(levelname)s %(message)s',
+                        filename=logfile,
+                        filemode='a')
+    return logging.info
+
+def dir_size(dir):
     """
-    Class to serve youtube videos via python webserver.
+    This is not a standard function to calculate the size of a directory.
+    This function will only give the sum of sizes of all the files in 'dir'.
     """
-    def do_GET(self):
-        try:
-            if self.path.endswith(".flv"):
-                f = open(cache_dir + '/' + self.path)
-                self.send_response(200)
-                self.send_header('Content-type', 'video/x-flv')
-                self.end_headers()
-                self.wfile.write(f.read())
-                f.close()
-                return
-        except IOError:
-            self.send_error(404,'File Not Found: %s' % self.path)
+    # Initialize with 4096bytes as the size of an empty dir is 4096bytes.
+    size = 4096
+    try:
+        for file in os.listdir(dir):
+            size += int(os.stat(os.path.join(dir, file))[6])
+    except:
+        return -1
+    return size / (1024*1024)
 
-# If python webserver is running already, it won't be started again.
-try:
-    server = HTTPServer(('', int(http_port)), HTTPHandler)
-    log(format%('-'*11, 'HTTP_SERVER', 'Starting python web server on port ' + str(http_port)))
-    server.serve_forever()
-except:
-    pass
+class Bucket:
+    """
+    This class is for sharing the current packages being downloading
+    across various instances of intelligentmirror via XMLRPC.
+    """
+    def __init__(self, packages = []):
+        self.packages = packages
+        pass
+
+    def get(self):
+        return self.packages
+
+    def set(self, packages):
+        self.packages = packages
+        return self.packages
+
+    def add(self, package):
+        if package not in self.packages:
+            self.packages.append(package)
+        return self.packages
+
+    def remove(self, package):
+        if package in self.packages:
+            self.packages.remove(package)
+        return self.packages
 
 def fork(f):
     """This function is highly inspired from concurrency in python
@@ -95,6 +121,8 @@ def fork(f):
     # Perform double fork
     r = ''
     if os.fork(): # Parent
+        # Wait for the child so that it doesn't get defunct
+        os.wait()
         # Return a function
         return  lambda *x, **kw: r 
 
@@ -115,42 +143,75 @@ def fork(f):
 
     return wrapper
 
-def download_from_source(url, path, mode):
+def remove(query):
+    packages = bucket.get()
+    md5id = md5.md5(query).hexdigest()
+    bucket.remove(md5id)
+
+def download_from_source(url, path, mode, video_id, type, max_size, min_size):
     """This function downloads the file from remote source and caches it."""
+    if max_size or min_size:
+        try:
+            log(format%(video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
+            remote_file = grabber.urlopen(url)
+            remote_size = int(remote_file.info().getheader('content-length')) / 1024
+            remote_file.close()
+            log(format%(video_id, 'GOT_SIZE', type, 'Successfully retrieved the size of video.'))
+        except urlgrabber.grabber.URLGrabError, e:
+            log(format%(video_id, 'URL_ERROR', type, 'Could not retrieve size of the video.'))
+            return
+
+        if max_size and remote_size > max_size:
+            log(format%(video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
+            return
+        if min_size and remote_size < min_size:
+            log(format%(video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
+            return
+
     try:
         download_path = os.path.join(temp_dir, md5.md5(os.path.basename(path)).hexdigest())
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
         os.rename(file, path)
         os.chmod(path, mode)
-        log(format%(os.path.basename(path).split('.')[0], 'DOWNLOAD', 'Package was downloaded and cached.'))
+        remove(video_id)
+        log(format%(video_id, 'DOWNLOAD', type, 'Video was downloaded and cached.'))
     except urlgrabber.grabber.URLGrabError, e:
-        log(format%(video_id, 'URL_ERROR', 'An error occured while retrieving the package.'))
+        remove(video_id)
+        log(format%(video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
+        os.unlink(download_path)
 
-def cache_video(url):
+    return
+
+def cache_video(url, type):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
+    global cache_url
     mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
-    params = urlparse.urlsplit(url)[3]
-    video_id = params.split('&')[0].split('=')[1]
-    video = cache_dir + video_id + '.flv'
-    if os.path.isfile(video):
-        log(format%(video_id, 'CACHE_HIT', 'Requested package was found in cache.'))
-        cur_mode = os.stat(video)[stat.ST_MODE]
+    if type == 'YOUTUBE':
+        params = urlparse.urlsplit(url)[3]
+        video_id = params.split('&')[0].split('=')[1]
+        path = os.path.join(youtube_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_youtube_video_size
+        min_size = min_youtube_video_size
+
+    if os.path.isfile(path):
+        log(format%(video_id, 'CACHE_HIT', type, 'Requested package was found in cache.'))
+        cur_mode = os.stat(path)[stat.ST_MODE]
+        remove(video_id)
         if stat.S_IMODE(cur_mode) == mode:
-            log(format%(video_id, 'CACHE_SERVE', 'Package was served from cache.'))
-            return redirect + ':' + cache_url + video_id + '.flv'
-    elif os.path.isfile(os.path.join(temp_dir, md5.md5(os.path.basename(video)).hexdigest())):
-        log(format%(video_id, 'INCOMPLETE', 'Video is still being downloaded.'))
-        return ''
+            log(format%(video_id, 'CACHE_SERVE', type, 'Package was served from cache.'))
+            args = '&'.join(params.split('&')[1:])
+            return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
     else:
-        log(format%(video_id, 'CACHE_MISS', 'Requested package was not found in cache.'))
+        log(format%(video_id, 'CACHE_MISS', type, 'Requested package was not found in cache.'))
         forked = fork(download_from_source)
-        forked(url, video, mode)
-        return ''
-    return '' 
+        forked(url, path, mode, video_id, type, max_size, min_size)
+
+    return url
 
 def squid_part():
     """This function will tap requests from squid. If the request is for a youtube
@@ -161,43 +222,44 @@ def squid_part():
     while True:
         # Read url from stdin ( this is provided by squid)
         url = sys.stdin.readline().strip().split(' ')
-        new_url = '\n';
+        new_url = url[0];
         # Retrieve the basename from the request url
         fragments = urlparse.urlsplit(url[0])
         host = fragments[1]
         path = fragments[2]
-        if host.find('youtube.com') > -1 and path.find('get_video') > -1:
-            log(format%('-'*11, 'URL_HIT', 'Request for ' + url[0]))
-            new_url = cache_video(url[0]) + new_url
-            log(format%('-'*11, 'NEW_URL', new_url.strip('\n')))
+        params = fragments[3]
+        video_id = params.split('&')[0].split('=')[1]
+        if enable_youtube_cache and (youtube_cache_size == 0 or dir_size(youtube_cache_dir) < youtube_cache_size):
+            if host.find('youtube.com') > -1 and path.find('get_video') > -1:
+                type = 'YOUTUBE'
+                md5id = md5.md5(video_id).hexdigest()
+                videos = bucket.get()
+                if md5id in videos:
+                    pass
+                else:
+                    bucket.add(md5id)
+                    log(format%('-'*12, 'URL_HIT', type, 'Request for ' + url[0]))
+                    new_url = cache_video(url[0], type)
+                    log(format%('-'*12, 'NEW_URL', type, new_url))
         # Flush the new url to stdout for squid to process
-        sys.stdout.write(new_url)
+        sys.stdout.write(new_url + '\n')
         sys.stdout.flush()
 
-def cmd_squid_part():
-    """This function will tap requests from squid. If the request is for a youtube
-    video, they will be forwarded to function cache_video() for further processing.
-    Finally this function will flush a cache_url if package found in cache or a
-    blank line in case on a miss to stdout. This is the only function where we deal
-    with squid, rest of the program/project doesn't interact with squid at all."""
-    while True:
-        # Read url from stdin ( this is provided by squid)
-        url = sys.argv[1].strip().split(' ')
-        new_url = '\n';
-        # Retrieve the basename from the request url
-        fragments = urlparse.urlsplit(url[0])
-        host = fragments[1]
-        path = fragments[2]
-        if host.find('youtube.com') > -1 and path.find('get_video') > -1:
-            log(format%('-'*11, 'URL_HIT', 'Request for ' + url[0]))
-            new_url = cache_video(url[0]) + new_url
-        # Flush the new url to stdout for squid to process
-        print 'new_url:', new_url.strip()
-        break
-
 if __name__ == '__main__':
+    global grabber, log, bucket
+    grabber = set_proxy()
+    log = set_logging()
+
+    # If XMLRPCServer is running already, don't start it again
+    try:
+        bucket = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        list = bucket.get()
+    except:
+        server = SimpleXMLRPCServer((rpc_host, rpc_port))
+        server.register_instance(Bucket())
+        log(format%('-'*12, 'XMLRPCServer', '-'*10, 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
+        server.serve_forever()
+
     # For testing with squid, use this function
     squid_part()
-    # For testing on command line, use this function
-    #cmd_squid_part()
 
