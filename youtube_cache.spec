@@ -33,6 +33,7 @@ echo "No building... its python..." > /dev/null
 rm -rf $RPM_BUILD_ROOT/
 mkdir -p $RPM_BUILD_ROOT
 install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
+install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
 install -m 700 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youtube/
@@ -64,6 +65,13 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Tue Sep 30 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+- Fixed bugs related to large video files. Implemened all the options related
+- to video size. Removed python bases webserver as it was creating problems in
+- seeking in large video files. Added httpd dependency again. Now XMLRPC will
+- be used for communcations among forked daemons. Added support for proxy
+- authentication.
+
 * Sun Aug 24 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 - A new set of configuration options. Not implemented yet. On TODO list.
 
