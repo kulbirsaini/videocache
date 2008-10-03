@@ -587,6 +587,13 @@ class YumConf(StartupConf):
     max_youtube_video_size = Option(0)
     min_youtube_video_size = Option(0)
 
+    # Metacafe Specific Options
+    enable_metacafe_cache = Option(1)
+    metacafe_cache_dir = Option('metacafe')
+    metacafe_cache_size = Option(0)
+    max_metacafe_video_size = Option(0)
+    min_metacafe_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
