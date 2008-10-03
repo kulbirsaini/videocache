@@ -31,6 +31,7 @@ import os
 import stat
 import sys
 import urlgrabber
+import urllib2
 import urlparse
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -58,6 +59,13 @@ youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
 youtube_cache_size = int(mainconf.youtube_cache_size)
 max_youtube_video_size = int(mainconf.max_youtube_video_size)
 min_youtube_video_size = int(mainconf.min_youtube_video_size)
+
+# Metacafe specific options
+enable_metacafe_cache = int(mainconf.enable_metacafe_cache)
+metacafe_cache_dir = os.path.join(base_dir, mainconf.metacafe_cache_dir)
+metacafe_cache_size = int(mainconf.metacafe_cache_size)
+max_metacafe_video_size = int(mainconf.max_metacafe_video_size)
+min_metacafe_video_size = int(mainconf.min_metacafe_video_size)
 
 def set_proxy():
     if proxy_username and proxy_password:
@@ -183,7 +191,7 @@ def download_from_source(url, path, mode, video_id, type, max_size, min_size):
 
     return
 
-def cache_video(url, type):
+def cache_video(url, type, video_id):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
     # The expected mode of the cached file, so that it is readable by apache
@@ -192,22 +200,27 @@ def cache_video(url, type):
     mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
     if type == 'YOUTUBE':
         params = urlparse.urlsplit(url)[3]
-        video_id = params.split('&')[0].split('=')[1]
         path = os.path.join(youtube_cache_dir, video_id) + '.flv'
         cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
         max_size = max_youtube_video_size
         min_size = min_youtube_video_size
 
+    if type == 'METACAFE':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(metacafe_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_metacafe_video_size
+        min_size = min_metacafe_video_size
+
     if os.path.isfile(path):
-        log(format%(video_id, 'CACHE_HIT', type, 'Requested package was found in cache.'))
+        log(format%(video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
         remove(video_id)
         if stat.S_IMODE(cur_mode) == mode:
-            log(format%(video_id, 'CACHE_SERVE', type, 'Package was served from cache.'))
-            args = '&'.join(params.split('&')[1:])
+            log(format%(video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
             return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
     else:
-        log(format%(video_id, 'CACHE_MISS', type, 'Requested package was not found in cache.'))
+        log(format%(video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
         forked = fork(download_from_source)
         forked(url, path, mode, video_id, type, max_size, min_size)
 
@@ -228,9 +241,9 @@ def squid_part():
         host = fragments[1]
         path = fragments[2]
         params = fragments[3]
-        video_id = params.split('&')[0].split('=')[1]
         if enable_youtube_cache and (youtube_cache_size == 0 or dir_size(youtube_cache_dir) < youtube_cache_size):
             if host.find('youtube.com') > -1 and path.find('get_video') > -1:
+                video_id = params.split('&')[0].split('=')[1]
                 type = 'YOUTUBE'
                 md5id = md5.md5(video_id).hexdigest()
                 videos = bucket.get()
@@ -238,9 +251,24 @@ def squid_part():
                     pass
                 else:
                     bucket.add(md5id)
-                    log(format%('-'*12, 'URL_HIT', type, 'Request for ' + url[0]))
-                    new_url = cache_video(url[0], type)
-                    log(format%('-'*12, 'NEW_URL', type, new_url))
+                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
+                    new_url = cache_video(url[0], type, video_id)
+                    log(format%(video_id, 'NEW_URL', type, new_url))
+        
+        if enable_metacafe_cache and (metacafe_cache_size == 0 or dir_size(metacafe_cache_dir) < metacafe_cache_size):
+            if host.find('v.mccont.com') > -1 and path.find('ItemFiles') > -1:
+                type = 'METACAFE'
+                video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
+                md5id = md5.md5(video_id).hexdigest()
+                videos = bucket.get()
+                if md5id in videos:
+                    pass
+                else:
+                    bucket.add(md5id)
+                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
+                    new_url = cache_video(url[0], type, video_id)
+                    log(format%(video_id, 'NEW_URL', type, new_url))
+        
         # Flush the new url to stdout for squid to process
         sys.stdout.write(new_url + '\n')
         sys.stdout.flush()
