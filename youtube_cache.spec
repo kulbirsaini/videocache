@@ -1,9 +1,9 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    0.4
+Version:    0.5
 Release:    1
-Summary:    Squid url rewriter plugin to cache Youtube Videos.
+Summary:    Squid url rewriter plugin to cache Youtube and Metacafe Videos.
 License:    GPL
 Group:      Applications/Internet
 URL:        http://fedora.co.in/youtube_cache/
@@ -18,9 +18,9 @@ Requires:   httpd
 
 %description
 youtube_cache is a squid url rewriter plugin written in Python to facilitate
-youtube video caching. It can cache youtube videos in a separate directory
-(other than squid cache) in a browsable fashion and can serve the subsequent
-requests from the cache. It helps in saving bandwidth and loading time.
+youtube and metacafe video caching. It can cache youtube/metacafe videos in a
+separate directory (other than squid cache) in a browsable fashion and can serve
+the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
 %prep
 
@@ -37,6 +37,7 @@ install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
 install -m 700 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/metacafe/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/tmp/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
@@ -65,6 +66,16 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Sat Oct 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated INSTALL/Readme/Spec/manpage files.
+- Bumped to version 0.5 .
+
+* Sat Oct 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented Metacafe.com video caching. Need to update INSTALL and spec file.
+
+* Sat Oct 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented Metacafe.com video caching. Need to update INSTALL and spec file.
+
 * Tue Sep 30 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 - Fixed bugs related to large video files. Implemened all the options related
 - to video size. Removed python bases webserver as it was creating problems in
