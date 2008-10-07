@@ -27,7 +27,7 @@ f) Copy youtube_cache directory to /etc/squid/
 g) Create directories to cache youtube videos
 [root@localhost root]# cd /var/spool/squid/
 [root@localhost squid]# mkdir video_cache
-[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe
+[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion
 [root@localhost squid]# chown -R squid:squid video_cache
 [root@localhost squid]# chmod -R 755 video_cache
 
@@ -47,9 +47,11 @@ Add the following lines to your squid.conf which is generally found in
 url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
 url_rewrite_children 20
 acl youtube_query url_regex -i \.youtube\.com\/get_video
+acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
 acl metacafe_query dstdomain v.mccont.com
 url_rewrite_access allow youtube_query
 url_rewrite_access allow metacafe_query
+url_rewrite_access allow dailymotion_query
 redirector_bypass on
 # --END-- youtube_cache config for squid
 

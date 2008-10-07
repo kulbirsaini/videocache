@@ -1,9 +1,9 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    0.5
+Version:    0.6
 Release:    1
-Summary:    Squid url rewriter plugin to cache Youtube and Metacafe Videos.
+Summary:    Squid url rewriter plugin to cache Youtube, Metacafe and Dailymotion Videos.
 License:    GPL
 Group:      Applications/Internet
 URL:        http://fedora.co.in/youtube_cache/
@@ -17,8 +17,8 @@ Requires:   squid
 Requires:   httpd
 
 %description
-youtube_cache is a squid url rewriter plugin written in Python to facilitate
-youtube and metacafe video caching. It can cache youtube/metacafe videos in a
+youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube,
+metacafe and dailymotion video caching. It can cache youtube/metacafe/dailymotion videos in a
 separate directory (other than squid cache) in a browsable fashion and can serve
 the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
@@ -38,6 +38,7 @@ install -m 700 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/metacafe/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/dailymotion/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/tmp/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/

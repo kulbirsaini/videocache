@@ -67,6 +67,13 @@ metacafe_cache_size = int(mainconf.metacafe_cache_size)
 max_metacafe_video_size = int(mainconf.max_metacafe_video_size)
 min_metacafe_video_size = int(mainconf.min_metacafe_video_size)
 
+# Dailymotion specific options
+enable_dailymotion_cache = int(mainconf.enable_dailymotion_cache)
+dailymotion_cache_dir = os.path.join(base_dir, mainconf.dailymotion_cache_dir)
+dailymotion_cache_size = int(mainconf.dailymotion_cache_size)
+max_dailymotion_video_size = int(mainconf.max_dailymotion_video_size)
+min_dailymotion_video_size = int(mainconf.min_dailymotion_video_size)
+
 def set_proxy():
     if proxy_username and proxy_password:
         proxy_parts = urlparse.urlsplit(proxy)
@@ -212,6 +219,13 @@ def cache_video(url, type, video_id):
         max_size = max_metacafe_video_size
         min_size = min_metacafe_video_size
 
+    if type == 'DAILYMOTION':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(dailymotion_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_dailymotion_video_size
+        min_size = min_dailymotion_video_size
+
     if os.path.isfile(path):
         log(format%(video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -241,6 +255,7 @@ def squid_part():
         host = fragments[1]
         path = fragments[2]
         params = fragments[3]
+        # Youtube caching is handled here.
         if enable_youtube_cache and (youtube_cache_size == 0 or dir_size(youtube_cache_dir) < youtube_cache_size):
             if host.find('youtube.com') > -1 and path.find('get_video') > -1:
                 video_id = params.split('&')[0].split('=')[1]
@@ -255,10 +270,26 @@ def squid_part():
                     new_url = cache_video(url[0], type, video_id)
                     log(format%(video_id, 'NEW_URL', type, new_url))
         
+        # Metacafe caching is handled here.
         if enable_metacafe_cache and (metacafe_cache_size == 0 or dir_size(metacafe_cache_dir) < metacafe_cache_size):
             if host.find('v.mccont.com') > -1 and path.find('ItemFiles') > -1:
                 type = 'METACAFE'
                 video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
+                md5id = md5.md5(video_id).hexdigest()
+                videos = bucket.get()
+                if md5id in videos:
+                    pass
+                else:
+                    bucket.add(md5id)
+                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
+                    new_url = cache_video(url[0], type, video_id)
+                    log(format%(video_id, 'NEW_URL', type, new_url))
+        
+        # Dailymotion caching is handled here.
+        if enable_dailymotion_cache and (dailymotion_cache_size == 0 or dir_size(dailymotion_cache_dir) < dailymotion_cache_size):
+            if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('on2') > -1:
+                video_id = path.split('/')[-1]
+                type = 'DAILYMOTION'
                 md5id = md5.md5(video_id).hexdigest()
                 videos = bucket.get()
                 if md5id in videos:
