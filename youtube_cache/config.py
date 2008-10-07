@@ -580,26 +580,33 @@ class YumConf(StartupConf):
     proxy_username = Option()
     proxy_password = Option()
 
-    # Youtube Specific Options
+    # Youtube.com Specific Options
     enable_youtube_cache = Option(1)
     youtube_cache_dir = Option('youtube')
     youtube_cache_size = Option(0)
     max_youtube_video_size = Option(0)
     min_youtube_video_size = Option(0)
 
-    # Metacafe Specific Options
+    # Metacafe.com Specific Options
     enable_metacafe_cache = Option(1)
     metacafe_cache_dir = Option('metacafe')
     metacafe_cache_size = Option(0)
     max_metacafe_video_size = Option(0)
     min_metacafe_video_size = Option(0)
 
-    # Dailymotion Specific Options
+    # Dailymotion.com Specific Options
     enable_dailymotion_cache = Option(1)
     dailymotion_cache_dir = Option('dailymotion')
     dailymotion_cache_size = Option(0)
     max_dailymotion_video_size = Option(0)
     min_dailymotion_video_size = Option(0)
+
+    # Google.com Specific Options
+    enable_google_cache = Option(1)
+    google_cache_dir = Option('google')
+    google_cache_size = Option(0)
+    max_google_video_size = Option(0)
+    min_google_video_size = Option(0)
 
     _reposlist = []
 
