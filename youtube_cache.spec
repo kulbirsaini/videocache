@@ -67,6 +67,10 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Tue Oct 7 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+-Implemented caching for yet another video site dailymotion.com. 
+-Working absolutely fine. Bumped to version 0.6.
+
 * Sat Oct 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated INSTALL/Readme/Spec/manpage files.
 - Bumped to version 0.5 .
