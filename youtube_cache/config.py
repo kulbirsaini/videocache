@@ -594,6 +594,13 @@ class YumConf(StartupConf):
     max_metacafe_video_size = Option(0)
     min_metacafe_video_size = Option(0)
 
+    # Dailymotion Specific Options
+    enable_dailymotion_cache = Option(1)
+    dailymotion_cache_dir = Option('dailymotion')
+    dailymotion_cache_size = Option(0)
+    max_dailymotion_video_size = Option(0)
+    min_dailymotion_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
