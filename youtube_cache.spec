@@ -1,9 +1,9 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    0.6
+Version:    0.7
 Release:    1
-Summary:    Squid url rewriter plugin to cache Youtube, Metacafe and Dailymotion Videos.
+Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion and Google Videos.
 License:    GPL
 Group:      Applications/Internet
 URL:        http://fedora.co.in/youtube_cache/
@@ -17,8 +17,8 @@ Requires:   squid
 Requires:   httpd
 
 %description
-youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube,
-metacafe and dailymotion video caching. It can cache youtube/metacafe/dailymotion videos in a
+youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe,
+dailymotion and google video caching. It can cache youtube/metacafe/dailymotion/google videos in a
 separate directory (other than squid cache) in a browsable fashion and can serve
 the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
@@ -39,6 +39,7 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/metacafe/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/dailymotion/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/google/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/tmp/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
@@ -68,8 +69,14 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 
 %changelog
 * Tue Oct 7 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
--Implemented caching for yet another video site dailymotion.com. 
--Working absolutely fine. Bumped to version 0.6.
+- Google Video caching implemented. Need to update spec/INSTALL/Readme/manpage files.
+
+* Tue Oct 7 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated spec file.
+
+* Tue Oct 7 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented caching for yet another video site dailymotion.com. 
+- Working absolutely fine. Bumped to version 0.6.
 
 * Sat Oct 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated INSTALL/Readme/Spec/manpage files.
