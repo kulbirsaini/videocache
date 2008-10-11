@@ -68,6 +68,15 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Sat Oct 11 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Clients access the video files are logged for statistics.
+- Logfile size introduced to control logging.
+- Logrotate facility for rotating logfiles added.
+- Added video file size to logging for statistics.
+- Whenever cache is full, warning will be logged now.
+- Bug fix : If cache is full, the videos from cache will be served.
+- Previously, the plugin used to exit if the cache was full.
+
 * Tue Oct 7 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Google Video caching implemented. Need to update spec/INSTALL/Readme/manpage files.
 
