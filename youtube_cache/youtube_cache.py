@@ -26,6 +26,7 @@ __docformat__ = 'plaintext'
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from config import readMainConfig, readStartupConfig
 import logging
+import logging.handlers
 import md5
 import os
 import stat
@@ -45,12 +46,14 @@ cache_host = mainconf.cache_host
 rpc_host = mainconf.rpc_host
 rpc_port = int(mainconf.rpc_port)
 logfile = mainconf.logfile
+max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
+max_logfile_backups = int(mainconf.max_logfile_backups)
 proxy = mainconf.proxy
 proxy_username = mainconf.proxy_username
 proxy_password = mainconf.proxy_password
 
 redirect = '303'
-format = '%-19s %-12s %-10s %s'
+format = '%s %s %s %s %s'
 cache_url = 'http://' + str(cache_host) + '/' 
 
 # Youtube specific options
@@ -170,24 +173,24 @@ def remove(query):
     md5id = md5.md5(query).hexdigest()
     bucket.remove(md5id)
 
-def download_from_source(url, path, mode, video_id, type, max_size, min_size):
+def download_from_source(client, url, path, mode, video_id, type, max_size, min_size):
     """This function downloads the file from remote source and caches it."""
     if max_size or min_size:
         try:
-            log(format%(video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
+            log(format%(client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
             remote_file = grabber.urlopen(url)
             remote_size = int(remote_file.info().getheader('content-length')) / 1024
             remote_file.close()
-            log(format%(video_id, 'GOT_SIZE', type, 'Successfully retrieved the size of video.'))
+            log(format%(client, video_id, 'GOT_SIZE', type, 'Successfully retrieved the size of video.'))
         except urlgrabber.grabber.URLGrabError, e:
-            log(format%(video_id, 'URL_ERROR', type, 'Could not retrieve size of the video.'))
+            log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
             return
 
         if max_size and remote_size > max_size:
-            log(format%(video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
+            log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
             return
         if min_size and remote_size < min_size:
-            log(format%(video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
+            log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
             return
 
     try:
@@ -197,15 +200,16 @@ def download_from_source(url, path, mode, video_id, type, max_size, min_size):
         os.rename(file, path)
         os.chmod(path, mode)
         remove(video_id)
-        log(format%(video_id, 'DOWNLOAD', type, 'Video was downloaded and cached.'))
+        size = os.stat(path)[6]
+        log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
     except urlgrabber.grabber.URLGrabError, e:
         remove(video_id)
-        log(format%(video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
+        log(format%(client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
         os.unlink(download_path)
 
     return
 
-def cache_video(url, type, video_id):
+def cache_video(client, url, type, video_id):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
     # The expected mode of the cached file, so that it is readable by apache
@@ -218,6 +222,8 @@ def cache_video(url, type, video_id):
         cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
         max_size = max_youtube_video_size
         min_size = min_youtube_video_size
+        cache_size = youtube_cache_size
+        cache_dir = youtube_cache_dir
 
     if type == 'METACAFE':
         params = urlparse.urlsplit(url)[3]
@@ -225,6 +231,8 @@ def cache_video(url, type, video_id):
         cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
         max_size = max_metacafe_video_size
         min_size = min_metacafe_video_size
+        cache_size = metacafe_cache_size
+        cache_dir = metacafe_cache_dir
 
     if type == 'DAILYMOTION':
         params = urlparse.urlsplit(url)[3]
@@ -232,6 +240,8 @@ def cache_video(url, type, video_id):
         cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
         max_size = max_dailymotion_video_size
         min_size = min_dailymotion_video_size
+        cache_size = dailymotion_cache_size
+        cache_dir = dailymotion_cache_dir
 
     if type == 'GOOGLE':
         params = urlparse.urlsplit(url)[3]
@@ -239,18 +249,22 @@ def cache_video(url, type, video_id):
         cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
         max_size = max_google_video_size
         min_size = min_google_video_size
+        cache_size = google_cache_size
+        cache_dir = google_cache_dir
 
     if os.path.isfile(path):
-        log(format%(video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
+        log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
         remove(video_id)
         if stat.S_IMODE(cur_mode) == mode:
-            log(format%(video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
+            log(format%(client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
             return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
-    else:
-        log(format%(video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
+    elif cache_size == 0 or dir_size(cache_dir) < cache_size:
+        log(format%(client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
         forked = fork(download_from_source)
-        forked(url, path, mode, video_id, type, max_size, min_size)
+        forked(client, url, path, mode, video_id, type, max_size, min_size)
+    else:
+        log(format%(client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
 
     return url
 
@@ -269,8 +283,10 @@ def squid_part():
         host = fragments[1]
         path = fragments[2]
         params = fragments[3]
+        client = url[1].split('/')[0]
+        log(format%(client, '-', 'REQUEST', '-', url[0]))
         # Youtube.com caching is handled here.
-        if enable_youtube_cache and (youtube_cache_size == 0 or dir_size(youtube_cache_dir) < youtube_cache_size):
+        if enable_youtube_cache:
             if host.find('youtube.com') > -1 and path.find('get_video') > -1:
                 video_id = params.split('&')[0].split('=')[1]
                 type = 'YOUTUBE'
@@ -280,12 +296,12 @@ def squid_part():
                     pass
                 else:
                     bucket.add(md5id)
-                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
-                    new_url = cache_video(url[0], type, video_id)
-                    log(format%(video_id, 'NEW_URL', type, new_url))
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
         
         # Metacafe.com caching is handled here.
-        if enable_metacafe_cache and (metacafe_cache_size == 0 or dir_size(metacafe_cache_dir) < metacafe_cache_size):
+        if enable_metacafe_cache:
             if host.find('v.mccont.com') > -1 and path.find('ItemFiles') > -1:
                 type = 'METACAFE'
                 video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
@@ -295,12 +311,12 @@ def squid_part():
                     pass
                 else:
                     bucket.add(md5id)
-                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
-                    new_url = cache_video(url[0], type, video_id)
-                    log(format%(video_id, 'NEW_URL', type, new_url))
+                    log(format%(client ,video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
 
         # Dailymotion.com caching is handled here.
-        if enable_dailymotion_cache and (dailymotion_cache_size == 0 or dir_size(dailymotion_cache_dir) < dailymotion_cache_size):
+        if enable_dailymotion_cache:
             if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('on2') > -1:
                 video_id = path.split('/')[-1]
                 type = 'DAILYMOTION'
@@ -310,12 +326,12 @@ def squid_part():
                     pass
                 else:
                     bucket.add(md5id)
-                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
-                    new_url = cache_video(url[0], type, video_id)
-                    log(format%(video_id, 'NEW_URL', type, new_url))
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client ,video_id, 'NEW_URL', type, new_url))
         
         # Google.com caching is handled here.
-        if enable_google_cache and (google_cache_size == 0 or dir_size(google_cache_dir) < google_cache_size):
+        if enable_google_cache:
             if host.find('vp.video.google.com') > -1 and path.find('videodownload') > -1:
                 video_id = params.split('&')[-1].split('=')[-1]
                 type = 'GOOGLE'
@@ -325,9 +341,9 @@ def squid_part():
                     pass
                 else:
                     bucket.add(md5id)
-                    log(format%(video_id, 'URL_HIT', type, 'Request for ' + url[0]))
-                    new_url = cache_video(url[0], type, video_id)
-                    log(format%(video_id, 'NEW_URL', type, new_url))
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
         
         # Flush the new url to stdout for squid to process
         sys.stdout.write(new_url + '\n')
@@ -345,7 +361,11 @@ if __name__ == '__main__':
     except:
         server = SimpleXMLRPCServer((rpc_host, rpc_port))
         server.register_instance(Bucket())
-        log(format%('-'*12, 'XMLRPCServer', '-'*10, 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
+        log(format%('-', '-', 'XMLRPCServer', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
+        # Rotate logfiles it the size is more than the max_logfile_size.
+        if os.stat(logfile)[6] > max_logfile_size:
+            roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
+            roll.doRollover()
         server.serve_forever()
 
     # For testing with squid, use this function
