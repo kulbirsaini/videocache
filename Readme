@@ -1,14 +1,14 @@
 1. NAME
-       youtube_cache - Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion and Google Videos.
+       youtube_cache - Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion, Google, Redtube and Xtube Videos.
 
 2. SYNOPSIS
        To be used to with squid as a url rewriter plugin.
 
 3. DESCRIPTION
-       youtube_cache  is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion and google
-       video caching. It can cache youtube/metacafe/dailymotion/google videos in a separate directory (other than squid cache)
-       in  a  browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading
-       time.
+       youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube,  metacafe,  dailymotion,  google,
+       redtube  and  xtube  video caching. It can cache youtube/metacafe/dailymotion/google/redtube/xtube videos in a separate
+       directory (other than squid cache) in a browsable fashion and can serve the subsequent  requests  from  the  cache.  It
+       helps in saving bandwidth and loading time.
 
 4. REQUIRES
        1. python
@@ -18,11 +18,11 @@
        4. Apache or any other Web Server
 
 5. CONFIGURATION
-       To configure youtube_cache, you need to configure Apache (httpd) or any other Webserver, Proxy Server (squid), and  the
+       To  configure youtube_cache, you need to configure Apache (httpd) or any other Webserver, Proxy Server (squid), and the
        global youtube_cache configuration file. Below are the steps to configure youtube_cache.
 
 5.1 Squid Configuration
-       To  configure  squid  to use youtube_cache as a url rewriter program, you need to add the following lines to your sqiud
+       To configure squid to use youtube_cache as a url rewriter program, you need to add the following lines  to  your  sqiud
        configuration file (generally found at /etc/squid/squid.conf )
 
        # --BEGIN-- youtube_cache config for squid
@@ -32,10 +32,14 @@
        acl metacafe_query dstdomain v.mccont.com
        acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
        acl google_query dstdomain vp.video.google.com
+       acl redtube_query dstdomain dl.redtube.com
+       acl xtube_query url_regex -i p[0-9a-z][0-9a-z]?[0-9a-z]?.xtube.comvideos
        url_rewrite_access allow youtube_query
        url_rewrite_access allow metacafe_query
        url_rewrite_access allow dailymotion_query
        url_rewrite_access allow google_query
+       url_rewrite_access allow redtube_query
+       url_rewrite_access allow xtube_query
        redirector_bypass on
        # --END-- youtube_cache config for squid
 
@@ -53,12 +57,12 @@
               Default : /var/spool/squid/video_cache/
 
        temp_dir
-              Directory to store partially downloaded videos. Directory name is relative to base_dir.   e.g.  if  you  specify
+              Directory  to  store  partially  downloaded videos. Directory name is relative to base_dir.  e.g. if you specify
               temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/squid/video_cache/tmp/ .
               Default : tmp
 
        cache_host
-              The hostname or IP address of the system on which caching is being done. This is used  for  serving  the  videos
+              The  hostname  or  IP  address of the system on which caching is being done. This is used for serving the videos
               from the cache. Please don’t use http:// or slashes (/).  Just specify the domain name or IP address.
               Example : localhost.localdomain
               or proxy.example.com
@@ -67,12 +71,12 @@
               Default : localhost.localdomain
 
        rpc_host
-              XMLRPCServer  is used for memory sharing across different instances of youtube_cache. Leave these settings as it
+              XMLRPCServer is used for memory sharing across different instances of youtube_cache. Leave these settings as  it
               is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases.
               Default : localhost.localdomain
 
        rpc_port
-              Please make sure this port is not currently in use. If it is in use by some other program, change this  to  some
+              Please  make  sure this port is not currently in use. If it is in use by some other program, change this to some
               port above 1024 which is not in use by any other program.
               Default : 9100
 
@@ -87,7 +91,7 @@
 
        max_logfile_backups
               The logfiles are automatically rotated once they have exceeded the max_logfile_size.  max_logfile_backups is the
-              number of backup files you want  to  keep.   e.g.  max_logfile_backups  =  2  will  keep  youtube_cache.log  and
+              number  of  backup  files  you  want  to  keep.   e.g.  max_logfile_backups  = 2 will keep youtube_cache.log and
               youtube_cache.log.1 and youtube_cache.log.2 as logfiles.
               Default : 10
 
@@ -114,7 +118,7 @@
               Default : youtube
 
        youtube_cache_size
-              Maximum total size of  youtube  caching  directory.  0  for  unlimited.  This  size  is  in  Mega  Bytes.   e.g.
+              Maximum  total  size  of  youtube  caching  directory.  0  for  unlimited.  This  size  is  in Mega Bytes.  e.g.
               youtube_cache_size = 200 will limit your cache size to 200MB.
               NOTE : Don’t use cache_size = 200MB. Don’t append MB.
               Default : 0
@@ -127,96 +131,109 @@
               Default : 0
 
        min_youtube_video_size
-              Youtube  videos with size less than min_youtube_video_size will not be cached. This size is in kilo bytes. Use 0
+              Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilo bytes. Use  0
               for no lower limit.  e.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached.
               NOTE : Don’t use min_youtube_video_size = 10KB. Don’t append KB.
               Default : 0
 
        enable_metacafe_cache
-              This option enables the caching of metacafe videos.  This option’s value can be either 0 or 1.
+              See description for enable_youtube_cache.
               Default : 1
 
        metacafe_cache_dir
-              Directory to cach metacafe videos.  Directory  name  is  relative  to  base_dir.   e.g.  if  you  specify  meta-
-              cafe_cache_dir  =  metacafe, actual path for caching metacafe videos would be /var/spool/squid/video_cache/meta-
-              cafe/ .
+              See description for youtube_cache_dir.
               Default : metacafe
 
        metacafe_cache_size
-              Maximum total size of metacafe caching directory. 0 for unlimited. This size  is  in  Mega  Bytes.   e.g.  meta-
-              cafe_cache_size = 200 will limit your cache size to 200MB.
-              NOTE : Don’t use cache_size = 200MB. Don’t append MB.
+              See description for youtube_cache_size.
               Default : 0
 
        max_metacafe_video_size
-              Youtube  videos with size more than max_metacafe_video_size will not be cached. This size is in kilo bytes.  Use
-              0 for unlimited caching. e.g. max_metacafe_video_size = 10000.  Only videos with size less than  10MB  (10000KB)
-              will be cached.
-              NOTE : Don’t use max_metacafe_video_size = 10000KB. Don’t append KB.
+              See description for max_youtube_video_size.
               Default : 0
 
        min_metacafe_video_size
-              Youtube videos with size less than min_metacafe_video_size will not be cached. This size is in kilo bytes. Use 0
-              for no lower limit.  e.g. min_metacafe_video_size = 10. Only videos with size more than 10KB will be cached.
-              NOTE : Don’t use min_metacafe_video_size = 10KB. Don’t append KB.
+              See description for min_youtube_video_size.
               Default : 0
 
        enable_dailymotion_cache
-              This option enables the caching of dailymotion videos.  This option’s value can be either 0 or 1.
+              See description for enable_youtube_cache.
               Default : 1
 
        dailymotion_cache_dir
-              Directory to cach dailymotion videos. Directory name is relative to base_dir.   e.g.  if  you  specify  dailymo-
-              tion_cache_dir     =    dailymotion,    actual    path    for    caching    dailymotion    videos    would    be
-              /var/spool/squid/video_cache/dailymotion/ .
+              See description for youtube_cache_dir.
               Default : dailymotion
 
        dailymotion_cache_size
-              Maximum total size of dailymotion caching directory. 0 for unlimited. This size is in Mega Bytes.  e.g. dailymo-
-              tion_cache_size = 200 will limit your cache size to 200MB.
-              NOTE : Don’t use cache_size = 200MB. Don’t append MB.
+              See description for youtube_cache_size.
               Default : 0
 
        max_dailymotion_video_size
-              Youtube  videos  with  size more than max_dailymotion_video_size will not be cached. This size is in kilo bytes.
-              Use 0 for unlimited caching. e.g. max_dailymotion_video_size = 10000.  Only videos  with  size  less  than  10MB
-              (10000KB) will be cached.
-              NOTE : Don’t use max_dailymotion_video_size = 10000KB. Don’t append KB.
+              See description for max_youtube_video_size.
               Default : 0
 
        min_dailymotion_video_size
-              Youtube  videos  with  size less than min_dailymotion_video_size will not be cached. This size is in kilo bytes.
-              Use 0 for no lower limit.  e.g. min_dailymotion_video_size = 10. Only videos with size more than  10KB  will  be
-              cached.
-              NOTE : Don’t use min_dailymotion_video_size = 10KB. Don’t append KB.
+              See description for min_youtube_video_size.
               Default : 0
 
        enable_google_cache
-              This option enables the caching of google videos.  This option’s value can be either 0 or 1.
+              See description for enable_youtube_cache.
               Default : 1
 
        google_cache_dir
-              Directory to cach google videos. Directory name is relative to base_dir.  e.g. if you specify google_cache_dir =
-              google, actual path for caching google videos would be /var/spool/squid/video_cache/google/ .
+              See description for youtube_cache_dir.
               Default : google
 
        google_cache_size
-              Maximum total size  of  google  caching  directory.  0  for  unlimited.  This  size  is  in  Mega  Bytes.   e.g.
-              google_cache_size = 200 will limit your cache size to 200MB.
-              NOTE : Don’t use cache_size = 200MB. Don’t append MB.
+              See description for youtube_cache_size.
               Default : 0
 
        max_google_video_size
-              Youtube  videos with size more than max_google_video_size will not be cached. This size is in kilo bytes.  Use 0
-              for unlimited caching. e.g. max_google_video_size = 10000.  Only videos with size less than 10MB (10000KB)  will
-              be cached.
-              NOTE : Don’t use max_google_video_size = 10000KB. Don’t append KB.
+              See description for max_youtube_video_size.
               Default : 0
 
        min_google_video_size
-              Youtube  videos  with size less than min_google_video_size will not be cached. This size is in kilo bytes. Use 0
-              for no lower limit.  e.g. min_google_video_size = 10. Only videos with size more than 10KB will be cached.
-              NOTE : Don’t use min_google_video_size = 10KB. Don’t append KB.
+              See description for min_youtube_video_size.
+              Default : 0
+
+       enable_redtube_cache
+              See description for enable_youtube_cache.
+              Default : 1
+
+       redtube_cache_dir
+              See description for youtube_cache_dir.
+              Default : redtube
+
+       redtube_cache_size
+              See description for youtube_cache_size.
+              Default : 0
+
+       max_redtube_video_size
+              See description for max_youtube_video_size.
+              Default : 0
+
+       min_redtube_video_size
+              See description for min_youtube_video_size.
+              Default : 0
+
+       enable_xtube_cache
+              See description for enable_youtube_cache.
+              Default : 1
+
+       xtube_cache_dir
+              See description for youtube_cache_dir.
+              Default : xtube
+
+       xtube_cache_size
+              See description for youtube_cache_size.
+              Default : 0
+
+       max_xtube_video_size
+              See description for max_youtube_video_size.
+              Default : 0
+
+       min_xtube_video_size
+              See description for min_youtube_video_size.
               Default : 0
 
 6. FILES
@@ -233,8 +250,7 @@
        How to write custorm squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
 
 8. AUTHOR
-       Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+       Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
 
 9. BUGS
-       Mail bugs/suggestions to Kulbir Saini <kulbirsaini@students.iiit.ac.in>
-
+       Mail bugs/suggestions to Kulbir Saini <kulbirsaini AT students.iiit.ac.in>

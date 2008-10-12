@@ -610,6 +610,20 @@ class YumConf(StartupConf):
     max_google_video_size = Option(0)
     min_google_video_size = Option(0)
 
+    # Redtube.com Specific Options
+    enable_redtube_cache = Option(1)
+    redtube_cache_dir = Option('redtube')
+    redtube_cache_size = Option(0)
+    max_redtube_video_size = Option(0)
+    min_redtube_video_size = Option(0)
+
+    # Xtube.com Specific Options
+    enable_xtube_cache = Option(1)
+    xtube_cache_dir = Option('xtube')
+    xtube_cache_size = Option(0)
+    max_xtube_video_size = Option(0)
+    min_xtube_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
