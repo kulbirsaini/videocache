@@ -29,6 +29,7 @@ import logging
 import logging.handlers
 import md5
 import os
+import re
 import stat
 import sys
 import urlgrabber
@@ -83,6 +84,20 @@ google_cache_dir = os.path.join(base_dir, mainconf.google_cache_dir)
 google_cache_size = int(mainconf.google_cache_size)
 max_google_video_size = int(mainconf.max_google_video_size)
 min_google_video_size = int(mainconf.min_google_video_size)
+
+# Redtube.com specific options
+enable_redtube_cache = int(mainconf.enable_redtube_cache)
+redtube_cache_dir = os.path.join(base_dir, mainconf.redtube_cache_dir)
+redtube_cache_size = int(mainconf.redtube_cache_size)
+max_redtube_video_size = int(mainconf.max_redtube_video_size)
+min_redtube_video_size = int(mainconf.min_redtube_video_size)
+
+# Xtube.com specific options
+enable_xtube_cache = int(mainconf.enable_xtube_cache)
+xtube_cache_dir = os.path.join(base_dir, mainconf.xtube_cache_dir)
+xtube_cache_size = int(mainconf.xtube_cache_size)
+max_xtube_video_size = int(mainconf.max_xtube_video_size)
+min_xtube_video_size = int(mainconf.min_xtube_video_size)
 
 def set_proxy():
     if proxy_username and proxy_password:
@@ -252,6 +267,24 @@ def cache_video(client, url, type, video_id):
         cache_size = google_cache_size
         cache_dir = google_cache_dir
 
+    if type == 'REDTUBE':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(redtube_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_redtube_video_size
+        min_size = min_redtube_video_size
+        cache_size = redtube_cache_size
+        cache_dir = redtube_cache_dir
+
+    if type == 'XTUBE':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(xtube_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_xtube_video_size
+        min_size = min_xtube_video_size
+        cache_size = xtube_cache_size
+        cache_dir = xtube_cache_dir
+
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -335,6 +368,36 @@ def squid_part():
             if host.find('vp.video.google.com') > -1 and path.find('videodownload') > -1:
                 video_id = params.split('&')[-1].split('=')[-1]
                 type = 'GOOGLE'
+                md5id = md5.md5(video_id).hexdigest()
+                videos = bucket.get()
+                if md5id in videos:
+                    pass
+                else:
+                    bucket.add(md5id)
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
+        
+        # Redtube.com caching is handled here.
+        if enable_redtube_cache:
+            if host.find('dl.redtube.com') > -1 and path.find('.flv') > -1:
+                video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                type = 'REDTUBE'
+                md5id = md5.md5(video_id).hexdigest()
+                videos = bucket.get()
+                if md5id in videos:
+                    pass
+                else:
+                    bucket.add(md5id)
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
+        
+        # Xtube.com caching is handled here.
+        if enable_xtube_cache:
+            if re.compile('p[0-9a-z][0-9a-z]?[0-9a-z]?\.xtube\.com').match(host) and path.find('videos/') > -1 and path.find('.flv') > -1:
+                video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                type = 'XTUBE'
                 md5id = md5.md5(video_id).hexdigest()
                 videos = bucket.get()
                 if md5id in videos:
