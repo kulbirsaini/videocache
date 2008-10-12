@@ -70,6 +70,15 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Sun Oct 12 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated spec file.
+- Bumped to version 0.8
+
+* Sun Oct 12 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented video caching for redtube.com and xtube.com .
+- Renovated manpage and config file.
+- Updated INSTALL/Readme files.
+
 * Sat Oct 11 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated spec file.
 - Bumped to version 0.7
