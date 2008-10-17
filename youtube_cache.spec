@@ -71,6 +71,14 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Fri Oct 17 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated spec file.
+- Bumped to version 0.9.
+
+* Fri Oct 17 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented caching for Vimeo.com HD videos.
+- Fixed INSTALL/Readme/manpage file for version 0.8.
+
 * Sun Oct 12 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated spec file.
 - Bumped to version 0.8
