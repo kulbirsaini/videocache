@@ -624,6 +624,13 @@ class YumConf(StartupConf):
     max_xtube_video_size = Option(0)
     min_xtube_video_size = Option(0)
 
+    # Vimeo.com Specific Options
+    enable_vimeo_cache = Option(1)
+    vimeo_cache_dir = Option('vimeo')
+    vimeo_cache_size = Option(0)
+    max_vimeo_video_size = Option(0)
+    min_vimeo_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
