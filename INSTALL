@@ -27,7 +27,7 @@ f) Copy youtube_cache directory to /etc/squid/
 g) Create directories to cache youtube videos
 [root@localhost root]# cd /var/spool/squid/
 [root@localhost squid]# mkdir video_cache
-[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube
+[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo
 [root@localhost squid]# chown -R squid:squid video_cache
 [root@localhost squid]# chmod -R 755 video_cache
 
@@ -51,13 +51,15 @@ acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
 acl metacafe_query dstdomain v.mccont.com
 acl google_query dstdomain vp.video.google.com
 acl redtube_query dstdomain dl.redtube.com
-acl xtube_query url_regex -i p[0-9a-z][0-9a-z]?[0-9a-z]?.xtube.comvideos
+acl xtube_query url_regex -i p[0-9a-z][0-9a-z]?[0-9a-z]?\.xtube\.com\/videos
+acl vimeo_query url_regex bitcast\.vimeo\.com\/vimeo\/videos\/
 url_rewrite_access allow youtube_query
 url_rewrite_access allow metacafe_query
 url_rewrite_access allow dailymotion_query
 url_rewrite_access allow google_query
 url_rewrite_access allow redtube_query
 url_rewrite_access allow xtube_query
+url_rewrite_access allow vimeo_query
 redirector_bypass on
 # --END-- youtube_cache config for squid
 

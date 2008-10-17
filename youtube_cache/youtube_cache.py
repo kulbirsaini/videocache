@@ -99,6 +99,13 @@ xtube_cache_size = int(mainconf.xtube_cache_size)
 max_xtube_video_size = int(mainconf.max_xtube_video_size)
 min_xtube_video_size = int(mainconf.min_xtube_video_size)
 
+# Vimeo.com specific options
+enable_vimeo_cache = int(mainconf.enable_vimeo_cache)
+vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
+vimeo_cache_size = int(mainconf.vimeo_cache_size)
+max_vimeo_video_size = int(mainconf.max_vimeo_video_size)
+min_vimeo_video_size = int(mainconf.min_vimeo_video_size)
+
 def set_proxy():
     if proxy_username and proxy_password:
         proxy_parts = urlparse.urlsplit(proxy)
@@ -128,7 +135,7 @@ def dir_size(dir):
         return -1
     return size / (1024*1024)
 
-class Bucket:
+class VideoIDPool:
     """
     This class is for sharing the current packages being downloading
     across various instances of intelligentmirror via XMLRPC.
@@ -184,9 +191,9 @@ def fork(f):
     return wrapper
 
 def remove(query):
-    packages = bucket.get()
+    packages = video_id_pool.get()
     md5id = md5.md5(query).hexdigest()
-    bucket.remove(md5id)
+    video_id_pool.remove(md5id)
 
 def download_from_source(client, url, path, mode, video_id, type, max_size, min_size):
     """This function downloads the file from remote source and caches it."""
@@ -198,13 +205,16 @@ def download_from_source(client, url, path, mode, video_id, type, max_size, min_
             remote_file.close()
             log(format%(client, video_id, 'GOT_SIZE', type, 'Successfully retrieved the size of video.'))
         except urlgrabber.grabber.URLGrabError, e:
+            remove(video_id)
             log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
             return
 
         if max_size and remote_size > max_size:
+            remove(video_id)
             log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
             return
         if min_size and remote_size < min_size:
+            remove(video_id)
             log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
             return
 
@@ -285,6 +295,15 @@ def cache_video(client, url, type, video_id):
         cache_size = xtube_cache_size
         cache_dir = xtube_cache_dir
 
+    if type == 'VIMEO':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(vimeo_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_vimeo_video_size
+        min_size = min_vimeo_video_size
+        cache_size = vimeo_cache_size
+        cache_dir = vimeo_cache_dir
+
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -324,11 +343,11 @@ def squid_part():
                 video_id = params.split('&')[0].split('=')[1]
                 type = 'YOUTUBE'
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
                     log(format%(client, video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client, video_id, 'NEW_URL', type, new_url))
@@ -339,11 +358,11 @@ def squid_part():
                 type = 'METACAFE'
                 video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
                     log(format%(client ,video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client, video_id, 'NEW_URL', type, new_url))
@@ -354,11 +373,11 @@ def squid_part():
                 video_id = path.split('/')[-1]
                 type = 'DAILYMOTION'
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
                     log(format%(client, video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client ,video_id, 'NEW_URL', type, new_url))
@@ -369,11 +388,11 @@ def squid_part():
                 video_id = params.split('&')[-1].split('=')[-1]
                 type = 'GOOGLE'
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
                     log(format%(client, video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client, video_id, 'NEW_URL', type, new_url))
@@ -384,11 +403,11 @@ def squid_part():
                 video_id = path.strip('/').split('/')[-1].replace('.flv','')
                 type = 'REDTUBE'
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
                     log(format%(client, video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client, video_id, 'NEW_URL', type, new_url))
@@ -399,11 +418,26 @@ def squid_part():
                 video_id = path.strip('/').split('/')[-1].replace('.flv','')
                 type = 'XTUBE'
                 md5id = md5.md5(video_id).hexdigest()
-                videos = bucket.get()
+                videos = video_id_pool.get()
                 if md5id in videos:
                     pass
                 else:
-                    bucket.add(md5id)
+                    video_id_pool.add(md5id)
+                    log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                    new_url = cache_video(client, url[0], type, video_id)
+                    log(format%(client, video_id, 'NEW_URL', type, new_url))
+        
+        # Vimeo.com caching is handled here.
+        if enable_vimeo_cache:
+            if host.find('bitcast.vimeo.com') > -1 and path.find('vimeo/videos/') > -1 and path.find('.flv') > -1:
+                video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                type = 'VIMEO'
+                md5id = md5.md5(video_id).hexdigest()
+                videos = video_id_pool.get()
+                if md5id in videos:
+                    pass
+                else:
+                    video_id_pool.add(md5id)
                     log(format%(client, video_id, 'URL_HIT', type, url[0]))
                     new_url = cache_video(client, url[0], type, video_id)
                     log(format%(client, video_id, 'NEW_URL', type, new_url))
@@ -413,17 +447,17 @@ def squid_part():
         sys.stdout.flush()
 
 if __name__ == '__main__':
-    global grabber, log, bucket
+    global grabber, log, video_id_pool
     grabber = set_proxy()
     log = set_logging()
 
     # If XMLRPCServer is running already, don't start it again
     try:
-        bucket = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
-        list = bucket.get()
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        list = video_id_pool.get()
     except:
-        server = SimpleXMLRPCServer((rpc_host, rpc_port))
-        server.register_instance(Bucket())
+        server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0)
+        server.register_instance(VideoIDPool())
         log(format%('-', '-', 'XMLRPCServer', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
         # Rotate logfiles it the size is more than the max_logfile_size.
         if os.stat(logfile)[6] > max_logfile_size:
