@@ -267,6 +267,7 @@
        /etc/squid/youtube_cache/
        /var/spool/squid/video_cache/
        /var/log/squid/youtube_cache.log
+       /var/log/squid/youtube_cache.pid
 
 7. SEE ALSO
        squid (8)
