@@ -572,6 +572,7 @@ class YumConf(StartupConf):
     # Global Options
     base_dir = Option('/var/spool/squid/video_cache/')
     temp_dir = Option('tmp')
+    max_parallel_downloads = Option(10)
     cache_host = Option('localhost.localdomain')
     rpc_host = Option('localhost.localdomain')
     rpc_port = Option(9100)

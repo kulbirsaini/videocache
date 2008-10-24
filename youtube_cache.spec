@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    0.9
+Version:    1.0
 Release:    1
 Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos.
 License:    GPL
@@ -50,6 +50,7 @@ install -m 644 youtube_cache_sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/yo
 install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
 install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
+touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.pid
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -64,6 +65,7 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 
 %post
 chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
+chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.pid
 chown -R squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache
 echo "You need to modify /etc/youtube_cache.conf to make caching work properly."
 echo "Also you need to configure squid. Check youtube_cache manpage for more details."
