@@ -63,6 +63,10 @@
               actual path for storing partially downloaded videos would be /var/spool/squid/video_cache/tmp/ .
               Default : tmp
 
+       max_parallel_downloads
+              The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download.
+              Default : 30
+
        cache_host
               The  hostname  or  IP address of the system on which caching is being done. This is used for serving the videos from the cache.
               Please don’t use http:// or slashes (/).  Just specify the domain name or IP address.
