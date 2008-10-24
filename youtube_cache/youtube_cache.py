@@ -54,6 +54,7 @@ max_logfile_backups = int(mainconf.max_logfile_backups)
 proxy = mainconf.proxy
 proxy_username = mainconf.proxy_username
 proxy_password = mainconf.proxy_password
+pidfile = mainconf.pidfile
 
 redirect = '303'
 format = '%s %s %s %s %s'
@@ -556,7 +557,7 @@ def squid_part():
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
         except:
-            file = open('/var/log/squid/youtube.pid', 'r')
+            file = open(pidfile, 'r')
             pid = int(file.read().strip('\n'))
             file.close()
             os.kill(pid, 9)
@@ -566,7 +567,7 @@ def start_xmlrpc_server():
     server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0, allow_none=True)
     server.register_instance(VideoIDPool())
     log(format%('-', '-', 'XMLRPCServer', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
-    file = open('/var/log/squid/youtube.pid', 'w')
+    file = open(pidfile, 'w')
     file.write(str(os.getpid()))
     file.close()
     # Rotate logfiles if the size is more than the max_logfile_size.
@@ -577,11 +578,11 @@ def start_xmlrpc_server():
 
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
-    file = open('/var/log/squid/youtube.pid', 'r')
+    file = open(pidfile, 'r')
     pid = int(file.read().strip('\n'))
     file.close()
     while True:
-        file = open('/var/log/squid/youtube.pid', 'r')
+        file = open(pidfile, 'r')
         new_pid = int(file.read().strip('\n'))
         file.close()
         # If the XMLRPCServer PID has changed, that means squid service was reloaded

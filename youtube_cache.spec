@@ -61,6 +61,7 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %{prefix}/etc/youtube_cache.conf
 %{prefix}/etc/httpd/conf.d/youtube_cache.conf
 %{prefix}/var/log/squid/youtube_cache.log
+%{prefix}/var/log/squid/youtube_cache.pid
 %{prefix}/usr/share/man/man8/youtube_cache.8.gz
 
 %post
@@ -73,6 +74,15 @@ echo "Also you need to configure squid. Check youtube_cache manpage for more det
 %preun
 
 %changelog
+* Fri Oct 24 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Fixes for crashes by adding try-except statements.
+- A bit of performance enhancement by avoiding md5 hashes for video ids.
+
+* Fri Oct 24 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Implemented bandwidth management.
+- User can put cap on max parallel downloads of videos
+- so that entire banwidth is not consumed in caching.
+
 * Fri Oct 17 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated spec file.
 - Bumped to version 0.9.

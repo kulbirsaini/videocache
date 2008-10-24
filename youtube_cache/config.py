@@ -577,6 +577,7 @@ class YumConf(StartupConf):
     rpc_host = Option('localhost.localdomain')
     rpc_port = Option(9100)
     logfile = Option('/var/log/squid/youtube_cache.log')
+    pidfile = Option('/var/log/squid/youtube_cache.pid')
     max_logfile_size = Option(10)
     max_logfile_backups = Option(10)
     proxy = Option('http://localhost.localdomain:3128/')
