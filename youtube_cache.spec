@@ -73,6 +73,9 @@ echo "Check http://fedora.co.in/youtube_cache/ in case of any problems."
 
 %changelog
 * Fri Oct 31 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Fixed serious mistake in squid.conf for youtube_cache.
+
+* Fri Oct 31 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated spec file.
 - Bumped to version 1.1 .
 

@@ -7,6 +7,7 @@
 5. Apache (httpd) or any other Web Server
 
 2a. Installation (using setup.py from source)
+=============================================
 a) Download latest version of youtube_cache from http://kulbirsaini.fedorapeople.org/stuff/youtube_cache/ .
 b) Untar the package.
 [root@localhost root]# tar -xvzf youtube_cache-x.x-x.tar.gz
@@ -68,14 +69,12 @@ Add the following lines to your squid.conf which is generally found in
 url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
 url_rewrite_children 20
 acl youtube_query url_regex -i \.youtube\.com\/get_video
-acl youtube_deny url_regex -i [a-z][a-z].youtube.com
 acl metacafe_query dstdomain v.mccont.com
 acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
 acl google_query dstdomain vp.video.google.com
 acl redtube_query dstdomain dl.redtube.com
 acl xtube_query url_regex -i p[0-9a-z][0-9a-z]?[0-9a-z]?\.xtube\.com\/videos
 acl vimeo_query url_regex bitcast\.vimeo\.com\/vimeo\/videos\/
-url_rewrite_access deny youtube_deny
 url_rewrite_access allow youtube_query
 url_rewrite_access allow metacafe_query
 url_rewrite_access allow dailymotion_query
