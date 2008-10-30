@@ -29,14 +29,12 @@
        url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
        url_rewrite_children 20
        acl youtube_query url_regex -i \.youtube\.com\/get_video
-       acl youtube_deny url_regex -i [a-z][a-z].youtube.com
        acl metacafe_query dstdomain v.mccont.com
        acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
        acl google_query dstdomain vp.video.google.com
        acl redtube_query dstdomain dl.redtube.com
        acl xtube_query url_regex -i p[0-9a-z][0-9a-z]?[0-9a-z]?\.xtube\.com\/videos
        acl vimeo_query url_regex bitcast\.vimeo\.com\/vimeo\/videos\/
-       url_rewrite_access deny youtube_deny
        url_rewrite_access allow youtube_query
        url_rewrite_access allow metacafe_query
        url_rewrite_access allow dailymotion_query
