@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    1.0
+Version:    1.1
 Release:    1
 Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos.
 License:    GPL
@@ -50,7 +50,6 @@ install -m 644 youtube_cache_sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/yo
 install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
 install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
-touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.pid
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -61,19 +60,35 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %{prefix}/etc/youtube_cache.conf
 %{prefix}/etc/httpd/conf.d/youtube_cache.conf
 %{prefix}/var/log/squid/youtube_cache.log
-%{prefix}/var/log/squid/youtube_cache.pid
 %{prefix}/usr/share/man/man8/youtube_cache.8.gz
 
 %post
 chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
-chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.pid
 chown -R squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache
 echo "You need to modify /etc/youtube_cache.conf to make caching work properly."
 echo "Also you need to configure squid. Check youtube_cache manpage for more details."
+echo "Check http://fedora.co.in/youtube_cache/ in case of any problems."
 
 %preun
 
 %changelog
+* Fri Oct 31 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated spec file.
+- Bumped to version 1.1 .
+
+* Fri Oct 31 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Improved INSTALL and Readme files.
+- Improved video id detection for youtube and google videos.
+- Removed python 2.5 dependency. Now works with python 2.4.
+- Sanitized the reloading system while squid reloads.
+
+* Thu Oct 30 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Added setup file for automating youtube_cache installation.
+- Fixed loads of bugs generated due to forking daemons.
+- All external processes except downloader are now started as threads.
+- Processes and threads are immedietely killed whenever squid is reloaded or restarted.
+- No backtracing goes to cache.log now.
+
 * Fri Oct 24 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Fixes for crashes by adding try-except statements.
 - A bit of performance enhancement by avoiding md5 hashes for video ids.
