@@ -29,6 +29,7 @@ import logging
 import logging.handlers
 import md5
 import os
+import random
 import re
 import stat
 import sys
@@ -159,23 +160,23 @@ class VideoIDPool:
         if video_id not in self.queue.keys():
             self.queue[video_id] = []
         self.scores[video_id] = score
-        return
+        return True
 
     def set(self, video_id, values):
         """Set the details of video_id to values."""
         self.queue[video_id] = values
-        return
+        return True
 
     def set_score(self, video_id, score = 0):
         """Set the priority score of a video_id."""
         self.scores[video_id] = score
-        return
+        return True
 
     def inc_score(self, video_id, incr = 1):
         """Increase the priority score of video represented by video_id."""
         if video_id in self.scores.keys():
             self.scores[video_id] += incr
-        return
+        return True
 
     def get(self):
         """Return all the video ids currently in queue."""
@@ -185,7 +186,7 @@ class VideoIDPool:
         """Return the details of a particular video represented by video_id."""
         if video_id in self.queue.keys():
             return self.queue[video_id]
-        return None
+        return False
 
     def get_popular(self):
         """Return the video_id of the most frequently access video."""
@@ -193,7 +194,7 @@ class VideoIDPool:
         if len(vk) != 0:
             video_id = sorted(vk, reverse=True)[0][1]
             return video_id
-        return None
+        return "NULL"
 
     def remove(self, video_id):
         """Dequeue a video_id from the download queue."""
@@ -201,14 +202,14 @@ class VideoIDPool:
             self.queue.pop(video_id)
         if video_id in self.scores.keys():
             self.scores.pop(video_id)
-        return
+        return True
 
     def flush(self):
         """Flush the queue and reinitialize everything."""
         self.queue = {}
         self.scores = {}
         self.active = []
-        return
+        return True
 
     # Functions related download scheduling.
     # Have to mess up things in single class because python
@@ -218,7 +219,7 @@ class VideoIDPool:
         """Add video_id to active connections list."""
         if video_id not in self.active:
             self.active.append(video_id)
-        return
+        return True
 
     def get_conn(self):
         """Return a list of currently active connections."""
@@ -238,7 +239,7 @@ class VideoIDPool:
         """Remove video_id from active connections list."""
         if video_id in self.active:
             self.active.remove(video_id)
-        return
+        return True
 
 def remove(video_id):
     """Remove video_id from queue."""
@@ -437,12 +438,18 @@ def squid_part():
         try:
             if enable_youtube_cache:
                 if host.find('youtube.com') > -1 and path.find('get_video') > -1:
-                    video_id = params.split('&')[0].split('=')[1]
+                    arglist = params.split('&')
+                    dict = {}
+                    for arg in arglist:
+                        try:
+                            dict[arg.split('=')[0]] = arg.split('=')[1]
+                        except:
+                            continue
+                    video_id = dict['video_id']
                     type = 'YOUTUBE'
                     videos = video_id_pool.get()
                     if video_id in videos:
                         video_id_pool.inc_score(video_id)
-                        video_id_pool.get_popular()
                         pass
                     else:
                         video_id_pool.add(video_id)
@@ -473,7 +480,7 @@ def squid_part():
         # Dailymotion.com caching is handled here.
         try:
             if enable_dailymotion_cache:
-                if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('on2') > -1:
+                if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('flv') > -1:
                     video_id = path.split('/')[-1]
                     type = 'DAILYMOTION'
                     videos = video_id_pool.get()
@@ -492,7 +499,14 @@ def squid_part():
         try:
             if enable_google_cache:
                 if host.find('vp.video.google.com') > -1 and path.find('videodownload') > -1:
-                    video_id = params.split('&')[-1].split('=')[-1]
+                    arglist = params.split('&')
+                    dict = {}
+                    for arg in arglist:
+                        try:
+                            dict[arg.split('=')[0]] = arg.split('=')[1]
+                        except:
+                            continue
+                    video_id = dict['docid']
                     type = 'GOOGLE'
                     videos = video_id_pool.get()
                     if video_id in videos:
@@ -527,7 +541,7 @@ def squid_part():
         # Xtube.com caching is handled here.
         try:
             if enable_xtube_cache:
-                if re.compile('p[0-9a-z][0-9a-z]?[0-9a-z]?\.xtube\.com').match(host) and path.find('videos/') > -1 and path.find('.flv') > -1:
+                if re.compile('[0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com').match(host) and path.find('videos/') > -1 and path.find('.flv') > -1 and path.find('Thumb') < 0 and path.find('av_preview') < 0:
                     video_id = path.strip('/').split('/')[-1].replace('.flv','')
                     type = 'XTUBE'
                     videos = video_id_pool.get()
@@ -571,7 +585,7 @@ def squid_part():
 def start_xmlrpc_server():
     """Starts the XMLRPC server in a forked daemon process."""
     try:
-        server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0, allow_none=True)
+        server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0)
         server.register_instance(VideoIDPool())
         log(format%('-', '-', 'XMLRPCServer', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
         # Rotate logfiles if the size is more than the max_logfile_size.
@@ -584,16 +598,17 @@ def start_xmlrpc_server():
 
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
-    time.sleep(5)
+    log(format%('-', '-', 'SCHEDULEDER', '-', 'Download Scheduler starting.'))
+    time.sleep(2)
     while True:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         if video_id_pool.get_conn_number() < max_parallel_downloads:
             video_id = video_id_pool.get_popular()
-            if video_id != None and video_id_pool.is_active(video_id) == False:
+            if video_id != "NULL" and video_id_pool.is_active(video_id) == False:
                 video_id_pool.set_score(video_id)
                 video_id_pool.add_conn(video_id)
                 params = video_id_pool.get_details(video_id)
-                if params is not None:
+                if params != False:
                     log(format%(params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
                     forked = fork(download_from_source)
                     forked(params)
@@ -624,6 +639,7 @@ if __name__ == '__main__':
 
     # If XMLRPCServer is running already, don't start it again
     try:
+        time.sleep(int(random.random()*100)%10)
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         list = video_id_pool.get()
         # Flush previous values on reload
