@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+#
+# For configuration and how to use, see README file.
+#
+
+
 from youtube_cache.config import readMainConfig, readStartupConfig
 import logging
 import logging.handlers
@@ -50,8 +70,11 @@ xtube_cache_dir = os.path.join(base_dir, mainconf.xtube_cache_dir)
 # Vimeo.com specific options
 vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
 
+# Wrzuta.pl specific options
+wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
+
 # List of cache directories
-squid_cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir]
+squid_cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir]
 
 def set_logging():
     logging.basicConfig(level=logging.DEBUG,
@@ -185,16 +208,16 @@ def error(error_code):
     """Report error while updating/installing youtube_cache with proper error code."""
     help_message =  """
 Usage: python setup.py install (as root/super user)
-Please see http://fedora.co.in/youtube_cache/ for more information or getting help.
+Please see http://cachevideos.com/installation for more information or getting help.
     """
     install_error =  """
 An error has occured while installing youtube_cache.
 Please check youtube_cache_setup.log for more details.
-Please see http://fedora.co.in/youtube_cache/ for more information or getting help.
+Please see http://cachevideos.com/installation for more information or getting help.
     """
     uid_error = """
 You must be root to setup/install youtube_cache.
-Please see http://fedora.co.in/youtube_cache/ for more information or getting help.
+Please see http://cachevideos.com/installation for more information or getting help.
     """
     if error_code == INSTALL_ERROR:
         print install_error
@@ -215,7 +238,7 @@ Now you must reload httpd service on your machine by using the following command
 [root@localhost ~]# service httpd reload [ENTER]
 Also, you need to configure squid so that it can use youtube_cache as a url rewritor plugin.
 Check README file for further configurations of squid, httpd and youtube_cache.
-In case of any bugs or problems, check http://fedora.co.in/youtube_cache/ .
+In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 

@@ -633,6 +633,13 @@ class YumConf(StartupConf):
     max_vimeo_video_size = Option(0)
     min_vimeo_video_size = Option(0)
 
+    # Wrzuta.pl Specific Options
+    enable_wrzuta_cache = Option(1)
+    wrzuta_cache_dir = Option('wrzuta')
+    wrzuta_cache_size = Option(0)
+    max_wrzuta_video_size = Option(0)
+    min_wrzuta_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
