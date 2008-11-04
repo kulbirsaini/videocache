@@ -1,12 +1,12 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    1.1
+Version:    1.2
 Release:    1
-Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos.
+Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos and Wrzuta.pl audio.
 License:    GPL
 Group:      Applications/Internet
-URL:        http://fedora.co.in/youtube_cache/
+URL:        http://cachevideos.com/
 Source:     %{name}-%{version}.tar.gz
 Buildroot:  %{_tmppath}/%{name}-%{version}-root 
 BuildArch:  noarch
@@ -17,8 +17,9 @@ Requires:   squid
 Requires:   httpd
 
 %description
-youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo,
-redtube and xtube video caching. It can cache youtube/metacafe/dailymotion/google/vimeo/redtube/xtube videos in a
+youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube,
+metacafe, dailymotion, google, vimeo, redtube and xtube video and wrzuta.pl audio caching.
+It can cache youtube/metacafe/dailymotion/google/vimeo/redtube/xtube videos and wrzuta.pl audio in a
 separate directory (other than squid cache) in a browsable fashion and can serve
 the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
@@ -43,6 +44,7 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/vimeo/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/redtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/xtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/wrzuta/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/tmp/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
@@ -67,7 +69,7 @@ chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
 chown -R squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache
 echo "You need to modify /etc/youtube_cache.conf to make caching work properly."
 echo "Also you need to configure squid. Check youtube_cache manpage for more details."
-echo "Check http://fedora.co.in/youtube_cache/ in case of any problems."
+echo "Check http://cachevideos.com/ in case of any problems."
 
 %preun
 

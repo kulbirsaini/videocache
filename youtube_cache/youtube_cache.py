@@ -27,7 +27,6 @@ from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from config import readMainConfig, readStartupConfig
 import logging
 import logging.handlers
-import md5
 import os
 import random
 import re
@@ -113,6 +112,13 @@ vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
 vimeo_cache_size = int(mainconf.vimeo_cache_size)
 max_vimeo_video_size = int(mainconf.max_vimeo_video_size)
 min_vimeo_video_size = int(mainconf.min_vimeo_video_size)
+
+# Wrzuta.pl specific options
+enable_wrzuta_cache = int(mainconf.enable_wrzuta_cache)
+wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
+wrzuta_cache_size = int(mainconf.wrzuta_cache_size)
+max_wrzuta_video_size = int(mainconf.max_wrzuta_video_size)
+min_wrzuta_video_size = int(mainconf.min_wrzuta_video_size)
 
 def set_proxy():
     if proxy_username and proxy_password:
@@ -313,7 +319,7 @@ def download_from_source(args):
             return
 
     try:
-        download_path = os.path.join(temp_dir, md5.md5(os.path.basename(path)).hexdigest())
+        download_path = os.path.join(temp_dir, os.path.basename(path))
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
         os.rename(file, path)
@@ -398,6 +404,15 @@ def cache_video(client, url, type, video_id):
         cache_size = vimeo_cache_size
         cache_dir = vimeo_cache_dir
 
+    if type == 'WRZUTA':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(wrzuta_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_wrzuta_video_size
+        min_size = min_wrzuta_video_size
+        cache_size = wrzuta_cache_size
+        cache_dir = wrzuta_cache_dir
+
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -446,6 +461,34 @@ def squid_part():
                         except:
                             continue
                     video_id = dict['video_id']
+                    type = 'YOUTUBE'
+                    videos = video_id_pool.get()
+                    if video_id in videos:
+                        video_id_pool.inc_score(video_id)
+                        pass
+                    else:
+                        video_id_pool.add(video_id)
+                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                        new_url = cache_video(client, url[0], type, video_id)
+                        log(format%(client, video_id, 'NEW_URL', type, new_url))
+        except:
+            log(format%(client, '-', 'NEW_URL', 'YOUTUBE', 'Error in parsing the url ' + new_url))
+
+        # Youtube videos served via cache.googlevideo.com are handled here.
+        try:
+            if enable_youtube_cache:
+                if re.compile('cache[0-9a-z]?[0-9a-z]?[0-9a-z]?\.googlevideo\.com').search(host) and (path.find('videoplayback') > -1 or path.find('get_video') > -1):
+                    arglist = params.split('&')
+                    dict = {}
+                    for arg in arglist:
+                        try:
+                            dict[arg.split('=')[0]] = arg.split('=')[1]
+                        except:
+                            continue
+                    if dict.has_key('video_id'):
+                        video_id = dict['video_id']
+                    else:
+                        video_id = dict['id']
                     type = 'YOUTUBE'
                     videos = video_id_pool.get()
                     if video_id in videos:
@@ -541,7 +584,7 @@ def squid_part():
         # Xtube.com caching is handled here.
         try:
             if enable_xtube_cache:
-                if re.compile('[0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com').match(host) and path.find('videos/') > -1 and path.find('.flv') > -1 and path.find('Thumb') < 0 and path.find('av_preview') < 0:
+                if re.compile('[0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com').search(host) and path.find('videos/') > -1 and path.find('.flv') > -1 and path.find('Thumb') < 0 and path.find('av_preview') < 0:
                     video_id = path.strip('/').split('/')[-1].replace('.flv','')
                     type = 'XTUBE'
                     videos = video_id_pool.get()
@@ -562,6 +605,31 @@ def squid_part():
                 if host.find('bitcast.vimeo.com') > -1 and path.find('vimeo/videos/') > -1 and path.find('.flv') > -1:
                     video_id = path.strip('/').split('/')[-1].replace('.flv','')
                     type = 'VIMEO'
+                    videos = video_id_pool.get()
+                    if video_id in videos:
+                        video_id_pool.inc_score(video_id)
+                        pass
+                    else:
+                        video_id_pool.add(video_id)
+                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                        new_url = cache_video(client, url[0], type, video_id)
+                        log(format%(client, video_id, 'NEW_URL', type, new_url))
+        except:
+            log(format%(client, '-', 'NEW_URL', 'VIMEO', 'Error in parsing the url ' + new_url))
+        
+        # Wrzuta.pl audio file caching is handled here.
+        try:
+            if enable_wrzuta_cache:
+                if host.find('va.wrzuta.pl') > -1 and re.compile('wa[0-9][0-9][0-9][0-9]?').search(path) and params.find('type=a') > -1 and params.find('key=') > -1:
+                    arglist = params.split('&')
+                    dict = {}
+                    for arg in arglist:
+                        try:
+                            dict[arg.split('=')[0]] = arg.split('=')[1]
+                        except:
+                            continue
+                    video_id = dict['key']
+                    type = 'WRZUTA'
                     videos = video_id_pool.get()
                     if video_id in videos:
                         video_id_pool.inc_score(video_id)
@@ -599,16 +667,18 @@ def start_xmlrpc_server():
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
     log(format%('-', '-', 'SCHEDULEDER', '-', 'Download Scheduler starting.'))
-    time.sleep(2)
+    time.sleep(3)
+    video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
     while True:
-        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         if video_id_pool.get_conn_number() < max_parallel_downloads:
+            #log(format%(str(video_id_pool.get_conn_number()), '-', 'CONN_AVAIL', '-', '-'))
             video_id = video_id_pool.get_popular()
             if video_id != "NULL" and video_id_pool.is_active(video_id) == False:
-                video_id_pool.set_score(video_id)
-                video_id_pool.add_conn(video_id)
+                #log(format%('-', '-', 'INACTIVE', '-', '-'))
                 params = video_id_pool.get_details(video_id)
                 if params != False:
+                    video_id_pool.set_score(video_id)
+                    video_id_pool.add_conn(video_id)
                     log(format%(params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
                     forked = fork(download_from_source)
                     forked(params)
