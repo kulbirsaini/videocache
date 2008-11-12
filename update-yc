@@ -19,8 +19,6 @@
 # For more information check http://cachevideos.com/
 #
 
-
-from youtube_cache.config import readMainConfig, readStartupConfig
 import logging
 import logging.handlers
 import os
@@ -41,10 +39,17 @@ apache_conf_dir = '/etc/httpd/conf.d/'
 # The directory to store man pages.
 man_dir = '/usr/share/man/man8/'
 
+# Try to locate the youtube_cache directory containing python files.
+if os.path.isdir(os.path.join(squid_conf_dir, 'youtube_cache')):
+    sys.path = ['/etc/squid/youtube_cache/'] + sys.path
+    from config import readMainConfig, readStartupConfig
+else:
+    error(USAGE_ERROR)
+
 # The location of system configuration file for youtube cache.
-config_file = './youtube_cache_sysconfig.conf'
+config_file = '/etc/youtube_cache.conf'
 # The location of logfile to write setup/install logs.
-setup_logfile = './youtube_cache_setup.log'
+setup_logfile = '/var/log/squid/youtube_cache.log'
 # Read the configure file.
 mainconf =  readMainConfig(readStartupConfig(config_file, '/'))
 
@@ -56,7 +61,7 @@ format = '%s'
 
 USAGE_ERROR = 1
 UID_ERROR = 2
-INSTALL_ERROR = 3
+UPDATE_ERROR = 3
 
 # Youtube specific options
 youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
@@ -89,7 +94,7 @@ def set_logging():
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s',
                         filename=setup_logfile,
-                        filemode='w')
+                        filemode='a')
     return logging.info
 
 def create_dir(dir, user=None, group=None, mode=0755):
@@ -227,20 +232,21 @@ Alias /video_cache """ + base_dir +"""
 def error(error_code):
     """Report error while updating/installing youtube_cache with proper error code."""
     help_message =  """
-Usage: python setup.py install (as root/super user)
-Please see http://cachevideos.com/installation for more information or getting help.
+Usage: update-yc (as root/super user)
+Update script can only be used if Youtube Cache is installed on your system.
+Please see http://cachevideos.com/update-yc for more information or getting help.
     """
-    install_error =  """
-An error has occured while installing youtube_cache.
-Please check youtube_cache_setup.log for more details.
-Please see http://cachevideos.com/installation for more information or getting help.
+    update_error =  """
+An error has occured while updating youtube_cache.
+Please check /var/log/squid/youtube_cache.log for more details.
+Please see http://cachevideos.com/update-yc for more information or getting help.
     """
     uid_error = """
 You must be root to setup/install youtube_cache.
-Please see http://cachevideos.com/installation for more information or getting help.
+Please see http://cachevideos.com/update-yc for more information or getting help.
     """
-    if error_code == INSTALL_ERROR:
-        print install_error
+    if error_code == UPDATE_ERROR:
+        print update_error
         sys.exit(error_code)
     if error_code == UID_ERROR:
         print uid_error
@@ -253,83 +259,55 @@ Please see http://cachevideos.com/installation for more information or getting h
 def success():
     """Print informative messages after successfull installation."""
     message = """
-Youtube cache setup has completed successfully.
+Youtube cache update has completed successfully.
 Now you must reload httpd service on your machine by using the following command
 [root@localhost ~]# service httpd reload [ENTER]
-Also, you need to configure squid so that it can use youtube_cache as a url rewritor plugin.
-Check README file for further configurations of squid, httpd and youtube_cache.
 In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
-def setup():
-    """Perform the setup."""
-    # Create Apache configuration directory.
+def update():
+    """Perform the update."""
     if not os.path.isdir(apache_conf_dir):
         if not create_dir(apache_conf_dir):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + apache_conf_dir + " already exists."))
 
-    # Create squid configuration directory.
     if not os.path.isdir(squid_conf_dir):
         if not create_dir(squid_conf_dir):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + squid_conf_dir + " already exists."))
 
-    # Create squid log directory.
     if not os.path.isdir(squid_log_dir):
         if not create_dir(squid_log_dir, squid_user, squid_group):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + squid_log_dir + " already exists."))
 
-    # Create directories for video caching.
     for dir in squid_cache_dir_list:
         if not os.path.isdir(dir):
             if not create_dir(dir, squid_user, squid_group):
-                error(INSTALL_ERROR)
+                error(UPDATE_ERROR)
         else:
             if not dir_perms_and_ownership(dir, squid_user, squid_group):
-                error(INSTALL_ERROR)
+                error(UPDATE_ERROR)
             log(format%("Directory " + dir + " already exists."))
 
-    # Create directory to store man page.
-    if not os.path.isdir(man_dir):
-        if not create_dir(man_dir):
-            error(INSTALL_ERROR)
-    else:
-        log(format%("Directory " + man_dir + " already exists."))
-
-    if not copy_dir('./youtube_cache/', os.path.join(squid_conf_dir, 'youtube_cache')):
-        error(INSTALL_ERROR)
-
-    if not copy_file('./youtube_cache_sysconfig.conf', '/etc/youtube_cache.conf'):
-        error(INSTALL_ERROR)
-
-    if not copy_file('./youtube_cache.8.gz', os.path.join(man_dir, 'youtube_cache.8.gz')):
-        error(INSTALL_ERROR)
-
     if not create_file(os.path.join(squid_log_dir, 'youtube_cache.log'), squid_user, squid_group):
-        error(INSTALL_ERROR)
+        error(UPDATE_ERROR)
 
     if not generate_httpd_conf():
-        error(INSTALL_ERROR)
+        error(UPDATE_ERROR)
 
     success()
     return
 
 if __name__ == '__main__':
     log = set_logging()
-    if len(sys.argv) == 2:
-        if sys.argv[1] == 'install':
-            if os.getuid() != 0:
-                log(format%("You must be root to install/setup youtube_cache."))
-                error(UID_ERROR)
-            else:
-                setup()
-        else:
-            error(USAGE_ERROR)
+    if os.getuid() != 0:
+        log(format%("You must be root to install/setup youtube_cache."))
+        error(UID_ERROR)
     else:
-        error(USAGE_ERROR)
+        update()

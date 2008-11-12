@@ -1,12 +1,22 @@
 IMPORTANT NOTE : Check http://cachevideos.com/installation/ for latest details.
 
+Index
+=====
+  1. Requires
+  2. Installation
+    a. Using setup.py from source
+    b. Manually from source step by step
+  3. Configuration
+  4. Bugs, Suggestions, Comments
+  5. Online Help
+
 1. Requires
 ===========
-1. squid
-2. python
-3. python-urlgrabber
-4. python-iniparse
-5. Apache (httpd) or any other Web Server
+a. squid >= 2.6
+b. python >= 2.4
+c. python-urlgrabber
+d. python-iniparse
+e. Apache (httpd) or any other Web Server
 
 2a. Installation (using setup.py from source)
 =============================================
@@ -28,7 +38,7 @@ BINGO!! You are done with installation. In case you get any error while
 installing youtube_cache, there will be proper logging in youtube_cache_setup.log
 in current directory.
 
-Skip to Configuration step now.
+Skip to Configuration step (#3) now.
 
 2b. Installation (from source step by step)
 ============================================
@@ -40,15 +50,19 @@ c) Go to youtube_cache-x.x-x directory
 [root@localhost youtube_cache-x.x-x]# cd youtube_cache-x.x-x
 
 d) Copy youtube_cache_sysconfing.conf to /etc/youtube_cache.conf
-[root@localhost youtube_cache-x.x-x]# cp youtube_cache_sysconfing.conf /etc/youtube_cache.conf
+[root@localhost youtube_cache-x.x-x]# cp youtube_cache_sysconfig.conf /etc/youtube_cache.conf
 
 e) Copy youtube_cache_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
 [root@localhost youtube_cache-x.x-x]# cp youtube_cache_httpd.conf /etc/httpd/conf.d/youtube_cache.conf
 
-f) Copy youtube_cache directory to /etc/squid/
+f) Copy update-yc to /usr/sbin/update-yc and change permission to executable.
+[root@localhost youtube_cache-x.x-x]# cp update-yc /usr/sbin/update-yc
+[root@localhost youtube_cache-x.x-x]# chmod 744 /usr/sbin/update-yc
+
+g) Copy youtube_cache directory to /etc/squid/
 [root@localhost youtube_cache-x.x-x]# cp -r youtube_cache /etc/squid/
 
-g) Create directories to cache youtube videos
+h) Create directories to cache youtube videos
 [root@localhost root]# cd /var/spool/squid/
 [root@localhost squid]# mkdir video_cache
 [root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo video_cache/wrzuta
@@ -98,10 +112,10 @@ SEE README FILE FOR MORE CONFIGURATION OPTIONS.
 
 4. Bugs, Suggestions, Comments
 ==============================
-Mail them to Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+File bugs, suggestions or comments at http://cachevideos.com/forum/ .
 
 5. Online Help
-=============
-1. Project Page : http://cachevideos.com/
+==============
+1. Project Website : http://cachevideos.com/
 2. How to configure squid http://fedora.co.in/content/how-configure-squid-proxy-server
 3. How to write custorm squid redirector in python http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
