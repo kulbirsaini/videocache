@@ -305,6 +305,10 @@ def setup():
     if not copy_dir('./youtube_cache/', os.path.join(squid_conf_dir, 'youtube_cache')):
         error(INSTALL_ERROR)
 
+    if not copy_file('./update-yc', '/usr/sbin/update-yc'):
+        error(INSTALL_ERROR)
+    os.chmod('/usr/sbin/update-yc',0744)
+
     if not copy_file('./youtube_cache_sysconfig.conf', '/etc/youtube_cache.conf'):
         error(INSTALL_ERROR)
 
