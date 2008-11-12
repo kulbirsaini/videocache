@@ -13,10 +13,10 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        bandwidth and loading time.
 
 4. REQUIRES
-       1. python
+       1. python >= 2.4
        2. python-iniparse
        2. python-urlgrabber
-       3. squid
+       3. squid >= 2.6
        4. Apache or any other Web Server
 
 5. CONFIGURATION
@@ -343,10 +343,11 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        /etc/squid/youtube_cache/
        /var/spool/squid/video_cache/
        /var/log/squid/youtube_cache.log
+       /usr/sbin/update-yc
 
 7. SEE ALSO
        squid (8)
-       Project Page : http://cachevideos.com/
+       Project Website : http://cachevideos.com/
        How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
        How to write custorm squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
 
@@ -354,4 +355,4 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
 
 9. BUGS
-       Mail bugs/suggestions to Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
+       File bugs at http://cachevideos.com/forum/ .

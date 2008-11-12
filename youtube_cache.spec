@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    1.2
+Version:    1.3
 Release:    1
 Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos and Wrzuta.pl audio.
 License:    GPL
@@ -51,6 +51,7 @@ install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_c
 install -m 644 youtube_cache_sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/youtube_cache.conf
 install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
 install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
+install -m 744 update-yc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-yc
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
 
 %clean
@@ -63,6 +64,7 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %{prefix}/etc/httpd/conf.d/youtube_cache.conf
 %{prefix}/var/log/squid/youtube_cache.log
 %{prefix}/usr/share/man/man8/youtube_cache.8.gz
+%{prefix}/usr/sbin/update-yc
 
 %post
 chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
@@ -74,6 +76,12 @@ echo "Check http://cachevideos.com/ in case of any problems."
 %preun
 
 %changelog
+* Tue Nov 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Updated to cache Youtube videos served from googlevideo.com servers.
+- Updated to cache audio from wrzuta.pl .
+- Setup new website for youtube cache at http:///cachevideos.com/ .
+- Removed md5 module dependency completely.
+
 * Fri Oct 31 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Fixed serious mistake in squid.conf for youtube_cache.
 

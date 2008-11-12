@@ -16,7 +16,7 @@
 #
 # (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 #
-# For configuration and how to use, see README file.
+# For more information check http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""

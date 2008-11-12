@@ -16,7 +16,7 @@
 #
 # (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 #
-# For configuration and how to use, see README file.
+# For more information check http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
@@ -55,7 +55,6 @@ max_logfile_backups = int(mainconf.max_logfile_backups)
 proxy = mainconf.proxy
 proxy_username = mainconf.proxy_username
 proxy_password = mainconf.proxy_password
-pidfile = mainconf.pidfile
 
 BASE_PLUGIN = 0
 XMLRPC_SERVER = 1
@@ -340,7 +339,7 @@ def cache_video(client, url, type, video_id):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
     global cache_url
-    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH
+    mode = 0755
     if type == 'YOUTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youtube_cache_dir, video_id) + '.flv'
@@ -417,9 +416,8 @@ def cache_video(client, url, type, video_id):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
         remove(video_id)
-        if stat.S_IMODE(cur_mode) == mode:
-            log(format%(client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
-            return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
+        log(format%(client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
+        return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
     elif cache_size == 0 or dir_size(cache_dir) < cache_size:
         log(format%(client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
         queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size])
@@ -447,7 +445,7 @@ def squid_part():
             client = url[1].split('/')[0]
             log(format%(client, '-', 'REQUEST', '-', url[0]))
         except IndexError, e:
-            log(format%('-', '-', 'REQUEST_ERR', '-', 'Error in the requested url ' + url[0]))
+            log(format%('-', '-', 'RELOAD', '-', 'Youtube Cache plugin was reloaded.'))
 
         # Youtube.com caching is handled here.
         try:
