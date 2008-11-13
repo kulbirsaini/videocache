@@ -638,7 +638,7 @@ def squid_part():
                         new_url = cache_video(client, url[0], type, video_id)
                         log(format%(client, video_id, 'NEW_URL', type, new_url))
         except:
-            log(format%(client, '-', 'NEW_URL', 'VIMEO', 'Error in parsing the url ' + new_url))
+            log(format%(client, '-', 'NEW_URL', 'WRZUTA', 'Error in parsing the url ' + new_url))
         
         # Flush the new url to stdout for squid to process
         try:
@@ -653,7 +653,7 @@ def start_xmlrpc_server():
     try:
         server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0)
         server.register_instance(VideoIDPool())
-        log(format%('-', '-', 'XMLRPCServer', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
+        log(format%('-', '-', 'XMLRPCSERVER', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
         # Rotate logfiles if the size is more than the max_logfile_size.
         if os.stat(logfile)[6] > max_logfile_size:
             roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)

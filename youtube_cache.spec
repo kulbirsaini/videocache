@@ -77,6 +77,14 @@ echo "Check http://cachevideos.com/ in case of any problems."
 %preun
 
 %changelog
+* Wed Nov 13 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Fixed logging error with wrzuta.pl .
+- Bumped to version 1.3 .
+
+* Wed Nov 12 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+- Fixed problem with setup.py to copy update-yc to /usr/sbin/ .
+- Fixed spec file to create /usr/sbin/ .
+
 * Tue Nov 4 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 - Updated to cache Youtube videos served from googlevideo.com servers.
 - Updated to cache audio from wrzuta.pl .
