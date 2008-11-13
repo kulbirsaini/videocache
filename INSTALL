@@ -65,7 +65,7 @@ g) Copy youtube_cache directory to /etc/squid/
 h) Create directories to cache youtube videos
 [root@localhost root]# cd /var/spool/squid/
 [root@localhost squid]# mkdir video_cache
-[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo video_cache/wrzuta
+[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo video_cache/wrzuta video_cache/youporn
 [root@localhost squid]# chown -R squid:squid video_cache
 [root@localhost squid]# chmod -R 755 video_cache
 
@@ -93,6 +93,7 @@ acl redtube_query dstdomain dl.redtube.com
 acl xtube_query url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
 acl vimeo_query url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
 acl wrzuta_query url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
+acl youporn_query url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
 url_rewrite_access deny youtube_deny
 url_rewrite_access allow youtube_query
 url_rewrite_access allow metacafe_query
@@ -102,6 +103,7 @@ url_rewrite_access allow redtube_query
 url_rewrite_access allow xtube_query
 url_rewrite_access allow vimeo_query
 url_rewrite_access allow wrzuta_query
+url_rewrite_access allow youporn_query
 redirector_bypass on
 # --END-- youtube_cache config for squid
 

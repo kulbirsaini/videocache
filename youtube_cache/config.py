@@ -639,6 +639,13 @@ class YumConf(StartupConf):
     max_wrzuta_video_size = Option(0)
     min_wrzuta_video_size = Option(0)
 
+    # Youporn.com Specific Options
+    enable_youporn_cache = Option(1)
+    youporn_cache_dir = Option('youporn')
+    youporn_cache_size = Option(0)
+    max_youporn_video_size = Option(0)
+    min_youporn_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):

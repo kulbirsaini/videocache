@@ -1,16 +1,16 @@
 IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachevideos.com/ .
 
 1. NAME
-       youtube_cache - Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube Videos.
+       youtube_cache - Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube, Youporn Videos
+       and Wrzuta.pl audio.
 
 2. SYNOPSIS
        To be used to with squid as a url rewriter plugin.
 
 3. DESCRIPTION
        youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, wrzuta.pl,
-       redtube and xtube video caching. It can cache  youtube/metacafe/dailymotion/google/vimeo/wrzuta/redtube/xtube  videos  in  a  separate
-       directory  (other  than  squid  cache) in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving
-       bandwidth and loading time.
+       redtube,  xtube  and youporn video caching. It can cache videos from various websites in a separate directory (other than squid cache)
+       in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading time.
 
 4. REQUIRES
        1. python >= 2.4
@@ -39,6 +39,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        acl xtube_query url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
        acl vimeo_query url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
        acl wrzuta_query url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
+       acl youporn_query url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
        url_rewrite_access deny youtube_deny
        url_rewrite_access allow youtube_query
        url_rewrite_access allow metacafe_query
@@ -48,6 +49,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        url_rewrite_access allow xtube_query
        url_rewrite_access allow vimeo_query
        url_rewrite_access allow wrzuta_query
+       url_rewrite_access allow youporn_query
        redirector_bypass on
        # --END-- youtube_cache config for squid
 
@@ -333,6 +335,31 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        min_wrzuta_video_size
+              See description for min_youtube_video_size.
+              Default : 0
+
+
+       enable_youporn_cache
+              See description for enable_youtube_cache.
+              Default : 1
+
+
+       youporn_cache_dir
+              See description for youtube_cache_dir.
+              Default : youporn
+
+
+       youporn_cache_size
+              See description for youtube_cache_size.
+              Default : 0
+
+
+       max_youporn_video_size
+              See description for max_youtube_video_size.
+              Default : 0
+
+
+       min_youporn_video_size
               See description for min_youtube_video_size.
               Default : 0
 
