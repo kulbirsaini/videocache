@@ -119,6 +119,13 @@ wrzuta_cache_size = int(mainconf.wrzuta_cache_size)
 max_wrzuta_video_size = int(mainconf.max_wrzuta_video_size)
 min_wrzuta_video_size = int(mainconf.min_wrzuta_video_size)
 
+# Youporn.com specific options
+enable_youporn_cache = int(mainconf.enable_youporn_cache)
+youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
+youporn_cache_size = int(mainconf.youporn_cache_size)
+max_youporn_video_size = int(mainconf.max_youporn_video_size)
+min_youporn_video_size = int(mainconf.min_youporn_video_size)
+
 def set_proxy():
     if proxy_username and proxy_password:
         proxy_parts = urlparse.urlsplit(proxy)
@@ -412,6 +419,15 @@ def cache_video(client, url, type, video_id):
         cache_size = wrzuta_cache_size
         cache_dir = wrzuta_cache_dir
 
+    if type == 'YOUPORN':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(youporn_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_youporn_video_size
+        min_size = min_youporn_video_size
+        cache_size = youporn_cache_size
+        cache_dir = youporn_cache_dir
+
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -639,6 +655,24 @@ def squid_part():
                         log(format%(client, video_id, 'NEW_URL', type, new_url))
         except:
             log(format%(client, '-', 'NEW_URL', 'WRZUTA', 'Error in parsing the url ' + new_url))
+        
+        # Youporn.com audio file caching is handled here.
+        try:
+            if enable_youporn_cache:
+                if host.find('.files.youporn.com') > -1 and path.find('/flv/') > -1 and path.find('.flv') > -1:
+                    video_id = path.strip('/').split('/')[-1].split('.')[0]
+                    type = 'YOUPORN'
+                    videos = video_id_pool.get()
+                    if video_id in videos:
+                        video_id_pool.inc_score(video_id)
+                        pass
+                    else:
+                        video_id_pool.add(video_id)
+                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                        new_url = cache_video(client, url[0], type, video_id)
+                        log(format%(client, video_id, 'NEW_URL', type, new_url))
+        except:
+            log(format%(client, '-', 'NEW_URL', 'YOUPORN', 'Error in parsing the url ' + new_url))
         
         # Flush the new url to stdout for squid to process
         try:

@@ -87,8 +87,11 @@ vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
 # Wrzuta.pl specific options
 wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
 
+# Wrzuta.pl specific options
+youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
+
 # List of cache directories
-squid_cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir]
+squid_cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir]
 
 def set_logging():
     logging.basicConfig(level=logging.DEBUG,
