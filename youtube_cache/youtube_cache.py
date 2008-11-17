@@ -126,6 +126,13 @@ youporn_cache_size = int(mainconf.youporn_cache_size)
 max_youporn_video_size = int(mainconf.max_youporn_video_size)
 min_youporn_video_size = int(mainconf.min_youporn_video_size)
 
+# Soapbox.msn.com specific options
+enable_soapbox_cache = int(mainconf.enable_soapbox_cache)
+soapbox_cache_dir = os.path.join(base_dir, mainconf.soapbox_cache_dir)
+soapbox_cache_size = int(mainconf.soapbox_cache_size)
+max_soapbox_video_size = int(mainconf.max_soapbox_video_size)
+min_soapbox_video_size = int(mainconf.min_soapbox_video_size)
+
 def set_proxy():
     if proxy_username and proxy_password:
         proxy_parts = urlparse.urlsplit(proxy)
@@ -179,7 +186,7 @@ class VideoIDPool:
         self.queue[video_id] = values
         return True
 
-    def set_score(self, video_id, score = 0):
+    def set_score(self, video_id, score = 1):
         """Set the priority score of a video_id."""
         self.scores[video_id] = score
         return True
@@ -428,6 +435,15 @@ def cache_video(client, url, type, video_id):
         cache_size = youporn_cache_size
         cache_dir = youporn_cache_dir
 
+    if type == 'SOAPBOX':
+        params = urlparse.urlsplit(url)[3]
+        path = os.path.join(soapbox_cache_dir, video_id) + '.flv'
+        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        max_size = max_soapbox_video_size
+        min_size = min_soapbox_video_size
+        cache_size = soapbox_cache_size
+        cache_dir = soapbox_cache_dir
+
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         cur_mode = os.stat(path)[stat.ST_MODE]
@@ -674,6 +690,24 @@ def squid_part():
         except:
             log(format%(client, '-', 'NEW_URL', 'YOUPORN', 'Error in parsing the url ' + new_url))
         
+        # Soapbox.msn.com audio file caching is handled here.
+        try:
+            if enable_soapbox_cache:
+                if host.find('.msn.com.edgesuite.net') > -1 and path.find('.flv') > -1:
+                    video_id = path.strip('/').split('/')[-1].split('.')[0]
+                    type = 'SOAPBOX'
+                    videos = video_id_pool.get()
+                    if video_id in videos:
+                        video_id_pool.inc_score(video_id)
+                        pass
+                    else:
+                        video_id_pool.add(video_id)
+                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                        new_url = cache_video(client, url[0], type, video_id)
+                        log(format%(client, video_id, 'NEW_URL', type, new_url))
+        except:
+            log(format%(client, '-', 'NEW_URL', 'SOAPBOX', 'Error in parsing the url ' + new_url))
+        
         # Flush the new url to stdout for squid to process
         try:
             sys.stdout.write(new_url + '\n')
@@ -709,11 +743,13 @@ def download_scheduler():
                 #log(format%('-', '-', 'INACTIVE', '-', '-'))
                 params = video_id_pool.get_details(video_id)
                 if params != False:
-                    video_id_pool.set_score(video_id)
+                    video_id_pool.set_score(video_id, 0)
                     video_id_pool.add_conn(video_id)
                     log(format%(params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
                     forked = fork(download_from_source)
                     forked(params)
+            if video_id_pool.is_active(video_id) == True:
+                video_id_pool.set_score(video_id, 0)
         time.sleep(3)
     return
 

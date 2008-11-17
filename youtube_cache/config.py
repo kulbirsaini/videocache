@@ -646,6 +646,13 @@ class YumConf(StartupConf):
     max_youporn_video_size = Option(0)
     min_youporn_video_size = Option(0)
 
+    # Soapbox.msn.com Specific Options
+    enable_soapbox_cache = Option(1)
+    soapbox_cache_dir = Option('soapbox')
+    soapbox_cache_size = Option(0)
+    max_soapbox_video_size = Option(0)
+    min_soapbox_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):
