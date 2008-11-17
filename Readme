@@ -1,16 +1,17 @@
 IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachevideos.com/ .
 
 1. NAME
-       youtube_cache - Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube and Xtube, Youporn Videos
-       and Wrzuta.pl audio.
+       youtube_cache  -  Squid url rewriter plugin for caching Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn and MSN
+       Soapbox Videos and Wrzuta.pl audio.
 
 2. SYNOPSIS
        To be used to with squid as a url rewriter plugin.
 
 3. DESCRIPTION
-       youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, wrzuta.pl,
-       redtube,  xtube  and youporn video caching. It can cache videos from various websites in a separate directory (other than squid cache)
-       in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading time.
+       youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google,  vimeo,  redtube,
+       xtube,  youporn  and  msn soapbox video and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory
+       (other than squid cache) in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and
+       loading time.
 
 4. REQUIRES
        1. python >= 2.4
@@ -20,11 +21,11 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        4. Apache or any other Web Server
 
 5. CONFIGURATION
-       To configure youtube_cache, you need to configure Apache (httpd) or  any  other  Webserver,  Proxy  Server  (squid),  and  the  global
+       To  configure  youtube_cache,  you  need  to  configure  Apache  (httpd)  or any other Webserver, Proxy Server (squid), and the global
        youtube_cache configuration file. Below are the steps to configure youtube_cache.
 
 5.1 Squid Configuration
-       To  configure  squid  to  use youtube_cache as a url rewriter program, you need to add the following lines to your sqiud configuration
+       To configure squid to use youtube_cache as a url rewriter program, you need to add the following lines  to  your  sqiud  configuration
        file (generally found at /etc/squid/squid.conf )
 
        # --BEGIN-- youtube_cache config for squid
@@ -40,6 +41,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        acl vimeo_query url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
        acl wrzuta_query url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
        acl youporn_query url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
+       acl soapbox_query url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
        url_rewrite_access deny youtube_deny
        url_rewrite_access allow youtube_query
        url_rewrite_access allow metacafe_query
@@ -50,6 +52,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
        url_rewrite_access allow vimeo_query
        url_rewrite_access allow wrzuta_query
        url_rewrite_access allow youporn_query
+       url_rewrite_access allow soapbox_query
        redirector_bypass on
        # --END-- youtube_cache config for squid
 
@@ -68,7 +71,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        temp_dir
-              Directory to store partially downloaded videos. Directory name is relative to base_dir.  e.g. if you specify  temp_dir  =  tmp,
+              Directory  to  store  partially downloaded videos. Directory name is relative to base_dir.  e.g. if you specify temp_dir = tmp,
               actual path for storing partially downloaded videos would be /var/spool/squid/video_cache/tmp/ .
               Default : tmp
 
@@ -79,7 +82,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        cache_host
-              The  hostname  or  IP address of the system on which caching is being done. This is used for serving the videos from the cache.
+              The hostname or IP address of the system on which caching is being done. This is used for serving the videos  from  the  cache.
               Please don’t use http:// or slashes (/).  Just specify the domain name or IP address.
               Example : localhost.localdomain
               or proxy.example.com
@@ -95,7 +98,7 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        rpc_port
-              Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024
+              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above  1024
               which is not in use by any other program.
               Default : 9100
 
@@ -112,8 +115,8 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        max_logfile_backups
-              The logfiles are automatically rotated once they have exceeded the max_logfile_size.   max_logfile_backups  is  the  number  of
-              backup  files  you  want  to  keep.   e.g.  max_logfile_backups  =  2  will  keep youtube_cache.log and youtube_cache.log.1 and
+              The  logfiles  are  automatically  rotated  once they have exceeded the max_logfile_size.  max_logfile_backups is the number of
+              backup files you want to  keep.   e.g.  max_logfile_backups  =  2  will  keep  youtube_cache.log  and  youtube_cache.log.1  and
               youtube_cache.log.2 as logfiles.
               Default : 10
 
@@ -140,27 +143,27 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        youtube_cache_dir
-              Directory to cach youtube videos. Directory name is relative to base_dir.  e.g. if you  specify  youtube_cache_dir  =  youtube,
+              Directory  to  cach  youtube  videos. Directory name is relative to base_dir.  e.g. if you specify youtube_cache_dir = youtube,
               actual path for caching youtube videos would be /var/spool/squid/video_cache/youtube/ .
               Default : youtube
 
 
        youtube_cache_size
-              Maximum  total  size  of youtube caching directory. 0 for unlimited. This size is in Mega Bytes.  e.g. youtube_cache_size = 200
+              Maximum total size of youtube caching directory. 0 for unlimited. This size is in Mega Bytes.  e.g.  youtube_cache_size  =  200
               will limit your cache size to 200MB.
               NOTE : Don’t use cache_size = 200MB. Don’t append MB.
               Default : 0
 
 
        max_youtube_video_size
-              Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilo bytes.  Use 0 for  unlimited
+              Youtube  videos with size more than max_youtube_video_size will not be cached. This size is in kilo bytes.  Use 0 for unlimited
               caching. e.g. max_youtube_video_size = 10000.  Only videos with size less than 10MB (10000KB) will be cached.
               NOTE : Don’t use max_youtube_video_size = 10000KB. Don’t append KB.
               Default : 0
 
 
        min_youtube_video_size
-              Youtube  videos  with  size less than min_youtube_video_size will not be cached. This size is in kilo bytes. Use 0 for no lower
+              Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilo bytes. Use 0  for  no  lower
               limit.  e.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached.
               NOTE : Don’t use min_youtube_video_size = 10KB. Don’t append KB.
               Default : 0
@@ -360,6 +363,31 @@ IMPORTANT NOTE : For latest updates on youtube cache, please check http://cachev
 
 
        min_youporn_video_size
+              See description for min_youtube_video_size.
+              Default : 0
+
+
+       enable_soapbox_cache
+              See description for enable_youtube_cache.
+              Default : 1
+
+
+       soapbox_cache_dir
+              See description for youtube_cache_dir.
+              Default : soapbox
+
+
+       soapbox_cache_size
+              See description for youtube_cache_size.
+              Default : 0
+
+
+       max_soapbox_video_size
+              See description for max_youtube_video_size.
+              Default : 0
+
+
+       min_soapbox_video_size
               See description for min_youtube_video_size.
               Default : 0
 
