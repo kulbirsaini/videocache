@@ -49,7 +49,7 @@ b) Untar the package.
 c) Go to youtube_cache-x.x directory
 [root@localhost root]# cd youtube_cache-x.x
 
-d) Copy youtube_cache_sysconfing.conf to /etc/youtube_cache.conf
+d) Copy youtube_cache_sysconfig.conf to /etc/youtube_cache.conf
 [root@localhost youtube_cache-x.x]# cp youtube_cache_sysconfig.conf /etc/youtube_cache.conf
 
 e) Copy youtube_cache_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
