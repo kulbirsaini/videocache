@@ -20,7 +20,6 @@
 #
 
 __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
-__version__ = 0.1
 __docformat__ = 'plaintext'
 
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
@@ -165,7 +164,7 @@ def dir_size(dir):
 class VideoIDPool:
     """
     This class is for sharing the current packages being downloading
-    across various instances of intelligentmirror via XMLRPC.
+    across various instances of youtube_cache via XMLRPC.
     """
     def __init__(self):
         self.scores = {}
@@ -173,9 +172,9 @@ class VideoIDPool:
         self.active = []
         pass
 
-    # Function related to video_id queue-ing.
+    # Functions related to video_id queue-ing.
     def add(self, video_id, score = 1):
-        """Queue a video_id for download. Score defaults to zero."""
+        """Queue a video_id for download. Score defaults to one."""
         if video_id not in self.queue.keys():
             self.queue[video_id] = []
         self.scores[video_id] = score
@@ -446,7 +445,6 @@ def cache_video(client, url, type, video_id):
 
     if os.path.isfile(path):
         log(format%(client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
-        cur_mode = os.stat(path)[stat.ST_MODE]
         remove(video_id)
         log(format%(client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
         return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
@@ -717,7 +715,7 @@ def squid_part():
                 os.kill(os.getpid(), 1)
 
 def start_xmlrpc_server():
-    """Starts the XMLRPC server in a forked daemon process."""
+    """Starts the XMLRPC server in a threaded process."""
     try:
         server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0)
         server.register_instance(VideoIDPool())

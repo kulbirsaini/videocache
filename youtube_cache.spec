@@ -53,7 +53,7 @@ install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
 install -m 644 youtube_cache_sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/youtube_cache.conf
 install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
-install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
+install -m 644 youtube_cache.8 -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8
 install -m 744 update-yc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-yc
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
 
@@ -66,7 +66,7 @@ rm -rf $RPM_BUILD_DIR/%{name}-%{version}
 %{prefix}/etc/youtube_cache.conf
 %{prefix}/etc/httpd/conf.d/youtube_cache.conf
 %{prefix}/var/log/squid/youtube_cache.log
-%{prefix}/usr/share/man/man8/youtube_cache.8.gz
+%{prefix}/usr/share/man/man8/youtube_cache.8
 %{prefix}/usr/sbin/update-yc
 
 %post
@@ -79,6 +79,11 @@ echo "Check http://cachevideos.com/ in case of any problems."
 %preun
 
 %changelog
+* Tue Nov 18 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Added support for soapbox.msn.com video caching.
+Fixed bug with download scheduler. Scheduler was not scheduling more than one video at a time.
+Added CHANGELOG file.
+
 * Thu Nov 13 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Youtube Cache updated to cache videos from http://youporn.com/ .
 
