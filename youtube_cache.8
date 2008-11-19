@@ -35,6 +35,8 @@ To configure squid to use youtube_cache as a url rewriter program, you need to a
 
 .nf
   # --BEGIN-- youtube_cache config for squid
+  url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
+  url_rewrite_children 10
   acl youtube_query url_regex -i \e.youtube\e.com\e/get_video
   acl youtube_query url_regex -i \e.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\e.googlevideo\e.com\e/videoplayback
   acl youtube_query url_regex -i \e.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\e.googlevideo\e.com\e/get_video

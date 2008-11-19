@@ -82,6 +82,8 @@ Add the following lines to your squid.conf which is generally found in
 /etc/squid/squid.conf .
 
 # --BEGIN-- youtube_cache config for squid
+url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
+url_rewrite_children 10
 acl youtube_query url_regex -i \.youtube\.com\/get_video
 acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
 acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/get_video
