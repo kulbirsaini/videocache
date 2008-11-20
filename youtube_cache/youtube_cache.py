@@ -22,7 +22,6 @@
 __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
 __docformat__ = 'plaintext'
 
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from config import readMainConfig, readStartupConfig
 import logging
 import logging.handlers
@@ -39,7 +38,7 @@ import urlparse
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 
-mainconf =  readMainConfig(readStartupConfig('/etc/youtube_cache.conf', '/'))
+mainconf =  readMainConfig(readStartupConfig('/usr/share/youtube_cache/youtube_cache.conf', '/'))
 
 # Gloabl Options
 base_dir = mainconf.base_dir
@@ -48,7 +47,7 @@ max_parallel_downloads = int(mainconf.max_parallel_downloads)
 cache_host = mainconf.cache_host
 rpc_host = mainconf.rpc_host
 rpc_port = int(mainconf.rpc_port)
-logfile = mainconf.logfile
+logfile = os.path.join(mainconf.logdir, 'youtube_cache.log')
 max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
 max_logfile_backups = int(mainconf.max_logfile_backups)
 proxy = mainconf.proxy
@@ -356,7 +355,7 @@ def cache_video(client, url, type, video_id):
     if type == 'YOUTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_youtube_video_size
         min_size = min_youtube_video_size
         cache_size = youtube_cache_size
@@ -365,7 +364,7 @@ def cache_video(client, url, type, video_id):
     if type == 'METACAFE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(metacafe_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_metacafe_video_size
         min_size = min_metacafe_video_size
         cache_size = metacafe_cache_size
@@ -374,7 +373,7 @@ def cache_video(client, url, type, video_id):
     if type == 'DAILYMOTION':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(dailymotion_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_dailymotion_video_size
         min_size = min_dailymotion_video_size
         cache_size = dailymotion_cache_size
@@ -383,7 +382,7 @@ def cache_video(client, url, type, video_id):
     if type == 'GOOGLE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(google_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_google_video_size
         min_size = min_google_video_size
         cache_size = google_cache_size
@@ -392,7 +391,7 @@ def cache_video(client, url, type, video_id):
     if type == 'REDTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(redtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_redtube_video_size
         min_size = min_redtube_video_size
         cache_size = redtube_cache_size
@@ -401,7 +400,7 @@ def cache_video(client, url, type, video_id):
     if type == 'XTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(xtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_xtube_video_size
         min_size = min_xtube_video_size
         cache_size = xtube_cache_size
@@ -410,7 +409,7 @@ def cache_video(client, url, type, video_id):
     if type == 'VIMEO':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(vimeo_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_vimeo_video_size
         min_size = min_vimeo_video_size
         cache_size = vimeo_cache_size
@@ -419,7 +418,7 @@ def cache_video(client, url, type, video_id):
     if type == 'WRZUTA':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(wrzuta_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_wrzuta_video_size
         min_size = min_wrzuta_video_size
         cache_size = wrzuta_cache_size
@@ -428,7 +427,7 @@ def cache_video(client, url, type, video_id):
     if type == 'YOUPORN':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youporn_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_youporn_video_size
         min_size = min_youporn_video_size
         cache_size = youporn_cache_size
@@ -437,7 +436,7 @@ def cache_video(client, url, type, video_id):
     if type == 'SOAPBOX':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(soapbox_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, base_dir.strip('/').split('/')[-1], type.lower())
+        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
         max_size = max_soapbox_video_size
         min_size = min_soapbox_video_size
         cache_size = soapbox_cache_size
