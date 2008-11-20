@@ -32,17 +32,17 @@ import sys
 squid_user = 'squid'
 # The group which runs the squid proxy server or daemon.
 squid_group = 'squid'
-# The location of squid configuration directory.
-squid_conf_dir = '/etc/squid/'
-# The location of directory where squid logs are stored.
-squid_log_dir = '/var/log/squid'
+# The location of youtube_cache installation directory.
+install_dir = '/usr/share/'
+# The location of directory where youtube_cache logs will be stored.
+log_dir = '/var/log/youtube_cache/'
 # The directory to store application specific configuration files for Apache Web Server.
 apache_conf_dir = '/etc/httpd/conf.d/'
 # The directory to store man pages.
 man_dir = '/usr/share/man/man8/'
 
 # The location of system configuration file for youtube cache.
-config_file = './youtube_cache_sysconfig.conf'
+config_file = './youtube_cache/youtube_cache.conf'
 # The location of logfile to write setup/install logs.
 setup_logfile = './youtube_cache_setup.log'
 # Read the configure file.
@@ -51,7 +51,7 @@ mainconf =  readMainConfig(readStartupConfig(config_file, '/'))
 # Gloabl Options
 base_dir = mainconf.base_dir
 temp_dir = os.path.join(base_dir, mainconf.temp_dir)
-logfile = mainconf.logfile
+logdir = mainconf.logdir
 format = '%s'
 
 USAGE_ERROR = 1
@@ -89,7 +89,7 @@ youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
 soapbox_cache_dir = os.path.join(base_dir, mainconf.soapbox_cache_dir)
 
 # List of cache directories
-squid_cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir]
+cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir]
 
 def set_logging():
     logging.basicConfig(level=logging.DEBUG,
@@ -224,9 +224,9 @@ Alias /video_cache """ + base_dir +"""
         file = open(conf_file, 'w')
         file.write(youtube_cache_conf)
         file.close()
-        log(format%("Generated config file for Apache webserver in file " + config_file + " ."))
+        log(format%("Generated config file for Apache webserver in file " + conf_file + " ."))
     except:
-        log(format%("Could not write config file for apache web server to " + config_file + " ."))
+        log(format%("Could not write config file for apache web server to " + conf_file + " ."))
         return False
     return True
 
@@ -277,22 +277,25 @@ def setup():
     else:
         log(format%("Directory " + apache_conf_dir + " already exists."))
 
-    # Create squid configuration directory.
-    if not os.path.isdir(squid_conf_dir):
-        if not create_dir(squid_conf_dir):
+    # Create youtube_cache installation directory.
+    if not os.path.isdir(install_dir):
+        if not create_dir(install_dir):
             error(INSTALL_ERROR)
     else:
-        log(format%("Directory " + squid_conf_dir + " already exists."))
+        log(format%("Directory " + install_dir + " already exists."))
 
-    # Create squid log directory.
-    if not os.path.isdir(squid_log_dir):
-        if not create_dir(squid_log_dir, squid_user, squid_group):
+    # Create youtube_cache log directory.
+    if not os.path.isdir(log_dir):
+        if not create_dir(log_dir, squid_user, squid_group):
             error(INSTALL_ERROR)
     else:
-        log(format%("Directory " + squid_log_dir + " already exists."))
+        log(format%("Directory " + log_dir + " already exists."))
+
+    if os.path.isdir('/var/spool/squid/video_cache') and not os.path.isdir(base_dir):
+        os.rename('/var/spool/squid/video_cache', base_dir)
 
     # Create directories for video caching.
-    for dir in squid_cache_dir_list:
+    for dir in cache_dir_list:
         if not os.path.isdir(dir):
             if not create_dir(dir, squid_user, squid_group):
                 error(INSTALL_ERROR)
@@ -308,20 +311,19 @@ def setup():
     else:
         log(format%("Directory " + man_dir + " already exists."))
 
-    if not copy_dir('./youtube_cache/', os.path.join(squid_conf_dir, 'youtube_cache')):
+    if not copy_dir('./youtube_cache/', os.path.join(install_dir, 'youtube_cache')):
         error(INSTALL_ERROR)
+
+    os.system('ln -sf /usr/share/youtube_cache/youtube_cache.conf /etc/youtube_cache.conf')
 
     if not copy_file('./update-yc', '/usr/sbin/update-yc'):
         error(INSTALL_ERROR)
     os.chmod('/usr/sbin/update-yc',0744)
 
-    if not copy_file('./youtube_cache_sysconfig.conf', '/etc/youtube_cache.conf'):
-        error(INSTALL_ERROR)
-
     if not copy_file('./youtube_cache.8.gz', os.path.join(man_dir, 'youtube_cache.8.gz')):
         error(INSTALL_ERROR)
 
-    if not create_file(os.path.join(squid_log_dir, 'youtube_cache.log'), squid_user, squid_group):
+    if not create_file(os.path.join(log_dir, 'youtube_cache.log'), squid_user, squid_group):
         error(INSTALL_ERROR)
 
     if not generate_httpd_conf():

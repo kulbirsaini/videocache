@@ -561,7 +561,7 @@ class StartupConf(BaseConfig):
     errorlevel = IntOption(2, 0, 10)
 
     installroot = Option('/')
-    config_file_path = Option('/etc/youtube_cache.conf')
+    config_file_path = Option('/usr/share/youtube_cache/youtube_cache.conf')
 
 class YumConf(StartupConf):
     '''
@@ -570,13 +570,13 @@ class YumConf(StartupConf):
     Note: see also options inherited from StartupConf
     '''
     # Global Options
-    base_dir = Option('/var/spool/squid/video_cache/')
+    base_dir = Option('/var/spool/video_cache/')
     temp_dir = Option('tmp')
     max_parallel_downloads = Option(30)
     cache_host = Option('127.0.0.1')
     rpc_host = Option('127.0.0.1')
     rpc_port = Option(9100)
-    logfile = Option('/var/log/squid/youtube_cache.log')
+    logdir = Option('/var/log/youtube_cache/')
     max_logfile_size = Option(10)
     max_logfile_backups = Option(10)
     proxy = Option('http://127.0.0.1:3128/')
@@ -698,9 +698,9 @@ def readMainConfig(startupconf):
     yumconf.populate(startupconf._parser, 'main')
 
     # Apply the installroot to directory options
-    option = 'base_dir'
-    path = getattr(yumconf, option)
-    setattr(yumconf, option, yumconf.installroot + path)
+    #option = 'base_dir'
+    #path = getattr(yumconf, option)
+    #setattr(yumconf, option, yumconf.installroot + path)
     
     # items related to the originating config file
     yumconf.config_file_path = startupconf.config_file_path

@@ -12,116 +12,117 @@ Index
 
 1. Requires
 ===========
-a. squid >= 2.6
-b. python >= 2.4
-c. python-urlgrabber
-d. python-iniparse
-e. Apache (httpd) or any other Web Server
+  a. squid >= 2.6
+  b. python >= 2.4
+  c. python-urlgrabber
+  d. python-iniparse
+  e. Apache (httpd) or any other Web Server
 
 2a. Installation (using setup.py from source)
 =============================================
-a) Download latest version of youtube_cache from http://cachevideos.com/download/ .
-b) Untar the package.
-[root@localhost root]# tar -xvzf youtube_cache-x.x.tar.gz
+  a) Download latest version of youtube_cache from http://cachevideos.com/download/ .
+  b) Untar the package.
+  [root@localhost root]# tar -xvzf youtube_cache-x.x.tar.gz
 
-c) Go to youtube_cache-x.x directory
-[root@localhost root]# cd youtube_cache-x.x
+  c) Go to youtube_cache-x.x directory
+  [root@localhost root]# cd youtube_cache-x.x
 
-d) Run setup.py as root for installing youtube_cache
-NOTE : If you have installed squid from rpms, skip this note.
-If your squid config files are not in /etc/squid/ or
-you have installed squid from source, then please check the
-global variables in setup.py and change them accordingly.
-[root@localhost youtube_cache-x.x]# python setup.py install
+  d) Run setup.py as root for installing youtube_cache
+  [root@localhost youtube_cache-x.x]# python setup.py install
 
-BINGO!! You are done with installation. In case you get any error while
-installing youtube_cache, there will be proper logging in youtube_cache_setup.log
-in current directory.
+  BINGO!! You are done with installation. In case you get any error while
+  installing youtube_cache, there will be proper logging in youtube_cache_setup.log
+  in current directory.
 
-Skip to Configuration step (#3) now.
+  Skip to Configuration step (#3) now.
 
 2b. Installation (from source step by step)
 ============================================
-a) Download latest version of youtube_cache from http://cachevideos.com/download/ .
-b) Untar the package.
-[root@localhost root]# tar -xvzf youtube_cache-x.x.tar.gz
+  a) Download latest version of youtube_cache from http://cachevideos.com/download/ .
+  b) Untar the package.
+  [root@localhost root]# tar -xvzf youtube_cache-x.x.tar.gz
 
-c) Go to youtube_cache-x.x directory
-[root@localhost root]# cd youtube_cache-x.x
+  c) Go to youtube_cache-x.x directory
+  [root@localhost root]# cd youtube_cache-x.x
 
-d) Copy youtube_cache_sysconfig.conf to /etc/youtube_cache.conf
-[root@localhost youtube_cache-x.x]# cp youtube_cache_sysconfig.conf /etc/youtube_cache.conf
+  d) Copy youtube_cache_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
+  [root@localhost youtube_cache-x.x]# cp youtube_cache_httpd.conf /etc/httpd/conf.d/youtube_cache.conf
 
-e) Copy youtube_cache_httpd.conf to /etc/httpd/conf.d/youtube_cache.conf
-[root@localhost youtube_cache-x.x]# cp youtube_cache_httpd.conf /etc/httpd/conf.d/youtube_cache.conf
+  e) Copy update-yc to /usr/sbin/update-yc and change permission to executable.
+  [root@localhost youtube_cache-x.x]# cp update-yc /usr/sbin/update-yc
+  [root@localhost youtube_cache-x.x]# chmod 744 /usr/sbin/update-yc
 
-f) Copy update-yc to /usr/sbin/update-yc and change permission to executable.
-[root@localhost youtube_cache-x.x]# cp update-yc /usr/sbin/update-yc
-[root@localhost youtube_cache-x.x]# chmod 744 /usr/sbin/update-yc
+  f) Copy youtube_cache directory to /usr/share/
+  [root@localhost youtube_cache-x.x]# cp -r youtube_cache /usr/share/
 
-g) Copy youtube_cache directory to /etc/squid/
-[root@localhost youtube_cache-x.x]# cp -r youtube_cache /etc/squid/
+  g) Create link from /usr/share/youtube_cache/youtube_cache.conf to /etc/youtube_cache.conf
+  [root@localhost ~]# ln -sf /usr/share/youtube_cache/youtube_cache.conf /etc/youtube_cache.conf
 
-h) Create directories to cache youtube videos
-[root@localhost root]# cd /var/spool/squid/
-[root@localhost squid]# mkdir video_cache
-[root@localhost squid]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo video_cache/wrzuta video_cache/youporn video_cache/soapbox
-[root@localhost squid]# chown -R squid:squid video_cache
-[root@localhost squid]# chmod -R 755 video_cache
+  h) Create directories to cache youtube videos
+  [root@localhost root]# cd /var/spool/
+  [root@localhost spool]# mkdir video_cache
+  [root@localhost spool]# mkdir video_cache/tmp video_cache/youtube video_cache/metacafe video_cache/dailymotion video_cache/google video_cache/redtube video_cache/xtube video_cache/vimeo video_cache/wrzuta video_cache/youporn video_cache/soapbox
+  [root@localhost spool]# chown -R squid:squid video_cache
+  [root@localhost spool]# chmod -R 755 video_cache
+
+  i) Create logdir /var/log/youtube_cache/ and change permissions and ownership
+  [root@localhost ~]# mkdir -p /var/log/youtube_cache
+  [root@localhost ~]# chmod -R 755 /var/log/youtube_cache/
+  [root@localhost ~]# chown -R squid:squid /var/log/youtube_cache/
 
 3. Configuration
 ================
-Assuming you have squid installed. The following configurations are required to get it running.
-Newbies are instructed to stick with default configuration as much as possible otherwise
-you'll be lost in directory permissions.
+  Assuming you have squid installed. The following configurations are required to get it running.
+  Newbies are instructed to stick with default configuration as much as possible otherwise
+  you'll be lost in directory permissions.
 
-Reload the httpd service as
-[root@localhost root]# service httpd reload
+  Reload the httpd service as
+  [root@localhost root]# service httpd reload
 
-Add the following lines to your squid.conf which is generally found in
-/etc/squid/squid.conf .
+  Add the following lines to your squid.conf which is generally found in
+  /etc/squid/squid.conf .
 
-# --BEGIN-- youtube_cache config for squid
-url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
-url_rewrite_children 10
-acl youtube_query url_regex -i \.youtube\.com\/get_video
-acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
-acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/get_video
-acl youtube_deny url_regex -i http:\/\/[a-z][a-z]\.youtube\.com
-acl metacafe_query dstdomain v.mccont.com
-acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
-acl google_query dstdomain vp.video.google.com
-acl redtube_query dstdomain dl.redtube.com
-acl xtube_query url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
-acl vimeo_query url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
-acl wrzuta_query url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
-acl youporn_query url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
-acl soapbox_query url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
-url_rewrite_access deny youtube_deny
-url_rewrite_access allow youtube_query
-url_rewrite_access allow metacafe_query
-url_rewrite_access allow dailymotion_query
-url_rewrite_access allow google_query
-url_rewrite_access allow redtube_query
-url_rewrite_access allow xtube_query
-url_rewrite_access allow vimeo_query
-url_rewrite_access allow wrzuta_query
-url_rewrite_access allow youporn_query
-url_rewrite_access allow soapbox_query
-redirector_bypass on
-# --END-- youtube_cache config for squid
+  # --BEGIN-- youtube_cache config for squid
+  url_rewrite_program /usr/bin/python /usr/share/youtube_cache/youtube_cache.py
+  url_rewrite_children 10
+  acl youtube_query url_regex -i \.youtube\.com\/get_video
+  acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
+  acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/get_video
+  acl youtube_deny url_regex -i http:\/\/[a-z][a-z]\.youtube\.com
+  acl metacafe_query dstdomain v.mccont.com
+  acl dailymotion_query url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
+  acl google_query dstdomain vp.video.google.com
+  acl redtube_query dstdomain dl.redtube.com
+  acl xtube_query url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
+  acl vimeo_query url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
+  acl wrzuta_query url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
+  acl youporn_query url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
+  acl soapbox_query url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
+  url_rewrite_access deny youtube_deny
+  url_rewrite_access allow youtube_query
+  url_rewrite_access allow metacafe_query
+  url_rewrite_access allow dailymotion_query
+  url_rewrite_access allow google_query
+  url_rewrite_access allow redtube_query
+  url_rewrite_access allow xtube_query
+  url_rewrite_access allow vimeo_query
+  url_rewrite_access allow wrzuta_query
+  url_rewrite_access allow youporn_query
+  url_rewrite_access allow soapbox_query
+  redirector_bypass on
+  # --END-- youtube_cache config for squid
 
-Save squid.conf and reload the squid service using
-[root@proxy root]# service squid reload
+  Save squid.conf and reload the squid service using
+  [root@proxy root]# service squid reload
 
-SEE README FILE FOR MORE CONFIGURATION OPTIONS.
+  SEE README FILE FOR MORE CONFIGURATION OPTIONS.
 
 4. Bugs, Suggestions, Comments
 ==============================
-File bugs, suggestions or comments at http://cachevideos.com/forum/ .
+  File bugs, suggestions or comments at http://cachevideos.com/forum/ .
 
 5. Online Help
 ==============
-1. Project Website : http://cachevideos.com/
-2. How to configure squid http://fedora.co.in/content/how-configure-squid-proxy-server
-3. How to write custorm squid redirector in python http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
+  1. Project Website : http://cachevideos.com/
+  2. How to configure squid http://fedora.co.in/content/how-configure-squid-proxy-server
+  3. How to write custorm squid redirector in python http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python

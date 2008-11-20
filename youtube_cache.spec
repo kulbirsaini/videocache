@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       youtube_cache
-Version:    1.4
+Version:    1.5
 Release:    1
 Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn and MSN Soapbox Videos and Wrzuta.pl audio.
 License:    GPL
@@ -30,55 +30,83 @@ It helps in saving bandwidth and loading time.
 %build
 echo "No building... its python..." > /dev/null
 
+%pre
+if [[ -d %{prefix}/var/spool/squid/video_cache ]] && ! ([[ -d %{prefix}/var/spool/video_cache ]]); then
+  mv %{prefix}/var/spool/squid/video_cache %{prefix}/var/spool/video_cache
+  chown -R squid:squid %{prefix}/var/spool/video_cache
+  chmod -R 755 %{prefix}/var/spool/video_cache
+fi
+
 %install
-rm -rf $RPM_BUILD_ROOT/
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT
-install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
+install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/usr/share/youtube_cache/
 install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
+install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/
 install -m 744 -d  ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/
-install -m 700 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/metacafe/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/dailymotion/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/google/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/vimeo/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/redtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/xtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/wrzuta/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/youporn/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/soapbox/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache/tmp/
+install -m 744 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/youtube_cache/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/youtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/metacafe/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/dailymotion/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/google/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/vimeo/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/redtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/xtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/wrzuta/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/youporn/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/soapbox/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/tmp/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
-install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/etc/squid/youtube_cache/
-install -m 644 youtube_cache_sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/youtube_cache.conf
+install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/youtube_cache/
 install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
-install -m 644 youtube_cache.8 -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8
+install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
 install -m 744 update-yc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-yc
-touch ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
+touch ${RPM_BUILD_ROOT}%{prefix}/var/log/youtube_cache/youtube_cache.log
+ln -sf %{prefix}/usr/share/youtube_cache/youtube_cache.conf ${RPM_BUILD_ROOT}%{prefix}/etc/youtube_cache.conf
 
 %clean
-rm -rf $RPM_BUILD_ROOT
-rm -rf $RPM_BUILD_DIR/%{name}-%{version}
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %files
-%{prefix}/etc/squid/youtube_cache/
 %{prefix}/etc/youtube_cache.conf
 %{prefix}/etc/httpd/conf.d/youtube_cache.conf
-%{prefix}/var/log/squid/youtube_cache.log
-%{prefix}/usr/share/man/man8/youtube_cache.8
+%{prefix}/usr/share/youtube_cache/
+%{prefix}/usr/share/man/man8/youtube_cache.8.gz
 %{prefix}/usr/sbin/update-yc
+%{prefix}/var/log/youtube_cache/
+%{prefix}/var/spool/video_cache/
 
 %post
-chown squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/log/squid/youtube_cache.log
-chown -R squid:squid ${RPM_BUILD_ROOT}%{prefix}/var/spool/squid/video_cache
+if [[ -d %{prefix}/var/log/youtube_cache/ ]]; then
+  chown -R squid:squid %{prefix}/var/log/youtube_cache/
+fi
+if [[ -d %{prefix}/var/spool/video_cache/ ]]; then
+  chown -R squid:squid %{prefix}/var/spool/video_cache/
+  chmod -R 755 %{prefix}/var/spool/video_cache/
+fi
 echo "You need to modify /etc/youtube_cache.conf to make caching work properly."
 echo "Also you need to configure squid. Check youtube_cache manpage for more details."
 echo "Check http://cachevideos.com/ in case of any problems."
 
 %preun
+if [[ -d %{prefix}/var/spool/video_cache ]];then
+  mv %{prefix}/var/spool/video_cache ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache1
+fi
+
+%postun
+if [[ -d %{prefix}/var/spool/video_cache1 ]]; then
+  mv %{prefix}/var/spool/video_cache1 ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache
+fi
 
 %changelog
+* Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Added critical lines missing from INSTALL/Readme/Manpage.
+
+* Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Manpage generation using Text2Tags ( http://txt2tags.sourceforge.net/ ).
+Manpage will be delivered uncompressed.
+
 * Tue Nov 18 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Added support for soapbox.msn.com video caching.
 Fixed bug with download scheduler. Scheduler was not scheduling more than one video at a time.

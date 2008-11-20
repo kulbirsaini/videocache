@@ -28,7 +28,7 @@
        file (generally found at /etc/squid/squid.conf )
 
          # --BEGIN-- youtube_cache config for squid
-         url_rewrite_program /usr/bin/python /etc/squid/youtube_cache/youtube_cache.py
+         url_rewrite_program /usr/bin/python /usr/share/youtube_cache/youtube_cache.py
          url_rewrite_children 10
          acl youtube_query url_regex -i \.youtube\.com\/get_video
          acl youtube_query url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
@@ -70,11 +70,11 @@
 
        base_dir
               Base directory for caching the videos. All other directory paths should be relative to base_dir.
-                Default : /var/spool/squid/video_cache/
+                Default : /var/spool/video_cache/
 
        temp_dir
               Directory to store partially downloaded videos. Directory name is relative to base_dir. e.g. if you  specify  temp_dir  =  tmp,
-              actual path for storing partially downloaded videos would be /var/spool/squid/video_cache/tmp/ .
+              actual path for storing partially downloaded videos would be /var/spool/video_cache/tmp/ .
                 Default : tmp
 
        max_parallel_downloads
@@ -100,9 +100,10 @@
               which is not in use by any other program.
                 Default : 9100
 
-       logfile
-              File where youtube cache log will be stored.
-                Default : /var/log/squid/youtube_cache.log
+       logdir
+
+              Directory where youtube cache logs will be stored.
+                Default : /var/log/youtube_cache/
 
        max_logfile_size
               Maximum size of logfile specified above. The size is in mega bytes.
@@ -135,7 +136,7 @@
 
        youtube_cache_dir
               Directory  to  cach  youtube  videos.  Directory name is relative to base_dir. e.g. if you specify youtube_cache_dir = youtube,
-              actual path for caching youtube videos would be /var/spool/squid/video_cache/youtube/ .
+              actual path for caching youtube videos would be /var/spool/video_cache/youtube/ .
                 Default : youtube
 
        youtube_cache_size
@@ -339,10 +340,11 @@
 6. FILES
          /etc/youtube_cache.conf
          /etc/httpd/conf.d/youtube_cache.conf
-         /etc/squid/youtube_cache/
-         /var/spool/squid/video_cache/
-         /var/log/squid/youtube_cache.log
+         /usr/share/youtube_cache/
+         /usr/share/man/man8/youtube_cache.8.gz
          /usr/sbin/update-yc
+         /var/spool/video_cache/
+         /var/log/youtube_cache/
 
 7. SEE ALSO
        squid (8)

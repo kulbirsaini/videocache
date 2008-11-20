@@ -1,3 +1,10 @@
+* Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Added critical lines missing from INSTALL/Readme/Manpage.
+
+* Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Manpage generation using Text2Tags ( http://txt2tags.sourceforge.net/ ).
+Manpage will be delivered uncompressed.
+
 * Tue Nov 18 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Added support for soapbox.msn.com video caching.
 Fixed bug with download scheduler. Scheduler was not scheduling more than one video at a time.
