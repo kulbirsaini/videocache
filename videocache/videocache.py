@@ -38,16 +38,17 @@ import urlparse
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 
-mainconf =  readMainConfig(readStartupConfig('/usr/share/youtube_cache/youtube_cache.conf', '/'))
+mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
 # Gloabl Options
+enable_video_cache = int(mainconf.enable_video_cache)
 base_dir = mainconf.base_dir
 temp_dir = os.path.join(base_dir, mainconf.temp_dir)
 max_parallel_downloads = int(mainconf.max_parallel_downloads)
 cache_host = mainconf.cache_host
 rpc_host = mainconf.rpc_host
 rpc_port = int(mainconf.rpc_port)
-logfile = os.path.join(mainconf.logdir, 'youtube_cache.log')
+logfile = os.path.join(mainconf.logdir, 'videocache.log')
 max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
 max_logfile_backups = int(mainconf.max_logfile_backups)
 proxy = mainconf.proxy
@@ -163,7 +164,7 @@ def dir_size(dir):
 class VideoIDPool:
     """
     This class is for sharing the current packages being downloading
-    across various instances of youtube_cache via XMLRPC.
+    across various instances of videocache via XMLRPC.
     """
     def __init__(self):
         self.scores = {}
@@ -355,7 +356,7 @@ def cache_video(client, url, type, video_id):
     if type == 'YOUTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_youtube_video_size
         min_size = min_youtube_video_size
         cache_size = youtube_cache_size
@@ -364,7 +365,7 @@ def cache_video(client, url, type, video_id):
     if type == 'METACAFE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(metacafe_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_metacafe_video_size
         min_size = min_metacafe_video_size
         cache_size = metacafe_cache_size
@@ -373,7 +374,7 @@ def cache_video(client, url, type, video_id):
     if type == 'DAILYMOTION':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(dailymotion_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_dailymotion_video_size
         min_size = min_dailymotion_video_size
         cache_size = dailymotion_cache_size
@@ -382,7 +383,7 @@ def cache_video(client, url, type, video_id):
     if type == 'GOOGLE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(google_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_google_video_size
         min_size = min_google_video_size
         cache_size = google_cache_size
@@ -391,7 +392,7 @@ def cache_video(client, url, type, video_id):
     if type == 'REDTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(redtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_redtube_video_size
         min_size = min_redtube_video_size
         cache_size = redtube_cache_size
@@ -400,7 +401,7 @@ def cache_video(client, url, type, video_id):
     if type == 'XTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(xtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_xtube_video_size
         min_size = min_xtube_video_size
         cache_size = xtube_cache_size
@@ -409,7 +410,7 @@ def cache_video(client, url, type, video_id):
     if type == 'VIMEO':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(vimeo_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_vimeo_video_size
         min_size = min_vimeo_video_size
         cache_size = vimeo_cache_size
@@ -418,7 +419,7 @@ def cache_video(client, url, type, video_id):
     if type == 'WRZUTA':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(wrzuta_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_wrzuta_video_size
         min_size = min_wrzuta_video_size
         cache_size = wrzuta_cache_size
@@ -427,7 +428,7 @@ def cache_video(client, url, type, video_id):
     if type == 'YOUPORN':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youporn_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_youporn_video_size
         min_size = min_youporn_video_size
         cache_size = youporn_cache_size
@@ -436,7 +437,7 @@ def cache_video(client, url, type, video_id):
     if type == 'SOAPBOX':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(soapbox_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'video_cache', type.lower())
+        cached_url = os.path.join(cache_url, 'videocache', type.lower())
         max_size = max_soapbox_video_size
         min_size = min_soapbox_video_size
         cache_size = soapbox_cache_size
@@ -456,14 +457,14 @@ def cache_video(client, url, type, video_id):
     return url
 
 def squid_part():
-    """This function will tap requests from squid. If the request is for a youtube
+    """This function will tap requests from squid. If the request is for a 
     video, they will be forwarded to function cache_video() for further processing.
     Finally this function will flush a cache_url if package found in cache or a
     blank line in case on a miss to stdout. This is the only function where we deal
     with squid, rest of the program/project doesn't interact with squid at all."""
     while True:
         try:
-            # Read url from stdin ( this is provided by squid)
+            # Read url from stdin (this is provided by squid)
             url = sys.stdin.readline().strip().split(' ')
             new_url = url[0];
             # Retrieve the basename from the request url
@@ -474,10 +475,11 @@ def squid_part():
             client = url[1].split('/')[0]
             log(format%(client, '-', 'REQUEST', '-', url[0]))
         except IndexError, e:
-            log(format%('-', '-', 'RELOAD', '-', 'Youtube Cache plugin was reloaded.'))
+            log(format%('-', '-', 'RELOAD', '-', 'videocache plugin was reloaded.'))
 
-        # Youtube.com caching is handled here.
-        try:
+        # Check if videocache plugin is on.
+        if enable_video_cache:
+            # Youtube.com caching is handled here.
             if enable_youtube_cache:
                 if host.find('youtube.com') > -1 and path.find('get_video') > -1:
                     arglist = params.split('&')
@@ -487,22 +489,22 @@ def squid_part():
                             dict[arg.split('=')[0]] = arg.split('=')[1]
                         except:
                             continue
-                    video_id = dict['video_id']
-                    type = 'YOUTUBE'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
+                    if dict.has_key('video_id'):
+                        video_id = dict['video_id']
+                        type = 'YOUTUBE'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
                     else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'YOUTUBE', 'Error in parsing the url ' + new_url))
+                        log(format%(client, '-', 'URL_ERROR', 'YOUTUBE', 'video_id not found in ' + new_url))
 
-        # Youtube videos served via cache.googlevideo.com are handled here.
-        try:
+            # Youtube videos served via cache.googlevideo.com are handled here.
             if enable_youtube_cache:
                 if re.compile('cache[0-9a-z]?[0-9a-z]?[0-9a-z]?\.googlevideo\.com').search(host) and (path.find('videoplayback') > -1 or path.find('get_video') > -1):
                     arglist = params.split('&')
@@ -514,59 +516,65 @@ def squid_part():
                             continue
                     if dict.has_key('video_id'):
                         video_id = dict['video_id']
-                    else:
+                    elif dict.has_key('id'):
                         video_id = dict['id']
-                    type = 'YOUTUBE'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
                     else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'YOUTUBE', 'Error in parsing the url ' + new_url))
-        
-        # Metacafe.com caching is handled here.
-        try:
+                        video_id = None
+                    if video_id is not None:
+                        type = 'YOUTUBE'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+                    else:
+                        log(format%(client, '-', 'URL_ERROR', 'YOUTUBE', 'video_id or id not found in ' + new_url))
+            
+            # Metacafe.com caching is handled here.
             if enable_metacafe_cache:
                 if host.find('v.mccont.com') > -1 and path.find('ItemFiles') > -1:
                     type = 'METACAFE'
-                    video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client ,video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'METACAFE', 'Error in parsing the url ' + new_url))
+                    try:
+                        video_id = urllib2.unquote(path).split(' ')[2].split('.')[0]
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'METACAFE', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client ,video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
 
-        # Dailymotion.com caching is handled here.
-        try:
+            # Dailymotion.com caching is handled here.
             if enable_dailymotion_cache:
                 if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('flv') > -1:
-                    video_id = path.split('/')[-1]
-                    type = 'DAILYMOTION'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client ,video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'DAILYMOTION', 'Error in parsing the url ' + new_url))
-        
-        # Google.com caching is handled here.
-        try:
+                    try:
+                        video_id = path.split('/')[-1]
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'DAILYMOTION', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'DAILYMOTION'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client ,video_id, 'NEW_URL', type, new_url))
+            
+            # Google.com caching is handled here.
             if enable_google_cache:
                 if host.find('vp.video.google.com') > -1 and path.find('videodownload') > -1:
                     arglist = params.split('&')
@@ -576,76 +584,82 @@ def squid_part():
                             dict[arg.split('=')[0]] = arg.split('=')[1]
                         except:
                             continue
-                    video_id = dict['docid']
-                    type = 'GOOGLE'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
+                    if dict.has_key('docid'):
+                        video_id = dict['docid']
+                        type = 'GOOGLE'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
                     else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'GOOGLE', 'Error in parsing the url ' + new_url))
-        
-        # Redtube.com caching is handled here.
-        try:
+                        log(format%(client, '-', 'URL_ERROR', 'GOOGLE', 'docid not found in ' + new_url))
+            
+            # Redtube.com caching is handled here.
             if enable_redtube_cache:
                 if host.find('dl.redtube.com') > -1 and path.find('.flv') > -1:
-                    video_id = path.strip('/').split('/')[-1].replace('.flv','')
-                    type = 'REDTUBE'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'REDTUBE', 'Error in parsing the url ' + new_url))
-        
-        # Xtube.com caching is handled here.
-        try:
+                    try:
+                        video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'REDTUBE', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'REDTUBE'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+            
+            # Xtube.com caching is handled here.
             if enable_xtube_cache:
                 if re.compile('[0-9a-z][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com').search(host) and path.find('videos/') > -1 and path.find('.flv') > -1 and path.find('Thumb') < 0 and path.find('av_preview') < 0:
-                    video_id = path.strip('/').split('/')[-1].replace('.flv','')
-                    type = 'XTUBE'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'XTUBE', 'Error in parsing the url ' + new_url))
-        
-        # Vimeo.com caching is handled here.
-        try:
+                    try:
+                        video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'XTUBE', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'XTUBE'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+            
+            # Vimeo.com caching is handled here.
             if enable_vimeo_cache:
                 if host.find('bitcast.vimeo.com') > -1 and path.find('vimeo/videos/') > -1 and path.find('.flv') > -1:
-                    video_id = path.strip('/').split('/')[-1].replace('.flv','')
-                    type = 'VIMEO'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'VIMEO', 'Error in parsing the url ' + new_url))
-        
-        # Wrzuta.pl audio file caching is handled here.
-        try:
+                    try:
+                        video_id = path.strip('/').split('/')[-1].replace('.flv','')
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'VIMEO', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'VIMEO'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+            
+            # Wrzuta.pl audio file caching is handled here.
             if enable_wrzuta_cache:
                 if host.find('va.wrzuta.pl') > -1 and re.compile('wa[0-9][0-9][0-9][0-9]?').search(path) and params.find('type=a') > -1 and params.find('key=') > -1:
                     arglist = params.split('&')
@@ -655,56 +669,61 @@ def squid_part():
                             dict[arg.split('=')[0]] = arg.split('=')[1]
                         except:
                             continue
-                    video_id = dict['key']
-                    type = 'WRZUTA'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
+                    if dict.has_key('key')
+                        video_id = dict['key']
+                        type = 'WRZUTA'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
                     else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'WRZUTA', 'Error in parsing the url ' + new_url))
-        
-        # Youporn.com audio file caching is handled here.
-        try:
+                        log(format%(client, '-', 'URL_ERROR', 'WRZUTA', 'key not found in ' + new_url))
+            
+            # Youporn.com audio file caching is handled here.
             if enable_youporn_cache:
                 if host.find('.files.youporn.com') > -1 and path.find('/flv/') > -1 and path.find('.flv') > -1:
-                    video_id = path.strip('/').split('/')[-1].split('.')[0]
-                    type = 'YOUPORN'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'YOUPORN', 'Error in parsing the url ' + new_url))
-        
-        # Soapbox.msn.com audio file caching is handled here.
-        try:
+                    try:
+                        video_id = path.strip('/').split('/')[-1].split('.')[0]
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'YOUPORN', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'YOUPORN'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+            
+            # Soapbox.msn.com audio file caching is handled here.
             if enable_soapbox_cache:
                 if host.find('.msn.com.edgesuite.net') > -1 and path.find('.flv') > -1:
-                    video_id = path.strip('/').split('/')[-1].split('.')[0]
-                    type = 'SOAPBOX'
-                    videos = video_id_pool.get()
-                    if video_id in videos:
-                        video_id_pool.inc_score(video_id)
-                        pass
-                    else:
-                        video_id_pool.add(video_id)
-                        log(format%(client, video_id, 'URL_HIT', type, url[0]))
-                        new_url = cache_video(client, url[0], type, video_id)
-                        log(format%(client, video_id, 'NEW_URL', type, new_url))
-        except:
-            log(format%(client, '-', 'NEW_URL', 'SOAPBOX', 'Error in parsing the url ' + new_url))
-        
+                    try:
+                        video_id = path.strip('/').split('/')[-1].split('.')[0]
+                    except:
+                        log(format%(client, '-', 'URL_ERROR', 'SOAPBOX', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'SOAPBOX'
+                        videos = video_id_pool.get()
+                        if video_id in videos:
+                            video_id_pool.inc_score(video_id)
+                            pass
+                        else:
+                            video_id_pool.add(video_id)
+                            log(format%(client, video_id, 'URL_HIT', type, url[0]))
+                            new_url = cache_video(client, url[0], type, video_id)
+                            log(format%(client, video_id, 'NEW_URL', type, new_url))
+            
         # Flush the new url to stdout for squid to process
         try:
             sys.stdout.write(new_url + '\n')

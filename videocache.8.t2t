@@ -1,0 +1,290 @@
+VIDEO-CACHE
+
+November 21, 2008
+
+= NAME =
+
+videocache - Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
+
+= DESCRIPTION =
+
+videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
+
+= DEPENDENCIES =
+```
+1. squid >= 2.6
+2. python >= 2.4
+3. python-iniparse
+4. python-urlgrabber
+5. Apache or any other Web Server
+```
+= CONFIGURATION =
+
+To use videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below are the steps to configure videocache.
+
+== SQUID CONFIGURATION ==
+
+To configure squid to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file (generally found at ///etc/squid/squid.conf//):
+```
+# --BEGIN-- videocache config for squid
+url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
+url_rewrite_children 10
+acl videocache_allow_url url_regex -i \.youtube\.com\/get_video
+acl videocache_allow_url url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
+acl videocache_allow_url url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/get_video
+acl videocache_allow_url url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
+acl videocache_allow_url url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
+acl videocache_allow_url url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
+acl videocache_allow_url url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
+acl videocache_allow_url url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
+acl videocache_allow_url url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
+acl videocache_allow_dom dstdomain v.mccont.com vp.video.google.com dl.redtube.com
+acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/www\.youtube\.com
+url_rewrite_access deny videocache_deny_url
+url_rewrite_access allow videocache_allow_url
+url_rewrite_access allow videocache_allow_dom
+redirector_bypass on
+# --END-- videocache config for squid
+```
+After changes, reload or restart the squid service using the command:
+```
+[root@localhost ~]# service squid reload [ENTER]
+```
+OR
+```
+[root@localhost ~]# service squid restart [ENTER]
+```
+
+== VIDEO-CACHE GLOBAL CONFIGURATION ==
+
+Config file : /etc/videocache.conf
+
+: enable_video_cache
+This option controls the global behavior of videocache plugin. If it is 0, videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default 1.
+
+: cache_host
+The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
+Please don’t use http:// or slashes (/). Just specify the domain name or IP address. Default: 127.0.0.1.
+
+```
+Example : localhost.localdomain
+or proxy.example.com
+or 192.168.36.204
+or <Proxy_Server_IP_OR_Domain>
+```
+
+: proxy
+Proxy for http content. Default: http://127.0.0.1:3128/.
+
+```
+Example : http_proxy = http://<Proxy_Server_IP_OR_Domain>:<Proxy_port>/
+or http://proxy.example.com:3128/
+```
+
+: proxy_username
+If the above proxy requires authentication, please specify the username. Default: <blank>.
+
+: proxy_password
+If the above proxy requires authentication, please specify the password. Default: <blank>.
+
+: base_dir
+Base directory for caching the videos. All other directories paths should be relative to base_dir. Default: /var/spool/videocache/.
+
+: temp_dir
+Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
+
+: max_parallel_downloads
+The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default: 30.
+
+: logdir
+Directory where videocache logs will be stored. Default: /var/log/videocache/.
+
+: max_logfile_size
+Maximum size of logfile specified above. The size is in megabytes. Don’t use max_logfile_size = 10MB. Don’t append MB.  Default: 10.
+
+: max_logfile_backups
+The logfiles are automatically rotated once they have exceeded the max_logfile_size. max_logfile_backups is the number of backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles. Default: 10.
+
+: rpc_host
+XMLRPCServer is used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
+
+: rpc_port
+Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in use by any other program. Default: 9100.
+
+: enable_youtube_cache
+This option enables the caching of youtube videos. This option’s value can be either 0 or 1. Default: 1.
+
+: youtube_cache_dir
+Directory to cache youtube videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube, actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
+
+: youtube_cache_size
+Maximum total size of youtube caching directory. 0 for unlimited. This size is in megabytes. E.g. youtube_cache_size = 200 will limit your cache size to 200MB. Don’t use cache_size = 200MB. Don’t append MB. Default: 0.
+
+: max_youtube_video_size
+Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for unlimited caching. E.g. max_youtube_video_size = 10000. Only videos with size less than 10MB (10000KB) will be cached. Don’t use max_youtube_video_size = 10000KB. Don’t append KB. Default: 0.
+
+: min_youtube_video_size
+Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for no lower limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size = 10KB. Don’t append KB. Default: 0.
+
+: enable_metacafe_cache
+See description for enable_youtube_cache. Default: 1.
+
+: metacafe_cache_dir
+See description for youtube_cache_dir. Default: metacafe.
+
+: metacafe_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_metacafe_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_metacafe_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_dailymotion_cache
+See description for enable_youtube_cache. Default: 1.
+
+: dailymotion_cache_dir
+See description for youtube_cache_dir. Default: dailymotion.
+
+: dailymotion_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_dailymotion_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_dailymotion_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_google_cache
+See description for enable_youtube_cache. Default: 1.
+
+: google_cache_dir
+See description for youtube_cache_dir. Default: google.
+
+: google_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_google_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_google_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_redtube_cache
+See description for enable_youtube_cache. Default: 1.
+
+: redtube_cache_dir
+See description for youtube_cache_dir. Default: redtube.
+
+: redtube_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_redtube_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_redtube_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_xtube_cache
+See description for enable_youtube_cache. Default: 1.
+
+: xtube_cache_dir
+See description for youtube_cache_dir. Default: xtube.
+
+: xtube_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_xtube_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_xtube_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_vimeo_cache
+See description for enable_youtube_cache. Default: 1.
+
+: vimeo_cache_dir
+See description for youtube_cache_dir. Default: vimeo.
+
+: vimeo_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_vimeo_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_vimeo_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_wrzuta_cache
+See description for enable_youtube_cache. Default: 1.
+
+: wrzuta_cache_dir
+See description for youtube_cache_dir. Default: wrzuta.
+
+: wrzuta_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_wrzuta_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_wrzuta_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_youporn_cache
+See description for enable_youtube_cache. Default: 1.
+
+: youporn_cache_dir
+See description for youtube_cache_dir. Default: youporn.
+
+: youporn_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_youporn_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_youporn_video_size
+See description for min_youtube_video_size. Default: 0.
+
+: enable_soapbox_cache
+See description for enable_youtube_cache. Default: 1.
+
+: soapbox_cache_dir
+See description for youtube_cache_dir. Default: soapbox.
+
+: soapbox_cache_size
+See description for youtube_cache_size. Default: 0.
+
+: max_soapbox_video_size
+See description for max_youtube_video_size. Default: 0.
+
+: min_soapbox_video_size
+See description for min_youtube_video_size. Default: 0.
+
+
+= FILES =
+```
+/etc/videocache.conf
+/etc/httpd/conf.d/videocache.conf OR /etc/apache2/conf.d/videocache.conf
+/usr/share/videocache/
+/usr/share/man/man8/videocache.8.gz
+/usr/sbin/update-vc
+/var/log/videocache/
+/var/spool/videocache/
+```
+= SEE ALSO =
+```
+squid (8)
+
+Project Website : http://cachevideos.com/
+How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
+How to write custom squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
+```
+= AUTHOR =
+```
+Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
+Manpage reformated by Joao Eriberto Mota Filho <eriberto@eriberto.pro.br>
+```
+
+= BUGS, SUGGESTIONS, COMMENTS =
+Please visit http://cachevideos.com/forum/.

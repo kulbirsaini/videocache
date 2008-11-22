@@ -1,9 +1,9 @@
 %define prefix	/
 
-Name:       youtube_cache
-Version:    1.5
+Name:       videocache
+Version:    1.6
 Release:    1
-Summary:    Squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn and MSN Soapbox Videos and Wrzuta.pl audio.
+Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn and MSN Soapbox Videos and Wrzuta.pl audio.
 License:    GPL
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -17,89 +17,102 @@ Requires:   squid
 Requires:   httpd
 
 %description
-youtube_cache is a squid url rewriter plugin written in Python to facilitate youtube,
-metacafe, dailymotion, google, vimeo, redtube, xtube, youporn and msn soapbox videos and wrzuta.pl audio caching.
-It can cache videos from various websites in a separate directory (other than squid cache)
-in a browsable fashion and can serve the subsequentrequests from the cache.
-It helps in saving bandwidth and loading time.
+videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn and msn soapbox videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
 %prep
-
 %setup -n %{name}-%{version}
 
 %build
 echo "No building... its python..." > /dev/null
 
 %pre
-if [[ -d %{prefix}/var/spool/squid/video_cache ]] && ! ([[ -d %{prefix}/var/spool/video_cache ]]); then
-  mv %{prefix}/var/spool/squid/video_cache %{prefix}/var/spool/video_cache
-  chown -R squid:squid %{prefix}/var/spool/video_cache
-  chmod -R 755 %{prefix}/var/spool/video_cache
+# Migrate old caching directories to new one.
+if [[ -d %{prefix}/var/spool/squid/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
+  mv %{prefix}/var/spool/squid/video_cache %{prefix}/var/spool/videocache
+  chown -R squid:squid %{prefix}/var/spool/videocache
+  chmod -R 755 %{prefix}/var/spool/videocache
+fi
+if [[ -d %{prefix}/var/spool/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
+  mv %{prefix}/var/spool/video_cache %{prefix}/var/spool/videocache
+  chown -R squid:squid %{prefix}/var/spool/videocache
+  chmod -R 755 %{prefix}/var/spool/videocache
 fi
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT
-install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/usr/share/youtube_cache/
-install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
-install -m 755 -d  ${RPM_BUILD_ROOT}%{prefix}/etc/
-install -m 744 -d  ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/
-install -m 744 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/youtube_cache/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/youtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/metacafe/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/dailymotion/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/google/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/vimeo/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/redtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/xtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/wrzuta/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/youporn/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/soapbox/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache/tmp/
+install -m 755 -d ${RPM_BUILD_ROOT}%{prefix}/etc/
+install -m 755 -d ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
+install -m 755 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
-install -m 644 youtube_cache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/youtube_cache/
-install -m 644 youtube_cache_httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/youtube_cache.conf
-install -m 644 youtube_cache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/youtube_cache.8.gz
-install -m 744 update-yc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-yc
-touch ${RPM_BUILD_ROOT}%{prefix}/var/log/youtube_cache/youtube_cache.log
-ln -sf %{prefix}/usr/share/youtube_cache/youtube_cache.conf ${RPM_BUILD_ROOT}%{prefix}/etc/youtube_cache.conf
+install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/
+install -m 744 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/metacafe/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/dailymotion/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/google/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/vimeo/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/redtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xtube/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/wrzuta/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youporn/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/soapbox/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tmp/
+install -m 644 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
+install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/videocache.conf
+install -m 644 videocache-httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/videocache.conf
+install -m 644 videocache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/videocache.8.gz
+install -m 744 update-vc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-vc
+touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %files
-%{prefix}/etc/youtube_cache.conf
-%{prefix}/etc/httpd/conf.d/youtube_cache.conf
-%{prefix}/usr/share/youtube_cache/
-%{prefix}/usr/share/man/man8/youtube_cache.8.gz
-%{prefix}/usr/sbin/update-yc
-%{prefix}/var/log/youtube_cache/
-%{prefix}/var/spool/video_cache/
+%{prefix}/etc/videocache.conf
+%{prefix}/etc/httpd/conf.d/videocache.conf
+%{prefix}/usr/share/videocache/
+%{prefix}/usr/share/man/man8/videocache.8.gz
+%{prefix}/usr/sbin/update-vc
+%{prefix}/var/log/videocache/
+%{prefix}/var/spool/videocache/
 
 %post
-if [[ -d %{prefix}/var/log/youtube_cache/ ]]; then
-  chown -R squid:squid %{prefix}/var/log/youtube_cache/
+if [[ -d %{prefix}/var/log/videocache/ ]]; then
+  chown -R squid:squid %{prefix}/var/log/videocache/
 fi
-if [[ -d %{prefix}/var/spool/video_cache/ ]]; then
-  chown -R squid:squid %{prefix}/var/spool/video_cache/
-  chmod -R 755 %{prefix}/var/spool/video_cache/
+if [[ -d %{prefix}/var/spool/videocache/ ]]; then
+  chown -R squid:squid %{prefix}/var/spool/videocache/
+  chmod -R 755 %{prefix}/var/spool/videocache/
 fi
-echo "You need to modify /etc/youtube_cache.conf to make caching work properly."
-echo "Also you need to configure squid. Check youtube_cache manpage for more details."
+echo "You need to modify /etc/videocache.conf to make caching work properly."
+echo "Also you need to configure squid. Check videocache manpage for more details."
 echo "Check http://cachevideos.com/ in case of any problems."
 
 %preun
-if [[ -d %{prefix}/var/spool/video_cache ]];then
-  mv %{prefix}/var/spool/video_cache ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache1
+if [[ -d %{prefix}/var/spool/videocache ]];then
+  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache1
 fi
 
 %postun
-if [[ -d %{prefix}/var/spool/video_cache1 ]]; then
-  mv %{prefix}/var/spool/video_cache1 ${RPM_BUILD_ROOT}%{prefix}/var/spool/video_cache
+if [[ -d %{prefix}/var/spool/videocache1 ]]; then
+  mv %{prefix}/var/spool/videocache1 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
 fi
 
 %changelog
+* Thu Nov 20 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Rebased the entire plugin. Everything moved out of squid directories.
+The core plugin code now resides in /usr/share/youtube_cache/ .
+The logfiles are now in /var/log/youtube_cache/ directory.
+The caching directories are now in /var/spool/video_cache/ directory.
+Moved youtube_cache_sysconfig.conf to youtube_cache/youtube_cache.conf .
+/etc/youtube_cache.conf will now be a symlink to /usr/share/youtube_cache/youtube_cache.conf .
+logfile is not an option anymore. Instead logdir is used now.
+Corrected and updated INSTALL/Readme/Manpage files.
+Setup file configured to make the transition for caching directories.
+Corrected spec file. Uninstalling rpm will not delete cached files.
+
 * Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Added critical lines missing from INSTALL/Readme/Manpage.
 

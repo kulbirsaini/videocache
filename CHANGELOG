@@ -1,3 +1,15 @@
+* Thu Nov 20 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Rebased the entire plugin. Everything moved out of squid directories.
+The core plugin code now resides in /usr/share/youtube_cache/ .
+The logfiles are now in /var/log/youtube_cache/ directory.
+The caching directories are now in /var/spool/video_cache/ directory.
+Moved youtube_cache_sysconfig.conf to youtube_cache/youtube_cache.conf .
+/etc/youtube_cache.conf will now be a symlink to /usr/share/youtube_cache/youtube_cache.conf .
+logfile is not an option anymore. Instead logdir is used now.
+Corrected and updated INSTALL/Readme/Manpage files.
+Setup file configured to make the transition for caching directories.
+Corrected spec file. Uninstalling rpm will not delete cached files.
+
 * Wed Nov 19 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Added critical lines missing from INSTALL/Readme/Manpage.
 

@@ -19,6 +19,7 @@
 # For more information check http://cachevideos.com/
 #
 
+from optparse import OptionParser
 import logging
 import logging.handlers
 import os
@@ -30,27 +31,25 @@ import sys
 squid_user = 'squid'
 # The group which runs the squid proxy server or daemon.
 squid_group = 'squid'
-# The location of youtube_cache installation directory.
+# The location of videocache installation directory.
 install_dir = '/usr/share/'
-# The location of directory where youtube_cache logs will be stored.
-log_dir = '/var/log/youtube_cache/'
 # The directory to store application specific configuration files for Apache Web Server.
 apache_conf_dir = '/etc/httpd/conf.d/'
 # The directory to store man pages.
 man_dir = '/usr/share/man/man8/'
+# The user specific directory to have exectuables.
+usr_sbin_dir = '/usr/sbin/'
+# The directory to store system level configuration files.
+etc_dir = '/etc'
 
-# Try to locate the youtube_cache directory containing python files.
-if os.path.isdir(os.path.join(install_dir, 'youtube_cache')):
-    sys.path = [os.path.join(install_dir, 'youtube_cache')] + sys.path
+# Try to locate the videocache directory containing python files.
+if os.path.isdir(os.path.join(install_dir, 'videocache')):
+    sys.path = [os.path.join(install_dir, 'videocache')] + sys.path
     from config import readMainConfig, readStartupConfig
 else:
     error(USAGE_ERROR)
 
-# The location of system configuration file for youtube cache.
-config_file = os.path.join(install_dir, 'youtube_cache/youtube_cache.conf')
-# The location of logfile to write setup/install logs.
-update_logfile = os.path.join(log_dir,  'youtube_cache.log')
-# Read the configure file.
+# Read the configure file. FIXME
 mainconf =  readMainConfig(readStartupConfig(config_file, '/'))
 
 # Gloabl Options
@@ -62,6 +61,11 @@ format = '%s'
 USAGE_ERROR = 1
 UID_ERROR = 2
 UPDATE_ERROR = 3
+
+# The location of system configuration file for videocache.
+config_file = os.path.join(etc_dir, 'videocache.conf')
+# The location of logfile to write setup/install logs.
+update_logfile = os.path.join(logdir,  'videocache.log')
 
 # Youtube specific options
 youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
@@ -200,21 +204,20 @@ def copy_dir(source, dest):
         return False
     return True
 
-def generate_httpd_conf():
-    """Generates /etc/httpd/conf.d/youtube_cache.conf for apache web server for serving videos."""
-    conf_file = os.path.join(apache_conf_dir, 'youtube_cache.conf')
-    youtube_cache_conf = """
+def generate_httpd_conf(conf_file):
+    """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
+    videocache_conf = """
 #
 # file : """ + conf_file + """
 #
-# Youtube Cache is a squid url rewriter to cache videos from various websites.
+# videocache is a squid url rewriter to cache videos from various websites.
 # Check http://cachevideos.com/ for more details.
 #
 
 # ------------------- Note This --------------------
 # Don't forget to reload httpd and squid services if you change this file.
 
-Alias /video_cache """ + base_dir +"""
+Alias /videocache """ + base_dir +"""
 
 <Directory """ + base_dir + """>
   Options +Indexes
@@ -227,29 +230,29 @@ Alias /video_cache """ + base_dir +"""
 
     try:
         file = open(conf_file, 'w')
-        file.write(youtube_cache_conf)
+        file.write(videocache_conf)
         file.close()
-        log(format%("Generated config file for Apache webserver in file " + config_file + " ."))
+        log(format%("Generated config file for Apache webserver in file " + conf_file + " ."))
     except:
-        log(format%("Could not write config file for apache web server to " + config_file + " ."))
+        log(format%("Could not write config file for apache web server to " + conf_file + " ."))
         return False
     return True
 
 def error(error_code):
-    """Report error while updating/installing youtube_cache with proper error code."""
+    """Report error while updating/installing videocache with proper error code."""
     help_message =  """
-Usage: update-yc (as root/super user)
-Update script can only be used if Youtube Cache is installed on your system.
-Please see http://cachevideos.com/update-yc for more information or getting help.
+Usage: update-vc (as root/super user)
+Update script can only be used if videocache is installed on your system.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
     update_error =  """
-An error has occured while updating youtube_cache.
-Please check /var/log/youtube_cache/youtube_cache.log for more details.
-Please see http://cachevideos.com/update-yc for more information or getting help.
+An error has occured while updating videocache.
+Please check /var/log/videocache/videocache.log for more details.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
     uid_error = """
-You must be root to setup/install youtube_cache.
-Please see http://cachevideos.com/update-yc for more information or getting help.
+You must be root to setup/install videocache.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
     if error_code == UPDATE_ERROR:
         print update_error
@@ -265,33 +268,50 @@ Please see http://cachevideos.com/update-yc for more information or getting help
 def success():
     """Print informative messages after successfull installation."""
     message = """
-Youtube cache update has completed successfully.
+videocache update has completed successfully.
 Now you must reload httpd service on your machine by using the following command
 [root@localhost ~]# service httpd reload [ENTER]
 In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
+def apply_install_root(root, dir_list):
+    """Apply --install-root or --home option to all the directories."""
+    for dir in dir_list:
+        os.path.join(root, dir)
+    return
+
 def update():
     """Perform the update."""
+    # Create Apache configuration directory.
     if not os.path.isdir(apache_conf_dir):
         if not create_dir(apache_conf_dir):
             error(UPDATE_ERROR)
     else:
         log(format%("Directory " + apache_conf_dir + " already exists."))
 
+    # Create system configuration directory.
+    if not os.path.isdir(etc_dir):
+        if not create_dir(etc_dir):
+            error(INSTALL_ERROR)
+    else:
+        log(format%("Directory " + etc_dir + " already exists."))
+
+    # Create videocache installation directory.
     if not os.path.isdir(install_dir):
         if not create_dir(install_dir):
             error(UPDATE_ERROR)
     else:
         log(format%("Directory " + install_dir + " already exists."))
 
-    if not os.path.isdir(log_dir):
-        if not create_dir(log_dir, squid_user, squid_group):
+    # Create videocache log directory.
+    if not os.path.isdir(logdir):
+        if not create_dir(logdir, squid_user, squid_group):
             error(UPDATE_ERROR)
     else:
-        log(format%("Directory " + log_dir + " already exists."))
+        log(format%("Directory " + logdir + " already exists."))
 
+    # Create directories for video caching.
     for dir in cache_dir_list:
         if not os.path.isdir(dir):
             if not create_dir(dir, squid_user, squid_group):
@@ -301,19 +321,37 @@ def update():
                 error(UPDATE_ERROR)
             log(format%("Directory " + dir + " already exists."))
 
-    if not create_file(os.path.join(log_dir, 'youtube_cache.log'), squid_user, squid_group):
+    # Creaet videocache logfile.
+    if not create_file(os.path.join(logdir, 'videocache.log'), squid_user, squid_group):
         error(UPDATE_ERROR)
 
-    if not generate_httpd_conf():
+    # Generate Apache webserver configuration file for videocache.
+    if not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf')):
         error(UPDATE_ERROR)
 
     success()
     return
 
 if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option('--home')
+    parser.add_option('--prefix')
+    parser.add_option('--install-root')
+    options, args = parser.parse_args()
+    dir_list = [install_dir, logdir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir] + cache_dir_list + old_cache_dirs
     log = set_logging()
     if os.getuid() != 0:
-        log(format%("You must be root to install/setup youtube_cache."))
+        log(format%("You must be root to install/setup videocache."))
         error(UID_ERROR)
     else:
+        # If --home or --prefix or --install-root option is used, then apply settings.
+        root = None
+        if options.has_key('home'):
+            root = options['home']
+        if options.has_key('prefix'):
+            root = options['prefix']
+        if options.has_key('install-root'):
+            root = options['install-root']
+        if root is not None:
+            apply_install_root(root, dir_list)
         update()
