@@ -29,13 +29,17 @@ echo "No building... its python..." > /dev/null
 # Migrate old caching directories to new one.
 if [[ -d %{prefix}/var/spool/squid/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
   mv %{prefix}/var/spool/squid/video_cache %{prefix}/var/spool/videocache
-  chown -R squid:squid %{prefix}/var/spool/videocache
-  chmod -R 755 %{prefix}/var/spool/videocache
+  chown squid:squid %{prefix}/var/spool/videocache
+  chown squid:squid %{prefix}/var/spool/videocache/*
+  chmod 755 %{prefix}/var/spool/videocache
+  chmod 755 %{prefix}/var/spool/videocache/*
 fi
 if [[ -d %{prefix}/var/spool/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
   mv %{prefix}/var/spool/video_cache %{prefix}/var/spool/videocache
-  chown -R squid:squid %{prefix}/var/spool/videocache
-  chmod -R 755 %{prefix}/var/spool/videocache
+  chown squid:squid %{prefix}/var/spool/videocache
+  chown squid:squid %{prefix}/var/spool/videocache/*
+  chmod 755 %{prefix}/var/spool/videocache
+  chmod 755 %{prefix}/var/spool/videocache/*
 fi
 
 %install
@@ -80,11 +84,14 @@ touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 
 %post
 if [[ -d %{prefix}/var/log/videocache/ ]]; then
-  chown -R squid:squid %{prefix}/var/log/videocache/
+  chown squid:squid %{prefix}/var/log/videocache/
+  chown squid:squid %{prefix}/var/log/videocache/*
 fi
 if [[ -d %{prefix}/var/spool/videocache/ ]]; then
-  chown -R squid:squid %{prefix}/var/spool/videocache/
-  chmod -R 755 %{prefix}/var/spool/videocache/
+  chown squid:squid %{prefix}/var/spool/videocache/
+  chown squid:squid %{prefix}/var/spool/videocache/*
+  chmod 755 %{prefix}/var/spool/videocache/
+  chmod 755 %{prefix}/var/spool/videocache/*
 fi
 echo "You need to modify /etc/videocache.conf to make caching work properly."
 echo "Also you need to configure squid. Check videocache manpage for more details."
@@ -101,6 +108,29 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Sat Nov 22 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Plugin renamed from youtube_cache to videocache as videocache is more expressive name
+and the plugin cache not just youtube but other websites as well.
+Complete plugin rebase again to suite python and debian naming/packaging conventions.
+New plugin structure
+-----------------------------------------------------------------
+/etc/videocache.conf # Global config file
+/etc/httpd/conf.d/videocache.conf # Apache config file [Red Hat]
+/etc/apache2/conf.d/videocache.conf # Apache config file [Debian]
+/usr/share/videocache/ # Core plugin code
+/usr/share/man/man8/videocache.8.gz # Man Page
+/usr/sbin/update-vc # Update file
+/var/spool/videocache/ # Cache directories
+/var/log/videocache/ # Logging directories
+-----------------------------------------------------------------
+No symbolik links as they are considered bad according to packaging guidelines.
+Squid acls revised.
+OptionParser added to setup and update scripts.
+Now --home or --prefix or --install-root option can be used while installing and updating videocache.
+setup and update scripts' code is documented properly using comments.
+Another option enable_video_cache added to config file to control overall caching of all the websites.
+videocache.py revised to log more sensible messages. Fixed bug which was reporting false url parser errors.
+
 * Thu Nov 20 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Rebased the entire plugin. Everything moved out of squid directories.
 The core plugin code now resides in /usr/share/youtube_cache/ .

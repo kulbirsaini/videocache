@@ -339,7 +339,7 @@ def download_from_source(args):
         remove(video_id)
         size = os.stat(path)[6]
         log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
-    except urlgrabber.grabber.URLGrabError, e:
+    except:
         remove(video_id)
         log(format%(client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
         os.unlink(download_path)
@@ -352,7 +352,7 @@ def cache_video(client, url, type, video_id):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
     global cache_url
-    mode = 0755
+    mode = 0644
     if type == 'YOUTUBE':
         params = urlparse.urlsplit(url)[3]
         path = os.path.join(youtube_cache_dir, video_id) + '.flv'

@@ -29,13 +29,15 @@ import pwd
 import shutil
 import sys
 
-# The user which runs the squid proxy server or daemon.
+# The user which runs the squid proxy server or daemon. Change this according to your system.
 squid_user = 'squid'
-# The group which runs the squid proxy server or daemon.
+# The group which runs the squid proxy server or daemon. Change this according to your system.
 squid_group = 'squid'
-# The location of videocache installation directory.
+# The location of videocache installation directory. You don't need to change this.
 install_dir = '/usr/share/'
-# The directory to store application specific configuration files for Apache Web Server.
+# The directory to store application specific configuration files for Apache Web Server. Change this according to your system.
+# For Red Hat and derivatives, you don't need to change this.
+# For Debian and derivatives its normally /etc/apache2/conf.d/
 apache_conf_dir = '/etc/httpd/conf.d/'
 # The directory to store man pages.
 man_dir = '/usr/share/man/man8/'
@@ -44,63 +46,10 @@ usr_sbin_dir = '/usr/sbin/'
 # The directory to store system level configuration files.
 etc_dir = '/etc'
 
-# The location of system configuration file for videocache.
-config_file = './videocache-sysconfig.conf'
-# The location of logfile to write setup/install logs.
-setup_logfile = './videocache-setup.log'
-# Read the configure file. FIXME
-mainconf =  readMainConfig(readStartupConfig(config_file, '/'))
-
-# Gloabl Options
-base_dir = mainconf.base_dir
-temp_dir = os.path.join(base_dir, mainconf.temp_dir)
-logdir = mainconf.logdir
-format = '%s'
-
-USAGE_ERROR = 1
-UID_ERROR = 2
-INSTALL_ERROR = 3
-
-# Youtube specific options
-youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
-
-# Metacafe specific options
-metacafe_cache_dir = os.path.join(base_dir, mainconf.metacafe_cache_dir)
-
-# Dailymotion specific options
-dailymotion_cache_dir = os.path.join(base_dir, mainconf.dailymotion_cache_dir)
-
-# Google.com specific options
-google_cache_dir = os.path.join(base_dir, mainconf.google_cache_dir)
-
-# Redtube.com specific options
-redtube_cache_dir = os.path.join(base_dir, mainconf.redtube_cache_dir)
-
-# Xtube.com specific options
-xtube_cache_dir = os.path.join(base_dir, mainconf.xtube_cache_dir)
-
-# Vimeo.com specific options
-vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
-
-# Wrzuta.pl specific options
-wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
-
-# Youporn.com specific options
-youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
-
-# Soapbox.msn.com specific options
-soapbox_cache_dir = os.path.join(base_dir, mainconf.soapbox_cache_dir)
-
-# List of cache directories
-cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir]
-
-# videocache directories in older version
-old_cache_dirs = ['/var/spool/squid/video_cache/', '/var/spool/video_cache']
-
-def set_logging():
+def set_logging(logfile):
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s',
-                        filename=setup_logfile,
+                        filename=logfile,
                         filemode='w')
     return logging.info
 
@@ -112,7 +61,6 @@ def create_dir(dir, user=None, group=None, mode=0755):
     except:
         log(format%("Could not create directory " + dir + " ."))
         return False
-
     return dir_perms_and_ownership(dir, user, group, mode)
 
 def dir_perms_and_ownership(dir, user=None, group=None, mode=0755):
@@ -201,7 +149,7 @@ def copy_dir(source, dest):
         return False
     return True
 
-def generate_httpd_conf(conf_file):
+def generate_httpd_conf(conf_file, dir):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
     videocache_conf = """
 #
@@ -214,9 +162,9 @@ def generate_httpd_conf(conf_file):
 # ------------------- Note This --------------------
 # Don't forget to reload httpd and squid services if you change this file.
 
-Alias /videocache """ + base_dir +"""
+Alias /videocache """ + dir +"""
 
-<Directory """ + base_dir + """>
+<Directory """ + dir + """>
   Options +Indexes
   Order Allow,Deny
   #Comment the following line and uncomment the next for public use 
@@ -273,14 +221,9 @@ In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
-def apply_install_root(root, dir_list):
-    """Apply --install-root or --home option to all the directories."""
-    for dir in dir_list:
-        os.path.join(root, dir)
-    return
-
-def setup():
+def setup(root):
     """Perform the setup."""
+    global base_dir, squid_user, squid_group, install_dir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir, log, logdir, cache_dir_list, old_cache_dirs
     # Create Apache configuration directory.
     if not os.path.isdir(apache_conf_dir):
         if not create_dir(apache_conf_dir):
@@ -323,10 +266,11 @@ def setup():
     else:
         log(format%("Directory " + logdir + " already exists."))
 
-    # Migrate older caching directories to new one.
-    for dir in old_cache_dirs:
-        if os.path.isdir(dir) and not os.path.isdir(base_dir):
-            os.rename(dir, base_dir)
+    # Migrate older caching directories to new one if install root is /
+    if root == '/':
+        for dir in old_cache_dirs:
+            if os.path.isdir(dir) and not os.path.isdir(base_dir):
+                os.rename(dir, base_dir)
 
     # Create directories for video caching.
     for dir in cache_dir_list:
@@ -349,7 +293,7 @@ def setup():
     # Copy update-vc to /usr/sbin/update-vc
     if not copy_file('./update-vc', os.path.join(usr_sbin_dir, 'update-vc')):
         error(INSTALL_ERROR)
-    os.chmod('/usr/sbin/update-vc',0744)
+    os.chmod(os.path.join(usr_sbin_dir, 'update-vc'),0744)
 
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
     if not copy_file('./videocache.8.gz', os.path.join(man_dir, 'videocache.8.gz')):
@@ -360,36 +304,104 @@ def setup():
         error(INSTALL_ERROR)
 
     # Generate Apache webserver configuration file for videocache.
-    if not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf')):
+    if not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), base_dir):
         error(INSTALL_ERROR)
 
     success()
     return
 
+def apply_install_root(root, dir):
+    """Apply --install-root or --home option to all the directories."""
+    return os.path.join(root, dir.strip('/'))
+
+def main(root):
+    global base_dir, squid_user, squid_group, install_dir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir, log, logdir, cache_dir_list, old_cache_dirs
+    install_dir = apply_install_root(root, install_dir)
+    apache_conf_dir = apply_install_root(root, apache_conf_dir)
+    man_dir = apply_install_root(root, man_dir)
+    usr_sbin_dir = apply_install_root(root, usr_sbin_dir)
+    etc_dir = apply_install_root(root, etc_dir)
+
+    # Read the configure file. FIXME
+    mainconf =  readMainConfig(readStartupConfig(config_file, root))
+
+    # Global Options
+    base_dir = apply_install_root(root, mainconf.base_dir)
+    temp_dir = os.path.join(base_dir, mainconf.temp_dir)
+    logdir = apply_install_root(root, mainconf.logdir)
+
+    # Youtube specific options
+    youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
+
+    # Metacafe specific options
+    metacafe_cache_dir = os.path.join(base_dir, mainconf.metacafe_cache_dir)
+
+    # Dailymotion specific options
+    dailymotion_cache_dir = os.path.join(base_dir, mainconf.dailymotion_cache_dir)
+
+    # Google.com specific options
+    google_cache_dir = os.path.join(base_dir, mainconf.google_cache_dir)
+
+    # Redtube.com specific options
+    redtube_cache_dir = os.path.join(base_dir, mainconf.redtube_cache_dir)
+
+    # Xtube.com specific options
+    xtube_cache_dir = os.path.join(base_dir, mainconf.xtube_cache_dir)
+
+    # Vimeo.com specific options
+    vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
+
+    # Wrzuta.pl specific options
+    wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
+
+    # Youporn.com specific options
+    youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
+
+    # Soapbox.msn.com specific options
+    soapbox_cache_dir = os.path.join(base_dir, mainconf.soapbox_cache_dir)
+
+    # List of cache directories
+    cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir]
+
+    # videocache directories in older version
+    old_cache_dirs = ['/var/spool/squid/video_cache/', '/var/spool/video_cache']
+
 if __name__ == '__main__':
+    # Parse command line options.
     parser = OptionParser()
     parser.add_option('--home')
     parser.add_option('--prefix')
     parser.add_option('--install-root')
     options, args = parser.parse_args()
-    dir_list = [install_dir, logdir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir] + cache_dir_list + old_cache_dirs
-    log = set_logging()
-    if 'install' not in args:
+
+    # Global Options.
+    USAGE_ERROR = 1
+    UID_ERROR = 2
+    INSTALL_ERROR = 3
+    format = '%s'
+    # The location of system configuration file for videocache.
+    config_file = './videocache-sysconfig.conf'
+    # The location of logfile to write setup/install logs.
+    setup_logfile = './videocache-setup.log'
+    # Set logging.
+    log = set_logging(setup_logfile)
+
+    if 'install' in args:
         if os.getuid() != 0:
             log(format%("You must be root to install/setup videocache."))
             error(UID_ERROR)
         else:
             # If --home or --prefix or --install-root option is used, then apply settings.
-            root = None
-            if options.has_key('home'):
-                root = options['home']
-            if options.has_key('prefix'):
-                root = options['prefix']
-            if options.has_key('install-root'):
-                root = options['install-root']
-            if root is not None:
-                apply_install_root(root, dir_list)
-            setup()
+            root = '/'
+            if options.home:
+                root = options.home
+            if options.prefix:
+                root = options.prefix
+            if options.install_root:
+                root = options.install_root
+            print root
+            main(root)
+            setup(root)
             pass
     else:
         error(USAGE_ERROR)
