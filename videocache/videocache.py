@@ -301,49 +301,58 @@ def fork(f):
 
 def download_from_source(args):
     """This function downloads the file from remote source and caches it."""
-    client = args[0]
-    url = args[1]
-    path = args[2]
-    mode = args[3]
-    video_id = args[4]
-    type = args[5]
-    max_size = args[6]
-    min_size = args[7]
-    if max_size or min_size:
-        try:
-            log(format%(client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
-            remote_file = grabber.urlopen(url)
-            remote_size = int(remote_file.info().getheader('content-length')) / 1024
-            remote_file.close()
-            log(format%(client, video_id, 'GOT_SIZE', type, 'Successfully retrieved the size of video.'))
-        except urlgrabber.grabber.URLGrabError, e:
-            remove(video_id)
-            log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
-            return
+    try:
+        client = args[0]
+        url = args[1]
+        path = args[2]
+        mode = args[3]
+        video_id = args[4]
+        type = args[5]
+        max_size = args[6]
+        min_size = args[7]
+    except:
+        log(format%('-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
+        remove(video_id)
+        return
 
-        if max_size and remote_size > max_size:
-            remove(video_id)
-            log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
-            return
-        if min_size and remote_size < min_size:
-            remove(video_id)
-            log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
-            return
+    try:
+        #log(format%(client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
+        remote_file = grabber.urlopen(url)
+        remote_size = int(remote_file.info().getheader('content-length')) / 1024
+        remote_file.close()
+        log(format%(client, video_id, 'GOT_SIZE', type, str(remote_size) + ' Successfully retrieved the size of video.'))
+    except:
+        remove(video_id)
+        log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
+        return
+
+    if max_size and remote_size > max_size:
+        remove(video_id)
+        log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
+        return
+    if min_size and remote_size < min_size:
+        remove(video_id)
+        log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
+        return
 
     try:
         download_path = os.path.join(temp_dir, os.path.basename(path))
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
-        os.rename(file, path)
-        os.chmod(path, mode)
-        remove(video_id)
-        size = os.stat(path)[6]
-        log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+        size = os.stat(file)[6]
+        if abs(size - remote_size) > 50:
+            log(format%(client, video_id, 'SIZE_MISMATCH', type, str(size) + ' Video discarded due to size mismatch.'))
+            remove(video_id)
+            os.unlink(file)
+            os.unlink(download_path)
+        else:
+            os.rename(file, path)
+            os.chmod(path, mode)
+            remove(video_id)
+            log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
     except:
         remove(video_id)
         log(format%(client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
-        os.unlink(download_path)
-
     return
 
 def cache_video(client, url, type, video_id):
@@ -556,7 +565,7 @@ def squid_part():
 
             # Dailymotion.com caching is handled here.
             if enable_dailymotion_cache:
-                if host.find('dailymotion.com') > -1 and host.find('proxy') > -1 and path.find('flv') > -1:
+                if (re.compile('proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com').search(host) or host.find('.cdn.dailymotion.com') > -1)  and (path.find('flv') > -1 or path.find('on2') > -1):
                     try:
                         video_id = path.split('/')[-1]
                     except:
@@ -669,7 +678,7 @@ def squid_part():
                             dict[arg.split('=')[0]] = arg.split('=')[1]
                         except:
                             continue
-                    if dict.has_key('key')
+                    if dict.has_key('key'):
                         video_id = dict['key']
                         type = 'WRZUTA'
                         videos = video_id_pool.get()
@@ -761,9 +770,13 @@ def download_scheduler():
                 if params != False:
                     video_id_pool.set_score(video_id, 0)
                     video_id_pool.add_conn(video_id)
-                    log(format%(params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
-                    forked = fork(download_from_source)
-                    forked(params)
+                    try:
+                        log(format%(params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
+                        forked = fork(download_from_source)
+                        forked(params)
+                    except:
+                        log(format%('-', '-', 'SCHEDULE_ERR', '-', 'Could not schedule video for download.'))
+                        remove(video_id)
             if video_id_pool.is_active(video_id) == True:
                 video_id_pool.set_score(video_id, 0)
         time.sleep(3)

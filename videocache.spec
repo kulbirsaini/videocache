@@ -108,6 +108,11 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Sun Nov 23 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Fixed setup and update script to finally work with --home or --prefix or --install-root options.
+Fixed videocache script to write videos are 0644 and not 0755.
+Updated spec file to change permissions of folders only and not recursively.
+
 * Sat Nov 22 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Plugin renamed from youtube_cache to videocache as videocache is more expressive name
 and the plugin cache not just youtube but other websites as well.
