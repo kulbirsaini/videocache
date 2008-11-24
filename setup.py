@@ -399,7 +399,6 @@ if __name__ == '__main__':
                 root = options.prefix
             if options.install_root:
                 root = options.install_root
-            print root
             main(root)
             setup(root)
             pass
