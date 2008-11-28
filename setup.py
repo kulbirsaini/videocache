@@ -299,10 +299,6 @@ def setup(root):
     if not copy_file('./videocache.8.gz', os.path.join(man_dir, 'videocache.8.gz')):
         error(INSTALL_ERROR)
 
-    # Creaet videocache logfile.
-    if not create_file(os.path.join(logdir, 'videocache.log'), squid_user, squid_group):
-        error(INSTALL_ERROR)
-
     # Generate Apache webserver configuration file for videocache.
     if not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), base_dir):
         error(INSTALL_ERROR)

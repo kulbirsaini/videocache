@@ -315,41 +315,36 @@ def download_from_source(args):
         remove(video_id)
         return
 
-    try:
-        #log(format%(client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
-        remote_file = grabber.urlopen(url)
-        remote_size = int(remote_file.info().getheader('content-length')) / 1024
-        remote_file.close()
-        log(format%(client, video_id, 'GOT_SIZE', type, str(remote_size) + ' Successfully retrieved the size of video.'))
-    except:
-        remove(video_id)
-        log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
-        return
+    if max_size or min_size:
+        try:
+            log(format%(client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
+            remote_file = grabber.urlopen(url)
+            remote_size = int(remote_file.info().getheader('content-length')) / 1024
+            remote_file.close()
+            log(format%(client, video_id, 'GOT_SIZE', type, str(remote_size) + ' Successfully retrieved the size of video.'))
+        except:
+            remove(video_id)
+            log(format%(client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
+            return
 
-    if max_size and remote_size > max_size:
-        remove(video_id)
-        log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
-        return
-    if min_size and remote_size < min_size:
-        remove(video_id)
-        log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
-        return
+        if max_size and remote_size > max_size:
+            remove(video_id)
+            log(format%(client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
+            return
+        if min_size and remote_size < min_size:
+            remove(video_id)
+            log(format%(client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
+            return
 
     try:
         download_path = os.path.join(temp_dir, os.path.basename(path))
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
         size = os.stat(file)[6]
-        if abs(size - remote_size) > 50:
-            log(format%(client, video_id, 'SIZE_MISMATCH', type, str(size) + ' Video discarded due to size mismatch.'))
-            remove(video_id)
-            os.unlink(file)
-            os.unlink(download_path)
-        else:
-            os.rename(file, path)
-            os.chmod(path, mode)
-            remove(video_id)
-            log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+        os.rename(file, path)
+        os.chmod(path, mode)
+        remove(video_id)
+        log(format%(client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
     except:
         remove(video_id)
         log(format%(client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))

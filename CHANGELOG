@@ -1,3 +1,8 @@
+* Tue Nov 25 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Extended support for Dailymotion videos served via Content Delivery Networks.
+Improved logging.
+In case connection breaks, incomplete videos will remain in tmp folder.
+
 * Sun Nov 23 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Fixed setup and update script to finally work with --home or --prefix or --install-root options.
 Fixed videocache script to write videos are 0644 and not 0755.
