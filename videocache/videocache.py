@@ -311,8 +311,15 @@ def download_from_source(args):
         type = args[5]
         max_size = args[6]
         min_size = args[7]
+        cache_size = args[8]
+        cache_dir = args[9]
     except:
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
+        remove(video_id)
+        return
+
+    if cache_size != 0 and dir_size(cache_dir) >= cache_size:
+        log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
         remove(video_id)
         return
 
@@ -454,11 +461,9 @@ def cache_video(client, url, type, video_id):
         remove(video_id)
         log(format%(pid, client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
         return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
-    elif cache_size == 0 or dir_size(cache_dir) < cache_size:
-        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
-        queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size])
     else:
-        log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
+        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
+        queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir])
 
     return url
 
@@ -791,7 +796,7 @@ def start_xmlrpc_server():
 
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
-    os.getpid()
+    pid = os.getpid()
     log(format%(pid, '-', '-', 'SCHEDULEDER', '-', 'Download Scheduler starting.'))
     time.sleep(3)
     while True:
