@@ -8,7 +8,7 @@ videocache - Squid url rewriter plugin to cache dynamic audio/video content from
 
 = DESCRIPTION =
 
-videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
+videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
 
 = DEPENDENCIES =
 ```
@@ -28,22 +28,28 @@ To configure squid to use videocache as a url rewriter program, you need to add 
 ```
 # --BEGIN-- videocache config for squid
 url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
-url_rewrite_children 10
-acl videocache_allow_url url_regex -i \.youtube\.com\/get_video
-acl videocache_allow_url url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/videoplayback
-acl videocache_allow_url url_regex -i \.cache[a-z0-9]?[a-z0-9]?[a-z0-9]?\.googlevideo\.com\/get_video
-acl videocache_allow_url url_regex -i proxy\-[0-9][0-9]\.dailymotion\.com\/
+url_rewrite_children 5
+acl videocache_allow_url url_regex -i \.youtube\.com\/get_video\?
+acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplayback \.googlevideo\.com\/get_video\?
+acl videocache_allow_url url_regex -i \.google\.com\/videoplayback \.google\.com\/get_video\?
+acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplayback \.google\.[a-z][a-z]\/get_video\?
+acl videocache_allow_url url_regex -i proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com\/
+acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/
 acl videocache_allow_url url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
 acl videocache_allow_url url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
 acl videocache_allow_url url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
 acl videocache_allow_url url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
 acl videocache_allow_url url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
-acl videocache_allow_dom dstdomain v.mccont.com vp.video.google.com dl.redtube.com
+acl videocache_allow_url url_regex -i media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/
+acl videocache_allow_url url_regex -i \.mais\.uol\.com\.br\/(.*)\.flv
+acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
+acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
+acl videocache_allow_dom dstdomain v.mccont.com dl.redtube.com .cdn.dailymotion.com
 acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/www\.youtube\.com
 url_rewrite_access deny videocache_deny_url
 url_rewrite_access allow videocache_allow_url
 url_rewrite_access allow videocache_allow_dom
-redirector_bypass on
+redirector_bypass off
 # --END-- videocache config for squid
 ```
 After changes, reload or restart the squid service using the command:
@@ -125,141 +131,6 @@ Youtube videos with size more than max_youtube_video_size will not be cached. Th
 
 : min_youtube_video_size
 Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for no lower limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size = 10KB. Don’t append KB. Default: 0.
-
-: enable_metacafe_cache
-See description for enable_youtube_cache. Default: 1.
-
-: metacafe_cache_dir
-See description for youtube_cache_dir. Default: metacafe.
-
-: metacafe_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_metacafe_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_metacafe_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_dailymotion_cache
-See description for enable_youtube_cache. Default: 1.
-
-: dailymotion_cache_dir
-See description for youtube_cache_dir. Default: dailymotion.
-
-: dailymotion_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_dailymotion_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_dailymotion_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_google_cache
-See description for enable_youtube_cache. Default: 1.
-
-: google_cache_dir
-See description for youtube_cache_dir. Default: google.
-
-: google_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_google_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_google_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_redtube_cache
-See description for enable_youtube_cache. Default: 1.
-
-: redtube_cache_dir
-See description for youtube_cache_dir. Default: redtube.
-
-: redtube_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_redtube_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_redtube_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_xtube_cache
-See description for enable_youtube_cache. Default: 1.
-
-: xtube_cache_dir
-See description for youtube_cache_dir. Default: xtube.
-
-: xtube_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_xtube_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_xtube_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_vimeo_cache
-See description for enable_youtube_cache. Default: 1.
-
-: vimeo_cache_dir
-See description for youtube_cache_dir. Default: vimeo.
-
-: vimeo_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_vimeo_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_vimeo_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_wrzuta_cache
-See description for enable_youtube_cache. Default: 1.
-
-: wrzuta_cache_dir
-See description for youtube_cache_dir. Default: wrzuta.
-
-: wrzuta_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_wrzuta_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_wrzuta_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_youporn_cache
-See description for enable_youtube_cache. Default: 1.
-
-: youporn_cache_dir
-See description for youtube_cache_dir. Default: youporn.
-
-: youporn_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_youporn_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_youporn_video_size
-See description for min_youtube_video_size. Default: 0.
-
-: enable_soapbox_cache
-See description for enable_youtube_cache. Default: 1.
-
-: soapbox_cache_dir
-See description for youtube_cache_dir. Default: soapbox.
-
-: soapbox_cache_size
-See description for youtube_cache_size. Default: 0.
-
-: max_soapbox_video_size
-See description for max_youtube_video_size. Default: 0.
-
-: min_soapbox_video_size
-See description for min_youtube_video_size. Default: 0.
 
 
 = FILES =

@@ -1,9 +1,9 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.6
+Version:    1.7
 Release:    1
-Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn and MSN Soapbox Videos and Wrzuta.pl audio.
+Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    GPL
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -17,7 +17,7 @@ Requires:   squid
 Requires:   httpd
 
 %description
-videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn and msn soapbox videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
+videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv and break.com videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
 
 %prep
 %setup -n %{name}-%{version}
@@ -62,6 +62,10 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/wrzuta/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youporn/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/soapbox/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tube8/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tvuol/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/break/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tmp/
 install -m 644 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/videocache.conf
@@ -108,6 +112,16 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Sun Dec 14 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Fixed Bug : http://cachevideos.com/forum/post/cache-directory-size-limiting-checked-only-video-queued .
+
+* Sun Dec 14 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Added extensive exception handling for XMLRPC Server.
+
+* Sat Nov 29 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+videocache.log is not created at installation time when using setup.py .
+It is wrong according to debian packaging policy to create empty files at installation time.
+
 * Tue Nov 25 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Extended support for Dailymotion videos served via Content Delivery Networks.
 Improved logging.

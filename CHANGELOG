@@ -1,3 +1,13 @@
+* Sun Dec 14 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Fixed Bug : http://cachevideos.com/forum/post/cache-directory-size-limiting-checked-only-video-queued .
+
+* Sun Dec 14 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Added extensive exception handling for XMLRPC Server.
+
+* Sat Nov 29 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+videocache.log is not created at installation time when using setup.py .
+It is wrong according to debian packaging policy to create empty files at installation time.
+
 * Tue Nov 25 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Extended support for Dailymotion videos served via Content Delivery Networks.
 Improved logging.
