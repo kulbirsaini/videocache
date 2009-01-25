@@ -575,6 +575,7 @@ class YumConf(StartupConf):
     temp_dir = Option('tmp')
     max_parallel_downloads = Option(30)
     cache_host = Option('127.0.0.1')
+    hit_threshold = Option(2)
     rpc_host = Option('127.0.0.1')
     rpc_port = Option(9100)
     logdir = Option('/var/log/videocache/')

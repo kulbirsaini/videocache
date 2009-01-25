@@ -49,7 +49,7 @@ acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/
 url_rewrite_access deny videocache_deny_url
 url_rewrite_access allow videocache_allow_url
 url_rewrite_access allow videocache_allow_dom
-redirector_bypass off
+redirector_bypass on
 # --END-- videocache config for squid
 ```
 After changes, reload or restart the squid service using the command:
@@ -92,6 +92,9 @@ If the above proxy requires authentication, please specify the username. Default
 
 : proxy_password
 If the above proxy requires authentication, please specify the password. Default: <blank>.
+
+: hit_threshold
+No of times a video should be requested before we start caching it. Default: 2
 
 : base_dir
 Base directory for caching the videos. All other directories paths should be relative to base_dir. Default: /var/spool/videocache/.

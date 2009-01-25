@@ -105,7 +105,7 @@ Index
   url_rewrite_access deny videocache_deny_url
   url_rewrite_access allow videocache_allow_url
   url_rewrite_access allow videocache_allow_dom
-  redirector_bypass off
+  redirector_bypass on
   # --END-- videocache config for squid
 
   Save squid.conf and reload the squid service using
