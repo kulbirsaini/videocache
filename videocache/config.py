@@ -654,6 +654,34 @@ class YumConf(StartupConf):
     max_soapbox_video_size = Option(0)
     min_soapbox_video_size = Option(0)
 
+    # Tube8.com Specific Options
+    enable_tube8_cache = Option(1)
+    tube8_cache_dir = Option('tube8')
+    tube8_cache_size = Option(0)
+    max_tube8_video_size = Option(0)
+    min_tube8_video_size = Option(0)
+
+    # Tvuol.uol.com.br Specific Options
+    enable_tvuol_cache = Option(1)
+    tvuol_cache_dir = Option('tvuol')
+    tvuol_cache_size = Option(0)
+    max_tvuol_video_size = Option(0)
+    min_tvuol_video_size = Option(0)
+
+    # Blip.tv Specific Options
+    enable_bliptv_cache = Option(1)
+    bliptv_cache_dir = Option('bliptv')
+    bliptv_cache_size = Option(0)
+    max_bliptv_video_size = Option(0)
+    min_bliptv_video_size = Option(0)
+
+    # Break.tv Specific Options
+    enable_break_cache = Option(1)
+    break_cache_dir = Option('break')
+    break_cache_size = Option(0)
+    max_break_video_size = Option(0)
+    min_break_video_size = Option(0)
+
     _reposlist = []
 
 def readStartupConfig(configfile, root):

@@ -38,6 +38,8 @@ import urlparse
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 
+import socket
+
 mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
 # Gloabl Options
@@ -132,34 +134,50 @@ soapbox_cache_size = int(mainconf.soapbox_cache_size)
 max_soapbox_video_size = int(mainconf.max_soapbox_video_size)
 min_soapbox_video_size = int(mainconf.min_soapbox_video_size)
 
-def set_proxy():
-    if proxy_username and proxy_password:
-        proxy_parts = urlparse.urlsplit(proxy)
-        new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
-    else:
-        new_proxy = proxy
-    return urlgrabber.grabber.URLGrabber(proxies = {'http': new_proxy})
+# Tube8.com specific options
+enable_tube8_cache = int(mainconf.enable_tube8_cache)
+tube8_cache_dir = os.path.join(base_dir, mainconf.tube8_cache_dir)
+tube8_cache_size = int(mainconf.tube8_cache_size)
+max_tube8_video_size = int(mainconf.max_tube8_video_size)
+min_tube8_video_size = int(mainconf.min_tube8_video_size)
 
-def set_logging():
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(message)s',
-                        filename=logfile,
-                        filemode='a')
-    return logging.info
+# Tvuol.uol.com.br specific options
+enable_tvuol_cache = int(mainconf.enable_tvuol_cache)
+tvuol_cache_dir = os.path.join(base_dir, mainconf.tvuol_cache_dir)
+tvuol_cache_size = int(mainconf.tvuol_cache_size)
+max_tvuol_video_size = int(mainconf.max_tvuol_video_size)
+min_tvuol_video_size = int(mainconf.min_tvuol_video_size)
 
-def dir_size(dir):
-    """
-    This is not a standard function to calculate the size of a directory.
-    This function will only give the sum of sizes of all the files in 'dir'.
-    """
-    # Initialize with 4096bytes as the size of an empty dir is 4096bytes.
-    size = 4096
-    try:
-        for file in os.listdir(dir):
-            size += int(os.stat(os.path.join(dir, file))[6])
-    except:
-        return -1
-    return size / (1024*1024)
+# Blip.tv specific options
+enable_bliptv_cache = int(mainconf.enable_bliptv_cache)
+bliptv_cache_dir = os.path.join(base_dir, mainconf.bliptv_cache_dir)
+bliptv_cache_size = int(mainconf.bliptv_cache_size)
+max_bliptv_video_size = int(mainconf.max_bliptv_video_size)
+min_bliptv_video_size = int(mainconf.min_bliptv_video_size)
+
+# Break.com specific options
+enable_break_cache = int(mainconf.enable_break_cache)
+break_cache_dir = os.path.join(base_dir, mainconf.break_cache_dir)
+break_cache_size = int(mainconf.break_cache_size)
+max_break_video_size = int(mainconf.max_break_video_size)
+min_break_video_size = int(mainconf.min_break_video_size)
+
+class Function_Thread(threading.Thread):
+    def __init__(self, fid):
+        threading.Thread.__init__(self)
+        self.fid = fid
+        return
+
+    def run(self):
+        if self.fid == XMLRPC_SERVER:
+            start_xmlrpc_server()
+        elif self.fid == DOWNLOAD_SCHEDULER:
+            download_scheduler()
+        elif self.fid == BASE_PLUGIN:
+            squid_part()
+        else:
+            return
+        return
 
 class VideoIDPool:
     """
@@ -170,7 +188,46 @@ class VideoIDPool:
         self.scores = {}
         self.queue = {}
         self.active = []
+        self.scheduler = None
         pass
+
+    def schedule(self):
+        pid = os.getpid()
+        try:
+            if self.get_conn_number() < max_parallel_downloads:
+                #log(format%(pid, str(video_id_pool.get_conn_number()), '-', 'CONN_AVAIL', '-', '-'))
+                video_id = self.get_popular()
+                if video_id != "NULL" and self.is_active(video_id) == False:
+                    #log(format%(pid, '-', '-', 'INACTIVE', '-', '-'))
+                    params = self.get_details(video_id)
+                    if params != False:
+                        self.set_score(video_id, 0)
+                        self.add_conn(video_id)
+                        try:
+                            log(format%(pid, params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
+                            forked = fork(download_from_source)
+                            forked(params)
+                        except:
+                            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Could not schedule video for download.'))
+                            remove(video_id)
+                elif self.is_active(video_id) == True:
+                    self.set_score(video_id, 0)
+                    return False
+                else:
+                    return False
+        except:
+            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error in schedule function.'))
+        return True
+
+    def set_scheduler(self, pid):
+        if self.scheduler is None:
+            self.scheduler = pid
+        else:
+            return False
+        return True
+
+    def get_scheduler(self):
+        return self.scheduler
 
     # Functions related to video_id queue-ing.
     def add(self, video_id, score = 1):
@@ -259,15 +316,75 @@ class VideoIDPool:
             self.active.remove(video_id)
         return True
 
+class MyXMLRPCServer(SimpleXMLRPCServer):
+    def __init__(self, *args, **kwargs):
+        self.finished = False
+        SimpleXMLRPCServer.__init__(self, *args, **kwargs)
+
+    def shutdown(self):
+        self.finished = True
+        return 1
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        SimpleXMLRPCServer.server_bind(self)
+
+    def serve_forever(self):
+        while not self.finished:
+            self.handle_request()
+
+def set_proxy():
+    try:
+        if proxy_username and proxy_password:
+            proxy_parts = urlparse.urlsplit(proxy)
+            new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+        else:
+            new_proxy = proxy
+        return urlgrabber.grabber.URLGrabber(proxies = {'http': new_proxy})
+    except:
+        log(format%(os.getpid(), '-', '-', 'PROXY_ERR', '-', 'Error in setting proxy server.'))
+        return None
+
+def set_logging():
+    try:
+        logging.basicConfig(level=logging.DEBUG,
+                            format='%(asctime)s %(message)s',
+                            filename=logfile,
+                            filemode='a')
+        return logging.info
+    except:
+        # No idea where to log. May be logged to syslog.
+        return None
+
+def dir_size(dir):
+    """
+    This is not a standard function to calculate the size of a directory.
+    This function will only give the sum of sizes of all the files in 'dir'.
+    """
+    # Initialize with 4096bytes as the size of an empty dir is 4096bytes.
+    size = 4096
+    try:
+        for file in os.listdir(dir):
+            size += int(os.stat(os.path.join(dir, file))[6])
+    except:
+        return -1
+    return size / (1024*1024)
+
 def remove(video_id):
     """Remove video_id from queue."""
-    video_id_pool.remove(video_id)
-    video_id_pool.remove_conn(video_id)
+    try:
+        video_id_pool.remove(video_id)
+        video_id_pool.remove_conn(video_id)
+    except:
+        log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
     return
 
 def queue(video_id, values):
     """Queue video_id for scheduling later by download_scheduler."""
-    video_id_pool.set(video_id, values)
+    try:
+        video_id_pool.set(video_id, values)
+    except:
+        log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
     return
 
 def fork(f):
@@ -323,6 +440,11 @@ def download_from_source(args):
         remove(video_id)
         return
 
+    grabber = set_proxy()
+    if grabber is None:
+        remove(video_id)
+        return
+
     if max_size or min_size:
         try:
             log(format%(pid, client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
@@ -366,100 +488,205 @@ def cache_video(client, url, type, video_id):
     global cache_url
     pid = os.getpid()
     mode = 0644
-    if type == 'YOUTUBE':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(youtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_youtube_video_size
-        min_size = min_youtube_video_size
-        cache_size = youtube_cache_size
-        cache_dir = youtube_cache_dir
+    try:
+        if type == 'YOUTUBE':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(youtube_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_youtube_video_size
+            min_size = min_youtube_video_size
+            cache_size = youtube_cache_size
+            cache_dir = youtube_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'METACAFE':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(metacafe_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_metacafe_video_size
-        min_size = min_metacafe_video_size
-        cache_size = metacafe_cache_size
-        cache_dir = metacafe_cache_dir
+    try:
+        if type == 'METACAFE':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(metacafe_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_metacafe_video_size
+            min_size = min_metacafe_video_size
+            cache_size = metacafe_cache_size
+            cache_dir = metacafe_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'DAILYMOTION':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(dailymotion_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_dailymotion_video_size
-        min_size = min_dailymotion_video_size
-        cache_size = dailymotion_cache_size
-        cache_dir = dailymotion_cache_dir
+    try:
+        if type == 'DAILYMOTION':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(dailymotion_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_dailymotion_video_size
+            min_size = min_dailymotion_video_size
+            cache_size = dailymotion_cache_size
+            cache_dir = dailymotion_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'GOOGLE':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(google_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_google_video_size
-        min_size = min_google_video_size
-        cache_size = google_cache_size
-        cache_dir = google_cache_dir
+    try:
+        if type == 'GOOGLE':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(google_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_google_video_size
+            min_size = min_google_video_size
+            cache_size = google_cache_size
+            cache_dir = google_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'REDTUBE':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(redtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_redtube_video_size
-        min_size = min_redtube_video_size
-        cache_size = redtube_cache_size
-        cache_dir = redtube_cache_dir
+    try:
+        if type == 'REDTUBE':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(redtube_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_redtube_video_size
+            min_size = min_redtube_video_size
+            cache_size = redtube_cache_size
+            cache_dir = redtube_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'XTUBE':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(xtube_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_xtube_video_size
-        min_size = min_xtube_video_size
-        cache_size = xtube_cache_size
-        cache_dir = xtube_cache_dir
+    try:
+        if type == 'XTUBE':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(xtube_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_xtube_video_size
+            min_size = min_xtube_video_size
+            cache_size = xtube_cache_size
+            cache_dir = xtube_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'VIMEO':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(vimeo_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_vimeo_video_size
-        min_size = min_vimeo_video_size
-        cache_size = vimeo_cache_size
-        cache_dir = vimeo_cache_dir
+    try:
+        if type == 'VIMEO':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(vimeo_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_vimeo_video_size
+            min_size = min_vimeo_video_size
+            cache_size = vimeo_cache_size
+            cache_dir = vimeo_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'WRZUTA':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(wrzuta_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_wrzuta_video_size
-        min_size = min_wrzuta_video_size
-        cache_size = wrzuta_cache_size
-        cache_dir = wrzuta_cache_dir
+    try:
+        if type == 'WRZUTA':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(wrzuta_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_wrzuta_video_size
+            min_size = min_wrzuta_video_size
+            cache_size = wrzuta_cache_size
+            cache_dir = wrzuta_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'YOUPORN':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(youporn_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_youporn_video_size
-        min_size = min_youporn_video_size
-        cache_size = youporn_cache_size
-        cache_dir = youporn_cache_dir
+    try:
+        if type == 'YOUPORN':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(youporn_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_youporn_video_size
+            min_size = min_youporn_video_size
+            cache_size = youporn_cache_size
+            cache_dir = youporn_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
-    if type == 'SOAPBOX':
-        params = urlparse.urlsplit(url)[3]
-        path = os.path.join(soapbox_cache_dir, video_id) + '.flv'
-        cached_url = os.path.join(cache_url, 'videocache', type.lower())
-        max_size = max_soapbox_video_size
-        min_size = min_soapbox_video_size
-        cache_size = soapbox_cache_size
-        cache_dir = soapbox_cache_dir
+    try:
+        if type == 'SOAPBOX':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(soapbox_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_soapbox_video_size
+            min_size = min_soapbox_video_size
+            cache_size = soapbox_cache_size
+            cache_dir = soapbox_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
+
+    try:
+        if type == 'TUBE8':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(tube8_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_tube8_video_size
+            min_size = min_tube8_video_size
+            cache_size = tube8_cache_size
+            cache_dir = tube8_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
+
+    try:
+        if type == 'TVUOL':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(tvuol_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_tvuol_video_size
+            min_size = min_tvuol_video_size
+            cache_size = tvuol_cache_size
+            cache_dir = tvuol_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
+
+    try:
+        if type == 'BLIPTV':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(bliptv_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_bliptv_video_size
+            min_size = min_bliptv_video_size
+            cache_size = bliptv_cache_size
+            cache_dir = bliptv_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
+
+    try:
+        if type == 'BREAK':
+            params = urlparse.urlsplit(url)[3]
+            path = os.path.join(break_cache_dir, video_id) + '.flv'
+            cached_url = os.path.join(cache_url, 'videocache', type.lower())
+            max_size = max_break_video_size
+            min_size = min_break_video_size
+            cache_size = break_cache_size
+            cache_dir = break_cache_dir
+    except:
+        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+        remove(video_id)
+        return url
 
     if os.path.isfile(path):
-        log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Requested video was found in cache.'))
         remove(video_id)
-        log(format%(pid, client, video_id, 'CACHE_SERVE', type, 'Video was served from cache.'))
+        log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
         return redirect + ':' + os.path.join(cached_url, video_id) + '.flv?' + params
     else:
         log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
@@ -486,14 +713,19 @@ def squid_part():
             params = fragments[3]
             client = url[1].split('/')[0]
             log(format%(pid, client, '-', 'REQUEST', '-', url[0]))
+        except IOError, e:
+            if e.errno == 32:
+                os.kill(os.getpid(), 1)
         except IndexError, e:
+            os.system('rm -f ' + temp_dir + '/* ')
             log(format%(pid, '-', '-', 'RELOAD', '-', 'videocache plugin was reloaded.'))
+            os.kill(os.getpid(), 1)
 
         # Check if videocache plugin is on.
         if enable_video_cache:
             # Youtube.com caching is handled here.
             if enable_youtube_cache:
-                if host.find('youtube.com') > -1 and path.find('get_video') > -1:
+                if host.find('youtube.com') > -1 and path.find('get_video') > -1 and path.find('get_video_info') < 0:
                     arglist = params.split('&')
                     dict = {}
                     for arg in arglist:
@@ -520,37 +752,7 @@ def squid_part():
                         log(format%(pid, client, '-', 'URL_ERROR', 'YOUTUBE', 'video_id not found in ' + new_url))
 
             # Youtube videos served via cache.googlevideo.com are handled here.
-            if enable_youtube_cache:
-                if re.compile('cache[0-9a-z]?[0-9a-z]?[0-9a-z]?\.googlevideo\.com').search(host) and (path.find('videoplayback') > -1 or path.find('get_video') > -1):
-                    arglist = params.split('&')
-                    dict = {}
-                    for arg in arglist:
-                        try:
-                            dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
-                            continue
-                    if dict.has_key('video_id'):
-                        video_id = dict['video_id']
-                    elif dict.has_key('id'):
-                        video_id = dict['id']
-                    else:
-                        video_id = None
-                    if video_id is not None:
-                        type = 'YOUTUBE'
-                        try:
-                            videos = video_id_pool.get()
-                            if video_id in videos:
-                                video_id_pool.inc_score(video_id)
-                                pass
-                            else:
-                                video_id_pool.add(video_id)
-                                log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
-                                new_url = cache_video(client, url[0], type, video_id)
-                                log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
-                        except:
-                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'YOUTUBE', 'Error querying RPC server'))
-                    else:
-                        log(format%(pid, client, '-', 'URL_ERROR', 'YOUTUBE', 'video_id or id not found in ' + new_url))
+            # This code has been merged with Google.com videos
             
             # Metacafe.com caching is handled here.
             if enable_metacafe_cache:
@@ -577,7 +779,7 @@ def squid_part():
 
             # Dailymotion.com caching is handled here.
             if enable_dailymotion_cache:
-                if (re.compile('proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com').search(host) or host.find('.cdn.dailymotion.com') > -1)  and (path.find('flv') > -1 or path.find('on2') > -1):
+                if (re.compile('proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com').search(host) or host.find('vid.akm.dailymotion.com') > -1 or host.find('.cdn.dailymotion.com') > -1)  and (path.find('flv') > -1 or path.find('on2') > -1):
                     try:
                         video_id = path.split('/')[-1]
                     except:
@@ -600,7 +802,7 @@ def squid_part():
             
             # Google.com caching is handled here.
             if enable_google_cache:
-                if host.find('vp.video.google.com') > -1 and path.find('videodownload') > -1:
+                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host)) and (path.find('videoplayback') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
                     arglist = params.split('&')
                     dict = {}
                     for arg in arglist:
@@ -608,9 +810,16 @@ def squid_part():
                             dict[arg.split('=')[0]] = arg.split('=')[1]
                         except:
                             continue
-                    if dict.has_key('docid'):
+                    if dict.has_key('video_id'):
+                        video_id = dict['video_id']
+                    elif dict.has_key('id'):
+                        video_id = dict['id']
+                    elif dict.has_key('docid'):
                         video_id = dict['docid']
-                        type = 'GOOGLE'
+                    else:
+                        video_id = None
+                    if video_id is not None:
+                        type = 'YOUTUBE'
                         try:
                             videos = video_id_pool.get()
                             if video_id in videos:
@@ -622,9 +831,9 @@ def squid_part():
                                 new_url = cache_video(client, url[0], type, video_id)
                                 log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
                         except:
-                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'GOOGLE', 'Error querying RPC server'))
+                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'YOUTUBE', 'Error querying RPC server'))
                     else:
-                        log(format%(pid, client, '-', 'URL_ERROR', 'GOOGLE', 'docid not found in ' + new_url))
+                        log(format%(pid, client, '-', 'URL_ERROR', 'YOUTUBE', 'docid not found in ' + new_url))
             
             # Redtube.com caching is handled here.
             if enable_redtube_cache:
@@ -769,6 +978,98 @@ def squid_part():
                         except:
                             log(format%(pid, client, video_id, 'XMLRPC_ERR', 'SOAPBOX', 'Error querying RPC server'))
             
+            # Tube8.com Video file caching is handled here.
+            if enable_tube8_cache:
+                if re.compile('media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host) and (path.find('.flv') > -1 or path.find('.3gp') > -1):
+                    try:
+                        video_id = path.strip('/').split('/')[-1]
+                    except:
+                        log(format%(pid, client, '-', 'URL_ERROR', 'TUBE8', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'TUBE8'
+                        try:
+                            videos = video_id_pool.get()
+                            if video_id in videos:
+                                video_id_pool.inc_score(video_id)
+                                pass
+                            else:
+                                video_id_pool.add(video_id)
+                                log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+                                new_url = cache_video(client, url[0], type, video_id)
+                                log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+                        except:
+                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'TUBE8', 'Error querying RPC server'))
+            
+            # Tvuol.uol.com.br Video file caching is handled here.
+            if enable_tvuol_cache:
+                if host.find('mais.uol.com.br') > -1 and path.find('.flv') > -1:
+                    try:
+                        video_id = path.strip('/').split('/')[-1]
+                    except:
+                        log(format%(pid, client, '-', 'URL_ERROR', 'TVUOL', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'TVUOL'
+                        try:
+                            videos = video_id_pool.get()
+                            if video_id in videos:
+                                video_id_pool.inc_score(video_id)
+                                pass
+                            else:
+                                video_id_pool.add(video_id)
+                                log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+                                new_url = cache_video(client, url[0], type, video_id)
+                                log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+                        except:
+                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'TVUOL', 'Error querying RPC server'))
+            
+            # Blip.tv Video file caching is handled here.
+            if enable_bliptv_cache:
+                if re.compile('\.video[a-z0-9]?[a-z0-9]?\.blip\.tv').search(host) and (path.find('.flv') > -1 or path.find('.wmv') > -1 or path.find('.mp4') > -1 or path.find('.rm') > -1 or path.find('.ram') > -1 or path.find('.mov') > -1 or path.find('.avi') > -1 or path.find('.m4v') > -1 or path.find('.mp3') > -1) :
+                    try:
+                        video_id = path.strip('/').split('/')[-1]
+                    except:
+                        log(format%(pid, client, '-', 'URL_ERROR', 'BLIPTV', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'BLIPTV'
+                        try:
+                            videos = video_id_pool.get()
+                            if video_id in videos:
+                                video_id_pool.inc_score(video_id)
+                                pass
+                            else:
+                                video_id_pool.add(video_id)
+                                log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+                                new_url = cache_video(client, url[0], type, video_id)
+                                log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+                        except:
+                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'BLIPTV', 'Error querying RPC server'))
+            
+            # Break.com Video file caching is handled here.
+            if enable_break_cache:
+                if host.find('video.break.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4')):
+                    try:
+                        video_id = path.strip('/').split('/')[-1]
+                    except:
+                        log(format%(pid, client, '-', 'URL_ERROR', 'BREAK', 'Error in parsing the url ' + new_url))
+                        video_id = None
+                    if video_id is not None:
+                        type = 'BREAK'
+                        try:
+                            videos = video_id_pool.get()
+                            if video_id in videos:
+                                video_id_pool.inc_score(video_id)
+                                pass
+                            else:
+                                video_id_pool.add(video_id)
+                                log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+                                new_url = cache_video(client, url[0], type, video_id)
+                                log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+                        except:
+                            log(format%(pid, client, video_id, 'XMLRPC_ERR', 'BREAK', 'Error querying RPC server'))
+            
         # Flush the new url to stdout for squid to process
         try:
             sys.stdout.write(new_url + '\n')
@@ -777,18 +1078,30 @@ def squid_part():
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
 
+def log_rotate():
+    # Rotate logfiles if the size is more than the max_logfile_size.
+    if os.stat(logfile)[6] > max_logfile_size:
+        roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
+        roll.doRollover()
+    return
+
 def start_xmlrpc_server():
     """Starts the XMLRPC server in a threaded process."""
     pid = os.getpid()
     try:
-        server = SimpleXMLRPCServer((rpc_host, rpc_port), logRequests=0)
+        log_rotate()
+    except:
+        log(format%(pid, '-', '-', 'LOG_ROTATE_ERR', '-', 'Could not rotate logfiles.'))
+
+    try:
+        #server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=0)
+        server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=1)
+        server.register_function(server.shutdown)
+        server.register_introspection_functions()
         server.register_instance(VideoIDPool())
         log(format%(pid, '-', '-', 'XMLRPCSERVER', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
-        # Rotate logfiles if the size is more than the max_logfile_size.
-        if os.stat(logfile)[6] > max_logfile_size:
-            roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
-            roll.doRollover()
         server.serve_forever()
+        log(format%(pid, '-', '-', 'XMLRPCSERVER_STOP', '-', 'Stopping XMLRPCServer.'))
     except:
         log(format%(pid, '-', '-', 'STRAT_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
         os.kill(os.getpid(), 1)
@@ -798,73 +1111,50 @@ def download_scheduler():
     """Schedule videos from download queue for downloading."""
     pid = os.getpid()
     log(format%(pid, '-', '-', 'SCHEDULEDER', '-', 'Download Scheduler starting.'))
-    time.sleep(3)
+    time.sleep(random.random()*100%2)
+    try:
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        if not video_id_pool.set_scheduler(pid):
+            return
+    except:
+        log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server (while initializing scheduler).'))
+
+    wait_time = 20
     while True:
         try:
             video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
-            if video_id_pool.get_conn_number() < max_parallel_downloads:
-                #log(format%(pid, str(video_id_pool.get_conn_number()), '-', 'CONN_AVAIL', '-', '-'))
-                video_id = video_id_pool.get_popular()
-                if video_id != "NULL" and video_id_pool.is_active(video_id) == False:
-                    #log(format%(pid, '-', '-', 'INACTIVE', '-', '-'))
-                    params = video_id_pool.get_details(video_id)
-                    if params != False:
-                        video_id_pool.set_score(video_id, 0)
-                        video_id_pool.add_conn(video_id)
-                        try:
-                            log(format%(pid, params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
-                            forked = fork(download_from_source)
-                            forked(params)
-                        except:
-                            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Could not schedule video for download.'))
-                            remove(video_id)
-                if video_id_pool.is_active(video_id) == True:
-                    video_id_pool.set_score(video_id, 0)
+            if video_id_pool.schedule() == False:
+                wait_time = 15
+            else:
+                wait_time = 1
         except:
             log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server.'))
-        time.sleep(3)
+        time.sleep(wait_time)
+    log(format%(pid, '-', '-', 'SCHEDULEDER_STOP', '-', 'Download Scheduler stopping.'))
     return
 
-class Function_Thread(threading.Thread):
-    def __init__(self, fid):
-        threading.Thread.__init__(self)
-        self.fid = fid
-        return
-
-    def run(self):
-        if self.fid == XMLRPC_SERVER:
-            start_xmlrpc_server()
-        elif self.fid == DOWNLOAD_SCHEDULER:
-            download_scheduler()
-        elif self.fid == BASE_PLUGIN:
-            squid_part()
-        else:
-            return
-        return
-
 if __name__ == '__main__':
-    global grabber, log, video_id_pool
-    grabber = set_proxy()
+    global log, video_id_pool
     log = set_logging()
-
-    # If XMLRPCServer is running already, don't start it again
-    try:
-        time.sleep(int(random.random()*100)%10)
-        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
-        list = video_id_pool.get()
-        # Flush previous values on reload
-        video_id_pool.flush()
-        # For testing with squid, use this function
-        squid_part()
-    except:
-        # Start XMLRPC Server, Download Scheduler and Base Plugin in threads.
-        thread_xmlrpc = Function_Thread(XMLRPC_SERVER)
-        thread_download_scheduler = Function_Thread(DOWNLOAD_SCHEDULER)
-        thread_base_plugin = Function_Thread(BASE_PLUGIN)
-        thread_xmlrpc.start()
-        thread_download_scheduler.start()
-        thread_base_plugin.start()
-        thread_xmlrpc.join()
-        thread_download_scheduler.join()
-        thread_base_plugin.join()
+    if log is not None:
+        # If XMLRPCServer is running already, don't start it again
+        try:
+            time.sleep(random.random()*100%5)
+            video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+            #list = video_id_pool.get()
+            # Flush previous values on reload
+            video_id_pool.flush()
+            # For testing with squid, use this function
+            squid_part()
+        except:
+            # Start XMLRPC Server, Download Scheduler and Base Plugin in threads.
+            thread_xmlrpc = Function_Thread(XMLRPC_SERVER)
+            thread_download_scheduler = Function_Thread(DOWNLOAD_SCHEDULER)
+            #thread_base_plugin = Function_Thread(BASE_PLUGIN)
+            thread_xmlrpc.start()
+            thread_download_scheduler.start()
+            #thread_base_plugin.start()
+            thread_xmlrpc.join()
+            thread_download_scheduler.join()
+            #thread_base_plugin.join()
 

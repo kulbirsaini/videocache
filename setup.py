@@ -326,38 +326,24 @@ def main(root):
     temp_dir = os.path.join(base_dir, mainconf.temp_dir)
     logdir = apply_install_root(root, mainconf.logdir)
 
-    # Youtube specific options
+    # Directories for individual websites
     youtube_cache_dir = os.path.join(base_dir, mainconf.youtube_cache_dir)
-
-    # Metacafe specific options
     metacafe_cache_dir = os.path.join(base_dir, mainconf.metacafe_cache_dir)
-
-    # Dailymotion specific options
     dailymotion_cache_dir = os.path.join(base_dir, mainconf.dailymotion_cache_dir)
-
-    # Google.com specific options
     google_cache_dir = os.path.join(base_dir, mainconf.google_cache_dir)
-
-    # Redtube.com specific options
     redtube_cache_dir = os.path.join(base_dir, mainconf.redtube_cache_dir)
-
-    # Xtube.com specific options
     xtube_cache_dir = os.path.join(base_dir, mainconf.xtube_cache_dir)
-
-    # Vimeo.com specific options
     vimeo_cache_dir = os.path.join(base_dir, mainconf.vimeo_cache_dir)
-
-    # Wrzuta.pl specific options
     wrzuta_cache_dir = os.path.join(base_dir, mainconf.wrzuta_cache_dir)
-
-    # Youporn.com specific options
     youporn_cache_dir = os.path.join(base_dir, mainconf.youporn_cache_dir)
-
-    # Soapbox.msn.com specific options
     soapbox_cache_dir = os.path.join(base_dir, mainconf.soapbox_cache_dir)
+    tube8_cache_dir = os.path.join(base_dir, mainconf.tube8_cache_dir)
+    tvuol_cache_dir = os.path.join(base_dir, mainconf.tvuol_cache_dir)
+    bliptv_cache_dir = os.path.join(base_dir, mainconf.bliptv_cache_dir)
+    break_cache_dir = os.path.join(base_dir, mainconf.break_cache_dir)
 
     # List of cache directories
-    cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir]
+    cache_dir_list = [base_dir, temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir, tube8_cache_dir, tvuol_cache_dir, bliptv_cache_dir, break_cache_dir]
 
     # videocache directories in older version
     old_cache_dirs = ['/var/spool/squid/video_cache/', '/var/spool/video_cache']
