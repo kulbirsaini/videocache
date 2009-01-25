@@ -48,6 +48,7 @@ base_dir = mainconf.base_dir
 temp_dir = os.path.join(base_dir, mainconf.temp_dir)
 max_parallel_downloads = int(mainconf.max_parallel_downloads)
 cache_host = mainconf.cache_host
+hit_threshold = int(mainconf.hit_threshold)
 rpc_host = mainconf.rpc_host
 rpc_port = int(mainconf.rpc_port)
 logfile = os.path.join(mainconf.logdir, 'videocache.log')
@@ -197,7 +198,7 @@ class VideoIDPool:
             if self.get_conn_number() < max_parallel_downloads:
                 #log(format%(pid, str(video_id_pool.get_conn_number()), '-', 'CONN_AVAIL', '-', '-'))
                 video_id = self.get_popular()
-                if video_id != "NULL" and self.is_active(video_id) == False:
+                if video_id != "NULL" and self.is_active(video_id) == False and self.get_score(video_id) >= hit_threshold:
                     #log(format%(pid, '-', '-', 'INACTIVE', '-', '-'))
                     params = self.get_details(video_id)
                     if params != False:
@@ -252,6 +253,13 @@ class VideoIDPool:
         if video_id in self.scores.keys():
             self.scores[video_id] += incr
         return True
+
+    def get_score(self, video_id):
+        """Get the score of video represented by video_id."""
+        if video_id in self.scores.keys():
+            return self.scores[video_id]
+        else:
+            return 0
 
     def get(self):
         """Return all the video ids currently in queue."""
@@ -1094,8 +1102,8 @@ def start_xmlrpc_server():
         log(format%(pid, '-', '-', 'LOG_ROTATE_ERR', '-', 'Could not rotate logfiles.'))
 
     try:
-        #server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=0)
-        server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=1)
+        server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=0)
+        #server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=1)
         server.register_function(server.shutdown)
         server.register_introspection_functions()
         server.register_instance(VideoIDPool())
