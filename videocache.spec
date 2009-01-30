@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.7
+Version:    1.8
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    GPL
@@ -112,6 +112,24 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Wed Jan 28 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Cleaned up code at a large scale.
+Improved assigment for website specific global variables.
+Moved deamon forking from XMLRPC Server to client as it would result in less occupied sockets.
+Reduced total number of queries to XMLRPC Server in order to get rid of TIME_WAIT sockets.
+Major cleanup for cache_video and squid_part functions.
+
+* Mon Jan 26 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Videos are now downloaded only when requested more than once. Option can be customized.
+
+* Sun Jan 25 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Updated to cache tube8.com, tvuol.uol.com.br, blip.tv and break.com videos (including High Quality Videos).
+Merged Google and Youtube videos.
+Broaden the domains of google/youtube domains for video caching.
+Optimized communcation between XMLRPC client and server to minimize the sockets left in TIME_WAIT state.
+Extended SimpleXMLRPCServer class to add socket options and shutdown hangle to server.
+Additional exception handling at every step.
+
 * Sun Dec 14 2008 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Fixed Bug : http://cachevideos.com/forum/post/cache-directory-size-limiting-checked-only-video-queued .
 
