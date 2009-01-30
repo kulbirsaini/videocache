@@ -152,9 +152,6 @@ class VideoIDPool:
             return False
         return True
 
-    def get_scheduler(self):
-        return self.scheduler
-
     # Functions related to video_id queue-ing.
     def add(self, video_id, score = 1):
         """Queue a video_id for download. Score defaults to one."""
@@ -229,10 +226,6 @@ class VideoIDPool:
             self.active.append(video_id)
         return True
 
-    def get_conn(self):
-        """Return a list of currently active connections."""
-        return self.active
-
     def get_conn_number(self):
         """Return the number of currently active connections."""
         return len(self.active)
@@ -256,6 +249,10 @@ class VideoIDPool:
         return True
 
 class MyXMLRPCServer(SimpleXMLRPCServer):
+
+    request_queue_size = 10
+    allow_reuse_address = True
+
     def __init__(self, *args, **kwargs):
         self.finished = False
         SimpleXMLRPCServer.__init__(self, *args, **kwargs)
@@ -266,7 +263,7 @@ class MyXMLRPCServer(SimpleXMLRPCServer):
 
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        SimpleXMLRPCServer.server_bind(self)
+        self.socket.bind(self.server_address)
 
     def serve_forever(self):
         while not self.finished:
@@ -732,7 +729,7 @@ def download_scheduler():
             video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
             params = video_id_pool.schedule()
             if params == False:
-                wait_time = 6
+                wait_time = 5
             elif params == True:
                 wait_time = 0.2
             else:
@@ -747,6 +744,7 @@ def download_scheduler():
                 except:
                     remove(video_id)
                     log(format%(pid, '-', '-', 'SCHEDULED_ERR', '-', 'Could not schedule video for download.'))
+                    wait_time = 0.5
         except:
             log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server.'))
         time.sleep(wait_time)
@@ -769,11 +767,11 @@ if __name__ == '__main__':
             # Start XMLRPC Server, Download Scheduler and Base Plugin in threads.
             thread_xmlrpc = Function_Thread(XMLRPC_SERVER)
             thread_download_scheduler = Function_Thread(DOWNLOAD_SCHEDULER)
-            #thread_base_plugin = Function_Thread(BASE_PLUGIN)
+            thread_base_plugin = Function_Thread(BASE_PLUGIN)
             thread_xmlrpc.start()
             thread_download_scheduler.start()
-            #thread_base_plugin.start()
+            thread_base_plugin.start()
             thread_xmlrpc.join()
             thread_download_scheduler.join()
-            #thread_base_plugin.join()
+            thread_base_plugin.join()
 
