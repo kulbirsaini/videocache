@@ -43,8 +43,8 @@ mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
 # Gloabl Options
 enable_video_cache = int(mainconf.enable_video_cache)
-base_dir = mainconf.base_dir
-temp_dir = os.path.join(base_dir, mainconf.temp_dir)
+base_dir = [dir.strip() for dir in mainconf.base_dir.strip().split('|')]
+temp_dir = mainconf.temp_dir
 max_parallel_downloads = int(mainconf.max_parallel_downloads)
 cache_host = mainconf.cache_host
 hit_threshold = int(mainconf.hit_threshold)
@@ -66,7 +66,7 @@ cache_url = 'http://' + str(cache_host) + '/'
 
 def set_globals(type_low):
     enable_cache = int(eval('mainconf.enable_' + type_low + '_cache'))
-    cache_dir = os.path.join(base_dir, eval('mainconf.' + type_low + '_cache_dir'))
+    cache_dir = eval('mainconf.' + type_low + '_cache_dir')
     cache_size = int(eval('mainconf.' + type_low + '_cache_size'))
     max_video_size = int(eval('mainconf.max_' + type_low + '_video_size'))
     min_video_size = int(eval('mainconf.min_' + type_low + '_video_size'))
@@ -355,7 +355,7 @@ def download_from_source(args):
     """This function downloads the file from remote source and caches it."""
     pid = os.getpid()
     try:
-        [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir] = [i for i in args]
+        [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir, tmp_cache] = [i for i in args]
     except:
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
         remove(video_id)
@@ -393,7 +393,7 @@ def download_from_source(args):
             return
 
     try:
-        download_path = os.path.join(temp_dir, os.path.basename(path))
+        download_path = os.path.join(tmp_cache, os.path.basename(path))
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
         size = os.stat(file)[6]
@@ -406,16 +406,17 @@ def download_from_source(args):
         log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
     return
 
-def video_params(video_id, type, url):
+def video_params(base_path, video_id, type, url, index = ''):
     type_low = type.lower()
     params = urlparse.urlsplit(url)[3]
-    path = os.path.join(eval(type_low + '_cache_dir'), video_id)
-    cached_url = os.path.join(cache_url, 'videocache', type_low)
+    path = os.path.join(base_path, eval(type_low + '_cache_dir'), video_id)
+    cached_url = os.path.join(cache_url, 'videocache', str(index) ,type_low)
     max_size = eval('max_' + type_low + '_video_size')
     min_size = eval('min_' + type_low + '_video_size')
     cache_size = eval(type_low + '_cache_size')
-    cache_dir = eval(type_low + '_cache_dir')
-    return (params, path, cached_url, max_size, min_size, cache_size, cache_dir)
+    cache_dir = os.path.join(base_path, eval(type_low + '_cache_dir'))
+    tmp_cache = os.path.join(base_path, temp_dir)
+    return (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache)
 
 def cache_video(client, url, type, video_id):
     """This function check whether a video is in cache or not. If not, it fetches
@@ -425,21 +426,33 @@ def cache_video(client, url, type, video_id):
     global cache_url
     pid = os.getpid()
     mode = 0644
-    try:
-        (params, path, cached_url, max_size, min_size, cache_size, cache_dir) = video_params(video_id, type, url)
-    except:
-        log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
-        remove(video_id)
+    index = None
+    for base_path in base_dir:
+        try:
+            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_path, video_id, type, url, base_dir.index(base_path))
+            log(format%(path, cached_url, cache_dir, tmp_cache, type, 'An error occured while queueing the video.'))
+        except:
+            log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
+            continue
+
+        if os.path.isfile(path):
+            remove(video_id)
+            log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
+            return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
+        else:
+            if cache_size != 0 and dir_size(cache_dir) >= cache_size:
+                log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
+                continue
+            else:
+                index = base_dir.index(base_path)
+                continue
+    if index is not None:
+        (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[index], video_id, type, url, index)
+        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
+        queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir, tmp_cache])
         return url
 
-    if os.path.isfile(path):
-        remove(video_id)
-        log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
-        return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
-    else:
-        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
-        queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir])
-
+    remove(video_id)
     return url
 
 def submit_video(pid, client, type, url, video_id):

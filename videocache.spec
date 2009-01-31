@@ -112,6 +112,10 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Sat Jan 31 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
+Few more optimizations for XMLRPC Server. Lets see how this goes.
+Bumping to version 1.8 .
+
 * Wed Jan 28 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Cleaned up code at a large scale.
 Improved assigment for website specific global variables.

@@ -87,11 +87,12 @@ CONFIGURATION
               No of times a video should be requested before we start caching it. Default: 2
 
        base_dir
-              Base directory for caching the videos. All other directories paths should be relative to base_dir.  Default:  /var/spool/video-
-              cache/.
+              Base directories for caching the videos. You can specify multiple caching directories here separated by ’|’ symbol. Please  try
+              to  avoid  special  characters in directory names like spaces, $ etc. For Example : base_dir = /var/spool/videocache/ | /video-
+              cache2/stuff-new/|/new_videocache . Default: /var/spool/videocache/.
 
        temp_dir
-              Directory  to  store  partially  downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp,
+              Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you  specify  temp_dir  =  tmp,
               actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
        max_parallel_downloads
@@ -101,27 +102,27 @@ CONFIGURATION
        logdir Directory where videocache logs will be stored. Default: /var/log/videocache/.
 
        max_logfile_size
-              Maximum  size  of  logfile  specified  above.  The  size is in megabytes. Don’t use max_logfile_size = 10MB. Don’t append MB.
+              Maximum size of logfile specified above. The size is in megabytes. Don’t use  max_logfile_size  =  10MB.  Don ’t  append  MB.
               Default: 10.
 
        max_logfile_backups
-              The logfiles are automatically rotated once they have exceeded the  max_logfile_size.  max_logfile_backups  is  the  number  of
+              The  logfiles  are  automatically  rotated  once  they have exceeded the max_logfile_size. max_logfile_backups is the number of
               backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2
               as logfiles. Default: 10.
 
        rpc_host
-              XMLRPCServer is used for memory sharing across different instances of videocache. Leave these settings as it is if you  don ’t
+              XMLRPCServer  is  used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t
               have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
        rpc_port
-              Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024
+              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above  1024
               which is not in use by any other program. Default: 9100.
 
        enable_youtube_cache
               This option enables the caching of youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
        youtube_cache_dir
-              Directory to cache youtube videos. Directory name is relative to base_dir. E.g. if you  specify  youtube_cache_dir  =  youtube,
+              Directory  to  cache  youtube  videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube,
               actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
 
        youtube_cache_size
@@ -129,12 +130,12 @@ CONFIGURATION
               limit your cache size to 200MB. Don’t use cache_size = 200MB. Don’t append MB. Default: 0.
 
        max_youtube_video_size
-              Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  unlimited
-              caching.  E.g.  max_youtube_video_size  =  10000.  Only  videos  with  size less than 10MB (10000KB) will be cached. Don’t use
+              Youtube  videos  with  size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for unlimited
+              caching. E.g. max_youtube_video_size = 10000. Only videos with size less than  10MB  (10000KB)  will  be  cached.  Don ’t  use
               max_youtube_video_size = 10000KB. Don’t append KB. Default: 0.
 
        min_youtube_video_size
-              Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  no  lower
+              Youtube  videos  with  size  less than min_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for no lower
               limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size
               = 10KB. Don’t append KB. Default: 0.
 
@@ -159,4 +160,4 @@ AUTHOR
          Manpage reformated by Joao Eriberto Mota Filho <eriberto@eriberto.pro.br>
 
 BUGS, SUGGESTIONS, COMMENTS
-       Please visit http://cachevideos.com/forum/.
+         Please visit http://cachevideos.com/forum/.
