@@ -97,7 +97,7 @@ If the above proxy requires authentication, please specify the password. Default
 No of times a video should be requested before we start caching it. Default: 2
 
 : base_dir
-Base directory for caching the videos. All other directories paths should be relative to base_dir. Default: /var/spool/videocache/.
+Base directories for caching the videos. You can specify multiple caching directories here separated by '|' symbol. Please try to avoid special characters in directory names like spaces, $ etc. For Example : base_dir = /var/spool/videocache/ | /videocache2/stuff-new/|/new_videocache . Default: /var/spool/videocache/.
 
 : temp_dir
 Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
@@ -161,4 +161,6 @@ Manpage reformated by Joao Eriberto Mota Filho <eriberto@eriberto.pro.br>
 ```
 
 = BUGS, SUGGESTIONS, COMMENTS =
+```
 Please visit http://cachevideos.com/forum/.
+```
