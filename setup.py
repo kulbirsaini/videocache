@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-# (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 #
 # For more information check http://cachevideos.com/
 #
@@ -295,6 +295,11 @@ def setup(root):
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
     if not copy_file('./videocache-sysconfig.conf', os.path.join(etc_dir, 'videocache.conf')):
         error(INSTALL_ERROR)
+
+    # Copy vccleaner to /usr/sbin/vccleaner
+    if not copy_file('./scripts/vccleaner', os.path.join(usr_sbin_dir, 'vccleaner')):
+        error(INSTALL_ERROR)
+    os.chmod(os.path.join(usr_sbin_dir, 'vccleaner'),0744)
 
     # Copy update-vc to /usr/sbin/update-vc
     if not copy_file('./update-vc', os.path.join(usr_sbin_dir, 'update-vc')):

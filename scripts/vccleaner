@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Library General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+#
+# For more information check http://cachevideos.com/
+#
+
+from optparse import OptionParser
+import logging
+import logging.handlers
+import os
+import pwd
+import stat
+import sys
+import time
+
+def set_logging(logfile):
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(levelname)s %(message)s',
+                        filename=logfile,
+                        filemode='a')
+    return logging.info
+
+def error(error_code):
+    """Report error while cleaning videocache with proper error code."""
+    help_message =  """
+Usage: vccleaner [options] (as root/super user)
+Videocache cleaner script can only be used if videocache is installed on your system.
+Please see http://cachevideos.com/vccleaner for more information or getting help.
+    """
+    update_error =  """
+An error has occured while cleaning videocache.
+Please check /var/log/videocache/vccleaner.log for more details.
+Please see http://cachevideos.com/vccleaner for more information or getting help.
+    """
+    uid_error = """
+You must be root to run videocache cleaner.
+Please see http://cachevideos.com/vccleaner for more information or getting help.
+    """
+    if error_code == UPDATE_ERROR:
+        print update_error
+        sys.exit(error_code)
+    if error_code == UID_ERROR:
+        print uid_error
+        sys.exit(UID_ERROR)
+    if error_code == USAGE_ERROR:
+        print help_message
+        sys.exit(USAGE_ERROR)
+    return
+
+def success():
+    """Print informative messages after successfull cleanup."""
+    message = """
+Videocache cleaning has completed successfully.
+In case of any bugs or problems, check http://cachevideos.com/vccleaner .
+    """
+    print message
+    sys.exit(0)
+
+def cleancache(root, base_dir, log, cache_dir_list, video_lifetime):
+    """Perform the cleanup."""
+    expire = video_lifetime
+    cur_time = time.time()
+    # Create directories for video caching.
+    try:
+        for base_path in base_dir:
+            for dir in cache_dir_list:
+                new_dir = os.path.join(base_path, dir)
+                if os.path.isdir(new_dir):
+                    for video in os.listdir(new_dir):
+                        video = os.path.join(new_dir, video)
+                        if os.path.isfile(video):
+                            if cur_time - os.stat(video)[stat.ST_MTIME] > expire*86400:
+                                age = int((cur_time - os.stat(video)[stat.ST_ATIME]) / 86400)
+                                os.remove(video)
+                                log(format%("DELETE " + video + " " + "Older than " + str(age) + " day(s) was deleted."))
+                        else:
+                            log(format%('ERROR ' + video + " is not a file."))
+                else:
+                    log(format%("Directory " + new_dir + " does not exist."))
+    except:
+        log(format%("Error occured during cleanup."))
+
+    log(format%("STOP Stopping Videocache Cleaner."))
+    success()
+
+def apply_install_root(root, dir):
+    """Apply --install-root or --home option to all the directories."""
+    return os.path.join(root, dir.strip('/'))
+
+def main(root, etc_dir):
+    etc_dir = apply_install_root(root, etc_dir)
+
+    # The location of system configuration file for videocache.
+    config_file = os.path.join(etc_dir, 'videocache.conf')
+    # Read the configure file.
+    mainconf =  readMainConfig(readStartupConfig(config_file, root))
+
+    # Global Options
+    if int(mainconf.enable_videocache_cleaner) != 1:
+        return (None, None, None, None)
+    else:
+        video_lifetime = int(mainconf.video_lifetime)
+    base_dir = [apply_install_root(root, dir.strip()) for dir in mainconf.base_dir.split('|')]
+    logdir = apply_install_root(root, mainconf.logdir)
+
+    # Youtube specific options
+    youtube_cache_dir = mainconf.youtube_cache_dir
+    metacafe_cache_dir = mainconf.metacafe_cache_dir
+    dailymotion_cache_dir = mainconf.dailymotion_cache_dir
+    google_cache_dir = mainconf.google_cache_dir
+    redtube_cache_dir = mainconf.redtube_cache_dir
+    xtube_cache_dir = mainconf.xtube_cache_dir
+    vimeo_cache_dir = mainconf.vimeo_cache_dir
+    wrzuta_cache_dir = mainconf.wrzuta_cache_dir
+    youporn_cache_dir = mainconf.youporn_cache_dir
+    soapbox_cache_dir = mainconf.soapbox_cache_dir
+    tube8_cache_dir = mainconf.tube8_cache_dir
+    tvuol_cache_dir = mainconf.tvuol_cache_dir
+    bliptv_cache_dir = mainconf.bliptv_cache_dir
+    break_cache_dir = mainconf.break_cache_dir
+
+    # List of cache directories
+    cache_dir_list = [youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir, tube8_cache_dir, tvuol_cache_dir, bliptv_cache_dir, break_cache_dir]
+    return (logdir, base_dir, cache_dir_list, video_lifetime)
+
+if __name__ == '__main__':
+    # The directory for configuration files.
+    etc_dir = '/etc/'
+    # The location of videocache installation directory. You don't need to change this.
+    install_dir = '/usr/share/'
+    # Parse command line options.
+    parser = OptionParser()
+    parser.add_option('--home')
+    parser.add_option('--prefix')
+    parser.add_option('--install-root')
+    options, args = parser.parse_args()
+
+    #Global Options
+    USAGE_ERROR = 1
+    UID_ERROR = 2
+    UPDATE_ERROR = 3
+    format = '%s'
+
+    if os.getuid() != 0:
+        print "You must be root to run videocache cleaner."
+        error(UID_ERROR)
+    else:
+        # If --home or --prefix or --install-root option is used, then apply settings.
+        root = '/'
+        if options.home:
+            root = options.home
+        if options.prefix:
+            root = options.prefix
+        if options.install_root:
+            root = options.install_root
+        # Apply --install-root to install_dir because its need to locate videocache immediately.
+        install_dir = apply_install_root(root, install_dir)
+        # Try to locate the videocache directory containing python files.
+        if os.path.isdir(os.path.join(install_dir, 'videocache')):
+            sys.path = [os.path.join(install_dir, 'videocache')] + sys.path
+            from config import readMainConfig, readStartupConfig
+        else:
+            error(USAGE_ERROR)
+
+        (logdir, base_dir, cache_dir_list, video_lifetime) = main(root, etc_dir)
+        if logdir is None:
+            print "Videocache Cleaner is not enabled. Enable it in /etc/videocache.conf file."
+            success()
+        # The location of logfile to write cleanup logs.
+        cache_cleaner_logfile = os.path.join(logdir,  'vccleaner.log')
+        log = set_logging(cache_cleaner_logfile)
+        log(format%("START Starting Videocache Cleaner."))
+        cleancache(root, base_dir, log, cache_dir_list, video_lifetime)

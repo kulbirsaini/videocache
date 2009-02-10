@@ -55,17 +55,21 @@ Index
   [root@localhost videocache-x.x]# cp update-vc /usr/sbin/update-vc
   [root@localhost videocache-x.x]# chmod 744 /usr/sbin/update-vc
 
-  g) Copy videocache directory to /usr/share/
+  g) Copy vccleaner to /usr/sbin/vccleaner and change permission to executable.
+  [root@localhost videocache-x.x]# cp vccleaner /usr/sbin/vccleaner
+  [root@localhost videocache-x.x]# chmod 744 /usr/sbin/vccleaner
+
+  h) Copy videocache directory to /usr/share/
   [root@localhost videocache-x.x]# cp -r videocache /usr/share/
 
-  h) Create directories to cache videos
+  i) Create directories to cache videos
   [root@localhost root]# cd /var/spool/
   [root@localhost spool]# mkdir videocache
   [root@localhost spool]# mkdir videocache/tmp videocache/youtube videocache/metacafe videocache/dailymotion videocache/google videocache/redtube videocache/xtube videocache/vimeo videocache/wrzuta videocache/youporn videocache/soapbox videocache/tube8 videocache/tvuol videocache/bliptv videocache/break
   [root@localhost spool]# chown -R squid:squid videocache
   [root@localhost spool]# chmod -R 755 videocache
 
-  i) Create logdir /var/log/videocache/ and change permissions and ownership
+  j) Create logdir /var/log/videocache/ and change permissions and ownership
   [root@localhost ~]# mkdir -p /var/log/videocache
   [root@localhost ~]# chmod -R 755 /var/log/videocache/
   [root@localhost ~]# chown -R squid:squid /var/log/videocache/
