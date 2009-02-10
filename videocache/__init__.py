@@ -14,12 +14,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-# (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 #
 # For more information check http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
-__version__ = 0.1
 __docformat__ = 'plaintext'
 

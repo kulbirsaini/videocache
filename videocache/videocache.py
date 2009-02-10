@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
-# (C) Copyright 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 #
 # For more information check http://cachevideos.com/
 #
@@ -430,7 +430,6 @@ def cache_video(client, url, type, video_id):
     for base_path in base_dir:
         try:
             (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_path, video_id, type, url, base_dir.index(base_path))
-            log(format%(path, cached_url, cache_dir, tmp_cache, type, 'An error occured while queueing the video.'))
         except:
             log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
             continue
@@ -438,6 +437,7 @@ def cache_video(client, url, type, video_id):
         if os.path.isfile(path):
             remove(video_id)
             log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
+            os.utime(path, None)
             return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
         else:
             if cache_size != 0 and dir_size(cache_dir) >= cache_size:
@@ -458,13 +458,15 @@ def cache_video(client, url, type, video_id):
 def submit_video(pid, client, type, url, video_id):
     try:
         result = video_id_pool.new_video(video_id)
-        if result == True:
-            log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
-            new_url = cache_video(client, url[0], type, video_id)
-            log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
-            return new_url
     except:
         log(format%(pid, client, video_id, 'XMLRPC_ERR', type, 'Error querying RPC server'))
+        return url[0]
+
+    if result == True:
+        log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+        new_url = cache_video(client, url[0], type, video_id)
+        log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+        return new_url
     return url[0]
 
 def squid_part():
@@ -488,7 +490,6 @@ def squid_part():
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
         except IndexError, e:
-            os.system('rm -f ' + temp_dir + '/* ')
             log(format%(pid, '-', '-', 'RELOAD', '-', 'videocache plugin was reloaded.'))
             os.kill(os.getpid(), 1)
 
@@ -720,7 +721,7 @@ def start_xmlrpc_server():
         server.serve_forever()
         log(format%(pid, '-', '-', 'XMLRPCSERVER_STOP', '-', 'Stopping XMLRPCServer.'))
     except:
-        log(format%(pid, '-', '-', 'STRAT_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
+        log(format%(pid, '-', '-', 'START_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
         os.kill(os.getpid(), 1)
         pass
 

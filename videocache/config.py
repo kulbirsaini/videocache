@@ -573,6 +573,8 @@ class YumConf(StartupConf):
     enable_video_cache = Option(1)
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')
+    enable_videocache_cleaner = Option(0)
+    video_lifetime = Option(60)
     max_parallel_downloads = Option(30)
     cache_host = Option('127.0.0.1')
     hit_threshold = Option(2)

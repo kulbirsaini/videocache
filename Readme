@@ -95,6 +95,15 @@ CONFIGURATION
               Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you  specify  temp_dir  =  tmp,
               actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
+       enable_videocache_cleaner
+              Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this
+              option can be 0 or 1. Default: 0
+
+       video_lifetime
+              The maximum life of a video in cache without being used. If the video was not accessed for  more  than  ’video_lifetime’  days,
+              it’ll  be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove videos which
+              were not used since last 3 or more days. Default: 60
+
        max_parallel_downloads
               The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default:
               30.
@@ -102,27 +111,27 @@ CONFIGURATION
        logdir Directory where videocache logs will be stored. Default: /var/log/videocache/.
 
        max_logfile_size
-              Maximum size of logfile specified above. The size is in megabytes. Don’t use  max_logfile_size  =  10MB.  Don ’t  append  MB.
+              Maximum  size  of  logfile  specified  above.  The  size is in megabytes. Don’t use max_logfile_size = 10MB. Don’t append MB.
               Default: 10.
 
        max_logfile_backups
-              The  logfiles  are  automatically  rotated  once  they have exceeded the max_logfile_size. max_logfile_backups is the number of
+              The logfiles are automatically rotated once they have exceeded the  max_logfile_size.  max_logfile_backups  is  the  number  of
               backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2
               as logfiles. Default: 10.
 
        rpc_host
-              XMLRPCServer  is  used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t
+              XMLRPCServer is used for memory sharing across different instances of videocache. Leave these settings as it is if you  don ’t
               have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
        rpc_port
-              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above  1024
+              Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024
               which is not in use by any other program. Default: 9100.
 
        enable_youtube_cache
               This option enables the caching of youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
        youtube_cache_dir
-              Directory  to  cache  youtube  videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube,
+              Directory to cache youtube videos. Directory name is relative to base_dir. E.g. if you  specify  youtube_cache_dir  =  youtube,
               actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
 
        youtube_cache_size
@@ -130,12 +139,12 @@ CONFIGURATION
               limit your cache size to 200MB. Don’t use cache_size = 200MB. Don’t append MB. Default: 0.
 
        max_youtube_video_size
-              Youtube  videos  with  size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for unlimited
-              caching. E.g. max_youtube_video_size = 10000. Only videos with size less than  10MB  (10000KB)  will  be  cached.  Don ’t  use
+              Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  unlimited
+              caching.  E.g.  max_youtube_video_size  =  10000.  Only  videos  with  size less than 10MB (10000KB) will be cached. Don’t use
               max_youtube_video_size = 10000KB. Don’t append KB. Default: 0.
 
        min_youtube_video_size
-              Youtube  videos  with  size  less than min_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for no lower
+              Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  no  lower
               limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size
               = 10KB. Don’t append KB. Default: 0.
 

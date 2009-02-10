@@ -102,6 +102,12 @@ Base directories for caching the videos. You can specify multiple caching direct
 : temp_dir
 Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
+: enable_videocache_cleaner
+Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 0
+
+: video_lifetime
+The maximum life of a video in cache without being used. If the video was not accessed for more than 'video_lifetime' days, it'll be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove videos which were not used since last 3 or more days. Default: 60
+
 : max_parallel_downloads
 The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default: 30.
 
