@@ -541,7 +541,7 @@ def squid_part():
             
             # Google.com caching is handled here.
             if enable_google_cache:
-                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host)) and (path.find('videoplayback') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
+                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
                     type = 'YOUTUBE'
                     arglist = params.split('&')
                     dict = {}
@@ -642,7 +642,7 @@ def squid_part():
             
             # Tube8.com Video file caching is handled here.
             if enable_tube8_cache:
-                if re.compile('media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host) and (path.find('.flv') > -1 or path.find('.3gp') > -1):
+                if (re.compile('media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host) or re.compile('mobile[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host)) and (path.find('.flv') > -1 or path.find('.3gp') > -1):
                     type = 'TUBE8'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -698,9 +698,11 @@ def squid_part():
 
 def log_rotate():
     # Rotate logfiles if the size is more than the max_logfile_size.
+    global log
     if os.stat(logfile)[6] > max_logfile_size:
         roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
         roll.doRollover()
+        log = set_logging()
     return
 
 def start_xmlrpc_server():

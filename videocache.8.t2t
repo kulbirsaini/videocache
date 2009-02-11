@@ -33,6 +33,8 @@ acl videocache_allow_url url_regex -i \.youtube\.com\/get_video\?
 acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplayback \.googlevideo\.com\/get_video\?
 acl videocache_allow_url url_regex -i \.google\.com\/videoplayback \.google\.com\/get_video\?
 acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplayback \.google\.[a-z][a-z]\/get_video\?
+acl videocache_allow_url url_regex -i (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/videoplayback\?
+acl videocache_allow_url url_regex -i (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/get_video\?
 acl videocache_allow_url url_regex -i proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com\/
 acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/
 acl videocache_allow_url url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
@@ -40,7 +42,7 @@ acl videocache_allow_url url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
 acl videocache_allow_url url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
 acl videocache_allow_url url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
 acl videocache_allow_url url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
-acl videocache_allow_url url_regex -i media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/
+acl videocache_allow_url url_regex -i media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/ mobile[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/
 acl videocache_allow_url url_regex -i \.mais\.uol\.com\.br\/(.*)\.flv
 acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
 acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
@@ -149,6 +151,7 @@ Youtube videos with size less than min_youtube_video_size will not be cached. Th
 /usr/share/videocache/
 /usr/share/man/man8/videocache.8.gz
 /usr/sbin/update-vc
+/usr/sbin/vccleaner
 /var/log/videocache/
 /var/spool/videocache/
 ```

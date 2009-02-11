@@ -1,3 +1,11 @@
+* Tue Feb 10 2009 <kulbirsaini@students.iiit.ac.in>
+Added a cache cleaner script to remove unused videos automatically.
+Last modified time of a video is updated whenever its a CACHE_HIT to
+help the removal script.
+
+* Sun Feb 1 2009 <kulbirsaini@students.iiit.ac.in>
+VideoCache now supports multiple caching directories separated by '|' in configuration file.
+
 * Sat Jan 31 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Few more optimizations for XMLRPC Server. Lets see how this goes.
 Bumping to version 1.8 .

@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.8
+Version:    1.9
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    GPL
@@ -72,6 +72,7 @@ install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/video
 install -m 644 videocache-httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/videocache.conf
 install -m 644 videocache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/videocache.8.gz
 install -m 744 update-vc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-vc
+install -m 744 scripts/vccleaner -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vccleaner
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 
 %clean
@@ -83,6 +84,7 @@ touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 %{prefix}/usr/share/videocache/
 %{prefix}/usr/share/man/man8/videocache.8.gz
 %{prefix}/usr/sbin/update-vc
+%{prefix}/usr/sbin/vccleaner
 %{prefix}/var/log/videocache/
 %{prefix}/var/spool/videocache/
 
@@ -112,6 +114,14 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Tue Feb 10 2009 <kulbirsaini@students.iiit.ac.in>
+Added a cache cleaner script to remove unused videos automatically.
+Last modified time of a video is updated whenever its a CACHE_HIT to
+help the removal script.
+
+* Sun Feb 1 2009 <kulbirsaini@students.iiit.ac.in>
+VideoCache now supports multiple caching directories separated by '|' in configuration file.
+
 * Sat Jan 31 2009 Kubir Saini <kulbirsaini@students.iiit.ac.in>
 Few more optimizations for XMLRPC Server. Lets see how this goes.
 Bumping to version 1.8 .
