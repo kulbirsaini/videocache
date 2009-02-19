@@ -32,6 +32,7 @@ import random
 import re
 import socket
 import stat
+import statvfs
 import sys
 import threading
 import time
@@ -43,8 +44,20 @@ mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
 # Gloabl Options
 enable_video_cache = int(mainconf.enable_video_cache)
-base_dir = [dir.strip() for dir in mainconf.base_dir.strip().split('|')]
+base_dir_list = mainconf.base_dir.split('|')
+base_dir = []
+for dir in base_dir_list:
+    try:
+        dir_tup = [val.strip() for val in dir.split(':')]
+        if len(dir_tup) == 1 or (len(dir_tup) == 2 and dir_tup[1] == ''):
+            base_dir.append((dir_tup[0], 0))
+        elif len(dir_tup) == 2:
+            base_dir.append((dir_tup[0], int(dir_tup[1])))
+    except:
+        # WTF?? Can't even set cache directories properly
+        pass
 temp_dir = mainconf.temp_dir
+disk_avail_threshold = int(mainconf.disk_avail_threshold)
 max_parallel_downloads = int(mainconf.max_parallel_downloads)
 cache_host = mainconf.cache_host
 hit_threshold = int(mainconf.hit_threshold)
@@ -67,26 +80,25 @@ cache_url = 'http://' + str(cache_host) + '/'
 def set_globals(type_low):
     enable_cache = int(eval('mainconf.enable_' + type_low + '_cache'))
     cache_dir = eval('mainconf.' + type_low + '_cache_dir')
-    cache_size = int(eval('mainconf.' + type_low + '_cache_size'))
     max_video_size = int(eval('mainconf.max_' + type_low + '_video_size'))
     min_video_size = int(eval('mainconf.min_' + type_low + '_video_size'))
-    return (enable_cache, cache_dir, cache_size, max_video_size, min_video_size)
+    return (enable_cache, cache_dir, max_video_size, min_video_size)
 
-# Youtube specific options
-(enable_youtube_cache, youtube_cache_dir, youtube_cache_size, max_youtube_video_size, min_youtube_video_size) = set_globals('youtube') 
-(enable_metacafe_cache, metacafe_cache_dir, metacafe_cache_size, max_metacafe_video_size, min_metacafe_video_size) = set_globals('metacafe')
-(enable_dailymotion_cache, dailymotion_cache_dir, dailymotion_cache_size, max_dailymotion_video_size, min_dailymotion_video_size)=set_globals('dailymotion')
-(enable_google_cache, google_cache_dir, google_cache_size, max_google_video_size, min_google_video_size) = set_globals('google')
-(enable_redtube_cache, redtube_cache_dir, redtube_cache_size, max_redtube_video_size, min_redtube_video_size) = set_globals('redtube')
-(enable_xtube_cache, xtube_cache_dir, xtube_cache_size, max_xtube_video_size, min_xtube_video_size) = set_globals('xtube')
-(enable_vimeo_cache, vimeo_cache_dir, vimeo_cache_size, max_vimeo_video_size, min_vimeo_video_size) = set_globals('vimeo')
-(enable_wrzuta_cache, wrzuta_cache_dir, wrzuta_cache_size, max_wrzuta_video_size, min_wrzuta_video_size) = set_globals('wrzuta')
-(enable_youporn_cache, youporn_cache_dir, youporn_cache_size, max_youporn_video_size, min_youporn_video_size) = set_globals('youporn')
-(enable_soapbox_cache, soapbox_cache_dir, soapbox_cache_size, max_soapbox_video_size, min_soapbox_video_size) = set_globals('soapbox')
-(enable_tube8_cache, tube8_cache_dir, tube8_cache_size, max_tube8_video_size, min_tube8_video_size) = set_globals('tube8')
-(enable_tvuol_cache, tvuol_cache_dir, tvuol_cache_size, max_tvuol_video_size, min_tvuol_video_size) = set_globals('tvuol')
-(enable_bliptv_cache, bliptv_cache_dir, bliptv_cache_size, max_bliptv_video_size, min_bliptv_video_size) = set_globals('bliptv')
-(enable_break_cache, break_cache_dir, break_cache_size, max_break_video_size, min_break_video_size) = set_globals('break')
+# Website specific options
+(enable_youtube_cache, youtube_cache_dir, max_youtube_video_size, min_youtube_video_size) = set_globals('youtube') 
+(enable_metacafe_cache, metacafe_cache_dir, max_metacafe_video_size, min_metacafe_video_size) = set_globals('metacafe')
+(enable_dailymotion_cache, dailymotion_cache_dir, max_dailymotion_video_size, min_dailymotion_video_size)=set_globals('dailymotion')
+(enable_google_cache, google_cache_dir, max_google_video_size, min_google_video_size) = set_globals('google')
+(enable_redtube_cache, redtube_cache_dir, max_redtube_video_size, min_redtube_video_size) = set_globals('redtube')
+(enable_xtube_cache, xtube_cache_dir, max_xtube_video_size, min_xtube_video_size) = set_globals('xtube')
+(enable_vimeo_cache, vimeo_cache_dir, max_vimeo_video_size, min_vimeo_video_size) = set_globals('vimeo')
+(enable_wrzuta_cache, wrzuta_cache_dir, max_wrzuta_video_size, min_wrzuta_video_size) = set_globals('wrzuta')
+(enable_youporn_cache, youporn_cache_dir, max_youporn_video_size, min_youporn_video_size) = set_globals('youporn')
+(enable_soapbox_cache, soapbox_cache_dir, max_soapbox_video_size, min_soapbox_video_size) = set_globals('soapbox')
+(enable_tube8_cache, tube8_cache_dir, max_tube8_video_size, min_tube8_video_size) = set_globals('tube8')
+(enable_tvuol_cache, tvuol_cache_dir, max_tvuol_video_size, min_tvuol_video_size) = set_globals('tvuol')
+(enable_bliptv_cache, bliptv_cache_dir, max_bliptv_video_size, min_bliptv_video_size) = set_globals('bliptv')
+(enable_break_cache, break_cache_dir, max_break_video_size, min_break_video_size) = set_globals('break')
 
 class Function_Thread(threading.Thread):
     def __init__(self, fid):
@@ -292,17 +304,26 @@ def set_logging():
         # No idea where to log. May be logged to syslog.
         return None
 
-def dir_size(dir):
+def get_cache_size(cache_dir):
     """
     This is not a standard function to calculate the size of a directory.
-    This function will only give the sum of sizes of all the files in 'dir'.
+    Returned size is in Mega Bytes.
     """
     # Initialize with 4096bytes as the size of an empty dir is 4096bytes.
     size = 4096
+    if not os.path.isdir(cache_dir):
+        log(format%(os.getpid(), '-', '-', 'CACHE_DIR_ERR', cache_dir, 'Not a directory.'))
+        return -1
     try:
-        for file in os.listdir(dir):
-            size += int(os.stat(os.path.join(dir, file))[6])
+        for dir in os.listdir(cache_dir):
+            dir = os.path.join(cache_dir, dir)
+            if os.path.isdir(dir):
+                for file in os.listdir(dir):
+                    size += int(os.stat(os.path.join(dir, file))[6])
+            else:
+                log(format%(os.getpid(), '-', '-', 'CACHE_DIR_ERR', os.path.join(cache_dir, dir), 'Not a directory.'))
     except:
+        log(format%(os.getpid(), '-', '-', 'CACHE_SIZE_ERR', cache_dir, 'Error occurred while calculating the size of directory.'))
         return -1
     return size / (1024*1024)
 
@@ -361,10 +382,19 @@ def download_from_source(args):
         remove(video_id)
         return
 
-    if cache_size != 0 and dir_size(cache_dir) >= cache_size:
+    # Check if we have enough disk space left to download more videos. 
+    if cache_size != 0 and get_cache_size(cache_dir) >= cache_size:
         log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
         remove(video_id)
         return
+    else:
+        # Check the disk space left in the partition with cache directory.
+        disk_stat = os.statvfs(cache_dir)
+        disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
+        if disk_available < disk_avail_threshold:
+            log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has reached the disk availability threshold.'))
+            remove(video_id)
+            return
 
     grabber = set_proxy()
     if grabber is None:
@@ -399,6 +429,7 @@ def download_from_source(args):
         size = os.stat(file)[6]
         os.rename(file, path)
         os.chmod(path, mode)
+        os.utime(path, None)
         remove(video_id)
         log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
     except:
@@ -406,17 +437,16 @@ def download_from_source(args):
         log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
     return
 
-def video_params(base_path, video_id, type, url, index = ''):
+def video_params((base_path, base_path_size), video_id, type, url, index = ''):
     type_low = type.lower()
     params = urlparse.urlsplit(url)[3]
     path = os.path.join(base_path, eval(type_low + '_cache_dir'), video_id)
     cached_url = os.path.join(cache_url, 'videocache', str(index) ,type_low)
     max_size = eval('max_' + type_low + '_video_size')
     min_size = eval('min_' + type_low + '_video_size')
-    cache_size = eval(type_low + '_cache_size')
     cache_dir = os.path.join(base_path, eval(type_low + '_cache_dir'))
     tmp_cache = os.path.join(base_path, temp_dir)
-    return (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache)
+    return (params, path, cached_url, max_size, min_size, base_path_size, cache_dir, tmp_cache)
 
 def cache_video(client, url, type, video_id):
     """This function check whether a video is in cache or not. If not, it fetches
@@ -427,12 +457,12 @@ def cache_video(client, url, type, video_id):
     pid = os.getpid()
     mode = 0644
     index = None
-    for base_path in base_dir:
+    # If there is only one cache dir, then the path should be videocache/youtube instead of videocache/0/youtube/ .
+    if len(base_dir) == 1:
         try:
-            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_path, video_id, type, url, base_dir.index(base_path))
+            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[0], video_id, type, url)
         except:
             log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
-            continue
 
         if os.path.isfile(path):
             remove(video_id)
@@ -440,14 +470,46 @@ def cache_video(client, url, type, video_id):
             os.utime(path, None)
             return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
         else:
-            if cache_size != 0 and dir_size(cache_dir) >= cache_size:
-                log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
+            index = ''
+    else:
+        for base_tup in base_dir:
+            # Pick up cache directories one by one.
+            try:
+                (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_tup, video_id, type, url, base_dir.index(base_tup))
+            except:
+                log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
                 continue
+
+            # If video is found, heads up!!! Return it.
+            if os.path.isfile(path):
+                remove(video_id)
+                log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
+                os.utime(path, None)
+                return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
             else:
-                index = base_dir.index(base_path)
-                continue
+                # Check the disk space left in the partition with cache directory.
+                disk_stat = os.statvfs(cache_dir)
+                disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
+                # If cache_size is not 0 and the cache directory size is more than cache_size, we are done with this cache directory.
+                if cache_size != 0 and get_cache_size(cache_dir) >= cache_size:
+                    log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
+                    # Check next cache directory
+                    continue
+                # If disk availability reached disk_avail_threshold, then we can't use this cache anymore.
+                elif disk_available < disk_avail_threshold:
+                    log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has reached the disk availability threshold.'))
+                    # Check next cache directory
+                    continue
+                else:
+                    index = base_dir.index(base_tup)
+                    # Use continue here instead of break because video may in any of the cache directories.
+                    continue
+
     if index is not None:
-        (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[index], video_id, type, url, index)
+        if index == '':
+            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[0], video_id, type, url, index)
+        else:
+            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[index], video_id, type, url, index)
         log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
         queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir, tmp_cache])
         return url
@@ -750,15 +812,12 @@ def download_scheduler():
                 wait_time = 0.2
             else:
                 try:
-                    if params[5] == 'RAPIDSHARE':
-                        forked = fork(download_from_rapidshare)
-                    else:
-                        forked = fork(download_from_source)
+                    forked = fork(download_from_source)
                     forked(params)
                     log(format%(pid, params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
                     wait_time = 0.2
                 except:
-                    remove(video_id)
+                    remove(params[4])
                     log(format%(pid, '-', '-', 'SCHEDULED_ERR', '-', 'Could not schedule video for download.'))
                     wait_time = 0.5
         except:

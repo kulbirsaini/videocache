@@ -114,6 +114,11 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Wed Feb 11 2009 <kulbirsaini@students.iiit.ac.in>
+Added support for youtube videos served directly from IP Address(without using domains names).
+Added support for tube8 videos for mobile platform.
+Fixed log misbehavior bug (http://cachevideos.com/forum/post/confused-log-files).
+
 * Tue Feb 10 2009 <kulbirsaini@students.iiit.ac.in>
 Added a cache cleaner script to remove unused videos automatically.
 Last modified time of a video is updated whenever its a CACHE_HIT to

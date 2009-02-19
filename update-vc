@@ -149,29 +149,30 @@ def copy_dir(source, dest):
 
 def generate_httpd_conf(conf_file, base_dir):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
-    videocache_conf = """
-#
-# file : """ + conf_file + """
-#
-# videocache is a squid url rewriter to cache videos from various websites.
-# Check http://cachevideos.com/ for more details.
-#
-
-# ------------------- Note This --------------------
-# Don't forget to reload httpd and squid services if you change this file.
-    """
+    videocache_conf = """##############################################################################
+#                                                                            #
+# file : """ + conf_file + " "*(68 - len(conf_file)) + """#
+#                                                                            #
+# videocache is a squid url rewriter to cache videos from various websites.  #
+# Check http://cachevideos.com/ for more details.                            #
+#                                                                            #
+# ----------------------------- Note This ---------------------------------- #
+# Don't change this file unless you have good knowledge of how Apache works. #
+# Don't forget to reload httpd and squid services if you change this file.   #
+#                                                                            #
+##############################################################################\n\n"""
     for dir in base_dir:
-        videocache_conf += """
-Alias /videocache/""" + str(base_dir.index(dir)) + """ """ + dir +"""
+        if len(base_dir) == 1:
+            videocache_conf += "Alias /videocache " + dir
+        else:
+            videocache_conf += "Alias /videocache/" + str(base_dir.index(dir)) + " " + dir
 
+        videocache_conf += """
 <Directory """ + dir + """>
   Options +Indexes
   Order Allow,Deny
-  #Comment the following line and uncomment the next for public use 
-  #Deny from all
   Allow from all
-</Directory>
-        """
+</Directory>\n"""
 
     try:
         file = open(conf_file, 'w')
@@ -293,7 +294,7 @@ def main(root):
     mainconf =  readMainConfig(readStartupConfig(config_file, root))
 
     # Global Options
-    base_dir = [apply_install_root(root, dir.strip()) for dir in mainconf.base_dir.split('|')]
+    base_dir = [apply_install_root(root, dir_tup.split(':')[0].strip()) for dir_tup in mainconf.base_dir.strip().split('|')]
     temp_dir = mainconf.temp_dir
     logdir = apply_install_root(root, mainconf.logdir)
 

@@ -1,3 +1,8 @@
+* Wed Feb 11 2009 <kulbirsaini@students.iiit.ac.in>
+Added support for youtube videos served directly from IP Address(without using domains names).
+Added support for tube8 videos for mobile platform.
+Fixed log misbehavior bug (http://cachevideos.com/forum/post/confused-log-files).
+
 * Tue Feb 10 2009 <kulbirsaini@students.iiit.ac.in>
 Added a cache cleaner script to remove unused videos automatically.
 Last modified time of a video is updated whenever its a CACHE_HIT to
@@ -224,4 +229,3 @@ Previously youtube_cache tried to connect to internet directly. Now it uses the 
 * Thu Jun 12 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 0.1-1
 Initial Version: youtube_cache-0.1 . Works well with squid-2.6STABLE16 and up. Redundand caching.
-
