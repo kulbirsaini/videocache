@@ -573,6 +573,7 @@ class YumConf(StartupConf):
     enable_video_cache = Option(1)
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')
+    disk_avail_threshold = Option(100)
     enable_videocache_cleaner = Option(0)
     video_lifetime = Option(60)
     max_parallel_downloads = Option(30)
@@ -590,98 +591,84 @@ class YumConf(StartupConf):
     # Youtube.com Specific Options
     enable_youtube_cache = Option(1)
     youtube_cache_dir = Option('youtube')
-    youtube_cache_size = Option(0)
     max_youtube_video_size = Option(0)
     min_youtube_video_size = Option(0)
 
     # Metacafe.com Specific Options
     enable_metacafe_cache = Option(1)
     metacafe_cache_dir = Option('metacafe')
-    metacafe_cache_size = Option(0)
     max_metacafe_video_size = Option(0)
     min_metacafe_video_size = Option(0)
 
     # Dailymotion.com Specific Options
     enable_dailymotion_cache = Option(1)
     dailymotion_cache_dir = Option('dailymotion')
-    dailymotion_cache_size = Option(0)
     max_dailymotion_video_size = Option(0)
     min_dailymotion_video_size = Option(0)
 
     # Google.com Specific Options
     enable_google_cache = Option(1)
     google_cache_dir = Option('google')
-    google_cache_size = Option(0)
     max_google_video_size = Option(0)
     min_google_video_size = Option(0)
 
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')
-    redtube_cache_size = Option(0)
     max_redtube_video_size = Option(0)
     min_redtube_video_size = Option(0)
 
     # Xtube.com Specific Options
     enable_xtube_cache = Option(1)
     xtube_cache_dir = Option('xtube')
-    xtube_cache_size = Option(0)
     max_xtube_video_size = Option(0)
     min_xtube_video_size = Option(0)
 
     # Vimeo.com Specific Options
     enable_vimeo_cache = Option(1)
     vimeo_cache_dir = Option('vimeo')
-    vimeo_cache_size = Option(0)
     max_vimeo_video_size = Option(0)
     min_vimeo_video_size = Option(0)
 
     # Wrzuta.pl Specific Options
     enable_wrzuta_cache = Option(1)
     wrzuta_cache_dir = Option('wrzuta')
-    wrzuta_cache_size = Option(0)
     max_wrzuta_video_size = Option(0)
     min_wrzuta_video_size = Option(0)
 
     # Youporn.com Specific Options
     enable_youporn_cache = Option(1)
     youporn_cache_dir = Option('youporn')
-    youporn_cache_size = Option(0)
     max_youporn_video_size = Option(0)
     min_youporn_video_size = Option(0)
 
     # Soapbox.msn.com Specific Options
     enable_soapbox_cache = Option(1)
     soapbox_cache_dir = Option('soapbox')
-    soapbox_cache_size = Option(0)
     max_soapbox_video_size = Option(0)
     min_soapbox_video_size = Option(0)
 
     # Tube8.com Specific Options
     enable_tube8_cache = Option(1)
     tube8_cache_dir = Option('tube8')
-    tube8_cache_size = Option(0)
     max_tube8_video_size = Option(0)
     min_tube8_video_size = Option(0)
 
     # Tvuol.uol.com.br Specific Options
     enable_tvuol_cache = Option(1)
     tvuol_cache_dir = Option('tvuol')
-    tvuol_cache_size = Option(0)
     max_tvuol_video_size = Option(0)
     min_tvuol_video_size = Option(0)
 
     # Blip.tv Specific Options
     enable_bliptv_cache = Option(1)
     bliptv_cache_dir = Option('bliptv')
-    bliptv_cache_size = Option(0)
     max_bliptv_video_size = Option(0)
     min_bliptv_video_size = Option(0)
 
     # Break.tv Specific Options
     enable_break_cache = Option(1)
     break_cache_dir = Option('break')
-    break_cache_size = Option(0)
     max_break_video_size = Option(0)
     min_break_video_size = Option(0)
 
