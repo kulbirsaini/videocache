@@ -31,7 +31,6 @@ import os
 import random
 import re
 import socket
-import stat
 import statvfs
 import sys
 import threading
@@ -125,14 +124,81 @@ class VideoIDPool:
         self.queue = {}
         self.active = []
         self.scheduler = None
+        self.base_dir_size = {}
+        for tup in base_dir:
+            self.base_dir_size[tup[0]] = 0
         pass
 
+    def new_video(self, video_id, values):
+        """
+        A new video is added to the queue and its score is set to 0.
+        If video is already queued, score is incremented by 1.
+        """
+        if video_id in self.queue.keys():
+            self.inc_score(video_id)
+        else:
+            self.queue[video_id] = values
+            self.scores[video_id] = 1
+        return True
+
+    def get_score(self, video_id):
+        """Get the score of video represented by video_id."""
+        if video_id in self.scores.keys():
+            return self.scores[video_id]
+        else:
+            return 0
+
+    def set_score(self, video_id, score = 1):
+        """Set the priority score of a video_id."""
+        self.scores[video_id] = score
+        return True
+
+    def inc_score(self, video_id, incr = 1):
+        """Increase the priority score of video represented by video_id."""
+        if video_id in self.scores.keys():
+            self.scores[video_id] += incr
+        return True
+
+    def get_popular(self):
+        """Return the video_id of the most frequently access video."""
+        vk = [(v,k) for k,v in self.scores.items()]
+        if len(vk) != 0:
+            video_id = sorted(vk, reverse=True)[0][1]
+            return video_id
+        return False
+
+    def get_details(self, video_id):
+        """Return the details of a particular video represented by video_id."""
+        if video_id in self.queue.keys():
+            return self.queue[video_id]
+        return False
+
+    def remove_from_queue(self, video_id):
+        """Dequeue a video_id from the download queue."""
+        if video_id in self.queue.keys():
+            self.queue.pop(video_id)
+        if video_id in self.scores.keys():
+            self.scores.pop(video_id)
+        return True
+
+    def remove(self, video_id):
+        """Remove video_id from queue as well as active connection list."""
+        return self.remove_from_queue(video_id) and self.remove_conn(video_id)
+
+    def flush(self):
+        """Flush the queue and reinitialize everything."""
+        self.queue = {}
+        self.scores = {}
+        self.active = []
+        return True
+
     def schedule(self):
+        """Returns the parameters for a video to be downloaded from remote."""
         pid = os.getpid()
         try:
             if self.get_conn_number() < max_parallel_downloads:
                 video_id = self.get_popular()
-                if video_id != "NULL" and self.is_active(video_id) == False and self.get_score(video_id) >= hit_threshold:
+                if video_id != False and self.is_active(video_id) == False and self.get_score(video_id) >= hit_threshold:
                     params = self.get_details(video_id)
                     if params != False:
                         self.set_score(video_id, 0)
@@ -149,14 +215,6 @@ class VideoIDPool:
             log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error in schedule function.'))
         return True
 
-    def new_video(self, video_id):
-        if video_id in self.queue.keys():
-            self.inc_score(video_id)
-            return False
-        else:
-            self.add(video_id)
-            return True
-
     def set_scheduler(self, pid):
         if self.scheduler is None:
             self.scheduler = pid
@@ -164,69 +222,18 @@ class VideoIDPool:
             return False
         return True
 
-    # Functions related to video_id queue-ing.
-    def add(self, video_id, score = 1):
-        """Queue a video_id for download. Score defaults to one."""
-        if video_id not in self.queue.keys():
-            self.queue[video_id] = []
-        self.scores[video_id] = score
-        return True
-
-    def set(self, video_id, values):
-        """Set the details of video_id to values."""
-        self.queue[video_id] = values
-        return True
-
-    def set_score(self, video_id, score = 1):
-        """Set the priority score of a video_id."""
-        self.scores[video_id] = score
-        return True
-
-    def inc_score(self, video_id, incr = 1):
-        """Increase the priority score of video represented by video_id."""
-        if video_id in self.scores.keys():
-            self.scores[video_id] += incr
-        return True
-
-    def get_score(self, video_id):
-        """Get the score of video represented by video_id."""
-        if video_id in self.scores.keys():
-            return self.scores[video_id]
-        else:
-            return 0
-
-    def get(self):
-        """Return all the video ids currently in queue."""
-        return self.queue.keys()
-
-    def get_details(self, video_id):
-        """Return the details of a particular video represented by video_id."""
-        if video_id in self.queue.keys():
-            return self.queue[video_id]
+    def set_cache_dir_size(self, cache_dir, size):
+        """Sets the size of a cache directory."""
+        if cache_dir in self.base_dir_size.keys():
+            self.base_dir_size[cache_dir] = size
+            return True
         return False
 
-    def get_popular(self):
-        """Return the video_id of the most frequently access video."""
-        vk = [(v,k) for k,v in self.scores.items()]
-        if len(vk) != 0:
-            video_id = sorted(vk, reverse=True)[0][1]
-            return video_id
-        return "NULL"
-
-    def remove(self, video_id):
-        """Dequeue a video_id from the download queue."""
-        if video_id in self.queue.keys():
-            self.queue.pop(video_id)
-        if video_id in self.scores.keys():
-            self.scores.pop(video_id)
-        return True
-
-    def flush(self):
-        """Flush the queue and reinitialize everything."""
-        self.queue = {}
-        self.scores = {}
-        self.active = []
-        return True
+    def get_cache_dir_size(self, cache_dir):
+        """Returns the size of a cache directory."""
+        if cache_dir in self.base_dir_size.keys():
+            return base_dir_size[cache_dir]
+        return -1
 
     # Functions related download scheduling.
     # Have to mess up things in single class because python
@@ -252,12 +259,6 @@ class VideoIDPool:
         """Remove video_id from active connections list."""
         if video_id in self.active:
             self.active.remove(video_id)
-        return True
-
-    def remove_all(self, video_id):
-        """Remove video_id from queue as well as active connection list."""
-        self.remove(video_id)
-        self.remove_conn(video_id)
         return True
 
 class MyXMLRPCServer(SimpleXMLRPCServer):
@@ -306,41 +307,28 @@ def set_logging():
 
 def get_cache_size(cache_dir):
     """
-    This is not a standard function to calculate the size of a directory.
     Returned size is in Mega Bytes.
     """
-    # Initialize with 4096bytes as the size of an empty dir is 4096bytes.
-    size = 4096
-    if not os.path.isdir(cache_dir):
-        log(format%(os.getpid(), '-', '-', 'CACHE_DIR_ERR', cache_dir, 'Not a directory.'))
-        return -1
+    pid = os.getpid()
+    size = 0
     try:
-        for dir in os.listdir(cache_dir):
-            dir = os.path.join(cache_dir, dir)
-            if os.path.isdir(dir):
-                for file in os.listdir(dir):
-                    size += int(os.stat(os.path.join(dir, file))[6])
-            else:
-                log(format%(os.getpid(), '-', '-', 'CACHE_DIR_ERR', os.path.join(cache_dir, dir), 'Not a directory.'))
+        for (path, dirs, files) in os.walk(cache_dir):
+            for file in files:
+                filename = os.path.join(path, file)
+                size += os.path.getsize(filename)
+                time.sleep(0.000001)
     except:
-        log(format%(os.getpid(), '-', '-', 'CACHE_SIZE_ERR', cache_dir, 'Error occurred while calculating the size of directory.'))
+        log(format%(pid, '-', '-', 'CACHE_SIZE_ERR', cache_dir, 'Error occurred while calculating the size of directory.'))
         return -1
     return size / (1024*1024)
 
 def remove(video_id):
     """Remove video_id from queue."""
     try:
-        video_id_pool.remove_all(video_id)
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        video_id_pool.remove(video_id)
     except:
         log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
-    return
-
-def queue(video_id, values):
-    """Queue video_id for scheduling later by download_scheduler."""
-    try:
-        video_id_pool.set(video_id, values)
-    except:
-        log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
     return
 
 def fork(f):
@@ -372,29 +360,79 @@ def fork(f):
 
     return wrapper
 
+def video_params_all((base_path, base_path_size), video_id, type, url, index = ''):
+    if len(base_dir) == 1:
+        index = ''
+    type_low = type.lower()
+    path = os.path.join(base_path, eval(type_low + '_cache_dir'), video_id)
+    max_size = eval('max_' + type_low + '_video_size')
+    min_size = eval('min_' + type_low + '_video_size')
+    cache_dir = os.path.join(base_path, eval(type_low + '_cache_dir'))
+    tmp_cache = os.path.join(base_path, temp_dir)
+    return (path, max_size, min_size, base_path_size, cache_dir, tmp_cache)
+
+def refine_url(url, arg_drop_list = []):
+    """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
+    params = urlparse.urlsplit(url)[3]
+    arglist = params.split('&')
+    query = ''
+    for arg in arglist:
+        try:
+            pair = arg.split('=')
+            if pair[0] in arg_drop_list:
+                continue
+            else:
+                query += arg + '&'
+        except:
+            continue
+    return (urllib2.splitquery(url)[0] + '?' + query.rstrip('&')).rstrip('?')
+
 def download_from_source(args):
     """This function downloads the file from remote source and caches it."""
+    # The expected mode of the cached file, so that it is readable by apache
+    # to stream it to the client.
+    mode = 0644
     pid = os.getpid()
     try:
-        [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir, tmp_cache] = [i for i in args]
+        [client, url, video_id, type] = [i for i in args]
     except:
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
-        remove(video_id)
         return
 
-    # Check if we have enough disk space left to download more videos. 
-    if cache_size != 0 and get_cache_size(cache_dir) >= cache_size:
-        log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
-        remove(video_id)
-        return
-    else:
+    index = None
+    for base_tup in base_dir:
+        # Pick up cache directories one by one.
+        try:
+            (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, url, base_dir.index(base_tup))
+        except:
+            log(format%(pid, client, video_id, 'PARAM_ERR', type, 'An error occured while querying the video parameters.'))
+            continue
+
         # Check the disk space left in the partition with cache directory.
         disk_stat = os.statvfs(cache_dir)
         disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
-        if disk_available < disk_avail_threshold:
-            log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has reached the disk availability threshold.'))
-            remove(video_id)
-            return
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        # If cache_size is not 0 and the cache directory size is more than cache_size, we are done with this cache directory.
+        if cache_size != 0 and video_id_pool.get_cache_dir_size(base_tup[0]) >= cache_size:
+            log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + base_tup[0] + '\' has exceeded the maximum size allowed.'))
+            # Check next cache directory
+            continue
+        # If disk availability reached disk_avail_threshold, then we can't use this cache anymore.
+        elif disk_available < disk_avail_threshold:
+            log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + base_tup[0] + '\' has reached the disk availability threshold.'))
+            # Check next cache directory
+            continue
+        else:
+            index = base_dir.index(base_tup)
+            # Search complete. Just write wherever possible.
+            break
+
+    if index is not None:
+        (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], video_id, type, url, index)
+    else:
+        # No idea what went wrong.
+        remove(video_id)
+        return
 
     grabber = set_proxy()
     if grabber is None:
@@ -422,11 +460,13 @@ def download_from_source(args):
             log(format%(pid, client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
             return
 
+    url = refine_url(url, ['begin', 'start'])
+
     try:
         download_path = os.path.join(tmp_cache, os.path.basename(path))
         open(download_path, 'a').close()
         file = grabber.urlgrab(url, download_path)
-        size = os.stat(file)[6]
+        size = os.path.getsize(file)
         os.rename(file, path)
         os.chmod(path, mode)
         os.utime(path, None)
@@ -437,99 +477,51 @@ def download_from_source(args):
         log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
     return
 
-def video_params((base_path, base_path_size), video_id, type, url, index = ''):
-    type_low = type.lower()
-    params = urlparse.urlsplit(url)[3]
-    path = os.path.join(base_path, eval(type_low + '_cache_dir'), video_id)
-    cached_url = os.path.join(cache_url, 'videocache', str(index) ,type_low)
-    max_size = eval('max_' + type_low + '_video_size')
-    min_size = eval('min_' + type_low + '_video_size')
-    cache_dir = os.path.join(base_path, eval(type_low + '_cache_dir'))
-    tmp_cache = os.path.join(base_path, temp_dir)
-    return (params, path, cached_url, max_size, min_size, base_path_size, cache_dir, tmp_cache)
+def queue(video_id, values):
+    """Queue a video for download."""
+    try:
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        video_id_pool.new_video(video_id, values)
+    except:
+        log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
+    return
 
 def cache_video(client, url, type, video_id):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
-    # The expected mode of the cached file, so that it is readable by apache
-    # to stream it to the client.
     global cache_url
     pid = os.getpid()
-    mode = 0644
-    index = None
-    # If there is only one cache dir, then the path should be videocache/youtube instead of videocache/0/youtube/ .
-    if len(base_dir) == 1:
-        try:
-            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[0], video_id, type, url)
-        except:
-            log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
 
+    params = urlparse.urlsplit(url)[3]
+    type_low = type.lower()
+    for index in range(len(base_dir)):
+        # Pick up cache directories one by one.
+        try:
+            path = os.path.join(base_dir[index][0], eval(type_low + '_cache_dir'), video_id)
+            if len(base_dir) == 1:
+                index = ''
+            cached_url = os.path.join(cache_url, 'videocache', str(index) ,type_low)
+        except:
+            log(format%(pid, client, video_id, 'PARAM_ERR', type, 'An error occured while querying the video parameters(cache_video).'))
+            continue
+
+        # If video is found, heads up!!! Return it.
         if os.path.isfile(path):
-            remove(video_id)
             log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
             os.utime(path, None)
             return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
-        else:
-            index = ''
-    else:
-        for base_tup in base_dir:
-            # Pick up cache directories one by one.
-            try:
-                (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_tup, video_id, type, url, base_dir.index(base_tup))
-            except:
-                log(format%(pid, client, video_id, 'QUEUE_ERR', type, 'An error occured while queueing the video.'))
-                continue
 
-            # If video is found, heads up!!! Return it.
-            if os.path.isfile(path):
-                remove(video_id)
-                log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
-                os.utime(path, None)
-                return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
-            else:
-                # Check the disk space left in the partition with cache directory.
-                disk_stat = os.statvfs(cache_dir)
-                disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
-                # If cache_size is not 0 and the cache directory size is more than cache_size, we are done with this cache directory.
-                if cache_size != 0 and get_cache_size(cache_dir) >= cache_size:
-                    log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has exceeded the maximum size allowed.'))
-                    # Check next cache directory
-                    continue
-                # If disk availability reached disk_avail_threshold, then we can't use this cache anymore.
-                elif disk_available < disk_avail_threshold:
-                    log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + cache_dir + '\' has reached the disk availability threshold.'))
-                    # Check next cache directory
-                    continue
-                else:
-                    index = base_dir.index(base_tup)
-                    # Use continue here instead of break because video may in any of the cache directories.
-                    continue
-
-    if index is not None:
-        if index == '':
-            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[0], video_id, type, url, index)
-        else:
-            (params, path, cached_url, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params(base_dir[index], video_id, type, url, index)
-        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
-        queue(video_id, [client, url, path, mode, video_id, type, max_size, min_size, cache_size, cache_dir, tmp_cache])
-        return url
-
-    remove(video_id)
+    log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
+    # Queue video using daemon forking as it'll save time in returning the url.
+    forked = fork(queue)
+    forked(video_id, [client, url, video_id, type])
     return url
 
 def submit_video(pid, client, type, url, video_id):
-    try:
-        result = video_id_pool.new_video(video_id)
-    except:
-        log(format%(pid, client, video_id, 'XMLRPC_ERR', type, 'Error querying RPC server'))
-        return url[0]
-
-    if result == True:
-        log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
-        new_url = cache_video(client, url[0], type, video_id)
-        log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
-        return new_url
-    return url[0]
+    log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+    new_url = cache_video(client, url[0], type, video_id)
+    log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+    return new_url
 
 def squid_part():
     """This function will tap requests from squid. If the request is for a 
@@ -603,7 +595,7 @@ def squid_part():
             
             # Google.com caching is handled here.
             if enable_google_cache:
-                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
+                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('videoplay') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
                     type = 'YOUTUBE'
                     arglist = params.split('&')
                     dict = {}
@@ -754,6 +746,7 @@ def squid_part():
         try:
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
+            log_rotate()
         except IOError, e:
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
@@ -761,20 +754,16 @@ def squid_part():
 def log_rotate():
     # Rotate logfiles if the size is more than the max_logfile_size.
     global log
-    if os.stat(logfile)[6] > max_logfile_size:
+    if os.path.getsize(logfile) >= max_logfile_size:
         roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
         roll.doRollover()
         log = set_logging()
+        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE', '-', 'Rotated log files.'))
     return
 
 def start_xmlrpc_server():
     """Starts the XMLRPC server in a threaded process."""
     pid = os.getpid()
-    try:
-        log_rotate()
-    except:
-        log(format%(pid, '-', '-', 'LOG_ROTATE_ERR', '-', 'Could not rotate logfiles.'))
-
     try:
         server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=0)
         #server = MyXMLRPCServer((rpc_host, rpc_port), logRequests=1)
@@ -785,9 +774,20 @@ def start_xmlrpc_server():
         server.serve_forever()
         log(format%(pid, '-', '-', 'XMLRPCSERVER_STOP', '-', 'Stopping XMLRPCServer.'))
     except:
-        log(format%(pid, '-', '-', 'START_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
-        os.kill(os.getpid(), 1)
+        #log(format%(pid, '-', '-', 'START_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
+        os.kill(pid, 1)
         pass
+
+def update_cache_size():
+    """Calculates the size of cache directories and informs the XMLRPC server."""
+    try:
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        for (base_path, base_path_size) in base_dir:
+            video_id_pool.set_cache_dir_size(base_path, get_cache_size(base_path))
+        log(format%(os.getpid(), '-', '-', 'UPDATE_SIZE', '-', 'Size of all caching directories updated successfully.'))
+    except:
+        log(format%(os.getpid(), '-', '-', 'UPDATE_SIZE_ERR', '-', 'Error while updating cache sizes.'))
+    return
 
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
@@ -802,9 +802,16 @@ def download_scheduler():
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server (while initializing scheduler).'))
 
     wait_time = 20
+    update_cache_size_time = 0
+    video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
     while True:
         try:
-            video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+            # Update the cache size after every 50 downloads.
+            if update_cache_size_time <= 0:
+                update_cache_size_time = 50
+                forked = fork(update_cache_size)
+                forked()
+
             params = video_id_pool.schedule()
             if params == False:
                 wait_time = 5
@@ -814,10 +821,11 @@ def download_scheduler():
                 try:
                     forked = fork(download_from_source)
                     forked(params)
-                    log(format%(pid, params[0], params[4], 'SCHEDULED', params[5], 'Video scheduled for download.'))
+                    log(format%(pid, params[0], params[2], 'SCHEDULED', params[3], 'Video scheduled for download.'))
                     wait_time = 0.2
+                    update_cache_size_time -= 1
                 except:
-                    remove(params[4])
+                    remove(params[2])
                     log(format%(pid, '-', '-', 'SCHEDULED_ERR', '-', 'Could not schedule video for download.'))
                     wait_time = 0.5
         except:
@@ -827,12 +835,17 @@ def download_scheduler():
     return
 
 if __name__ == '__main__':
-    global log, video_id_pool
+    global log
     log = set_logging()
+    try:
+        log_rotate()
+    except:
+        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE_ERR', '-', 'Could not rotate logfiles.'))
+
     if log is not None:
         # If XMLRPCServer is running already, don't start it again
         try:
-            time.sleep(random.random()*100%5)
+            time.sleep(random.random()*100%7)
             video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
             # Flush previous values on reload
             video_id_pool.flush()
