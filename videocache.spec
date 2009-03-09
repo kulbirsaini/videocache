@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.9
+Version:    1.9.1
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    GPL
@@ -114,6 +114,13 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Fri Feb 20 2009 <kulbirsaini@students.iiit.ac.in>
+If there is only one cache directory, apache alias will be /videocache instead of /videocache/0 .
+Added option disk_avail_threshold to check disk full scenarios.
+Now size of individual cache directories can be specified via base_dir option itself.
+Removed cache_size option attached with individual website directory to speed up and cleanup things.
+Fixed a bug related to cache directory switching. (http://cachevideos.com/forum/post/multiple-caches#comment-523)
+
 * Wed Feb 11 2009 <kulbirsaini@students.iiit.ac.in>
 Added support for youtube videos served directly from IP Address(without using domains names).
 Added support for tube8 videos for mobile platform.

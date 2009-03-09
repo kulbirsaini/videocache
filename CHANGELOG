@@ -1,3 +1,10 @@
+* Fri Feb 20 2009 <kulbirsaini@students.iiit.ac.in>
+If there is only one cache directory, apache alias will be /videocache instead of /videocache/0 .
+Added option disk_avail_threshold to check disk full scenarios.
+Now size of individual cache directories can be specified via base_dir option itself.
+Removed cache_size option attached with individual website directory to speed up and cleanup things.
+Fixed a bug related to cache directory switching. (http://cachevideos.com/forum/post/multiple-caches#comment-523)
+
 * Wed Feb 11 2009 <kulbirsaini@students.iiit.ac.in>
 Added support for youtube videos served directly from IP Address(without using domains names).
 Added support for tube8 videos for mobile platform.
@@ -229,3 +236,4 @@ Previously youtube_cache tried to connect to internet directly. Now it uses the 
 * Thu Jun 12 2008 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
 0.1-1
 Initial Version: youtube_cache-0.1 . Works well with squid-2.6STABLE16 and up. Redundand caching.
+
