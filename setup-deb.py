@@ -30,15 +30,15 @@ import shutil
 import sys
 
 # The user which runs the squid proxy server or daemon. Change this according to your system.
-squid_user = 'squid'
+squid_user = 'proxy'
 # The group which runs the squid proxy server or daemon. Change this according to your system.
-squid_group = 'squid'
+squid_group = 'proxy'
 # The location of videocache installation directory. You don't need to change this.
 install_dir = '/usr/share/'
 # The directory to store application specific configuration files for Apache Web Server. Change this according to your system.
 # For Red Hat and derivatives, you don't need to change this.
 # For Debian and derivatives its normally /etc/apache2/conf.d/
-apache_conf_dir = '/etc/httpd/conf.d/'
+apache_conf_dir = '/etc/apache2/conf.d/'
 # The directory to store man pages.
 man_dir = '/usr/share/man/man8/'
 # The user specific directory to have exectuables.
@@ -97,7 +97,7 @@ def create_file(filename, user=None, group=None, mode=0755):
     except:
         log(format%("Could not create file " + filename + " ."))
         return False
-    
+
     try:
         os.chmod(filename, mode)
         log(format%("Changed mode of file " + filename + " ."))

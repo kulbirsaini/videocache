@@ -36,6 +36,7 @@ import sys
 import threading
 import time
 import urlgrabber
+import urllib
 import urllib2
 import urlparse
 
@@ -232,7 +233,7 @@ class VideoIDPool:
     def get_cache_dir_size(self, cache_dir):
         """Returns the size of a cache directory."""
         if cache_dir in self.base_dir_size.keys():
-            return base_dir_size[cache_dir]
+            return self.base_dir_size[cache_dir]
         return -1
 
     # Functions related download scheduling.
@@ -385,7 +386,7 @@ def refine_url(url, arg_drop_list = []):
                 query += arg + '&'
         except:
             continue
-    return (urllib2.splitquery(url)[0] + '?' + query.rstrip('&')).rstrip('?')
+    return (urllib.splitquery(url)[0] + '?' + query.rstrip('&')).rstrip('?')
 
 def download_from_source(args):
     """This function downloads the file from remote source and caches it."""
@@ -413,7 +414,8 @@ def download_from_source(args):
         disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         # If cache_size is not 0 and the cache directory size is more than cache_size, we are done with this cache directory.
-        if cache_size != 0 and video_id_pool.get_cache_dir_size(base_tup[0]) >= cache_size:
+        #if cache_size != 0 and video_id_pool.get_cache_dir_size(base_tup[0]) >= cache_size:
+        if cache_size != 0:
             log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + base_tup[0] + '\' has exceeded the maximum size allowed.'))
             # Check next cache directory
             continue
@@ -571,7 +573,7 @@ def squid_part():
             
             # Metacafe.com caching is handled here.
             if enable_metacafe_cache:
-                if host.find('v.mccont.com') > -1 and path.find('ItemFiles') > -1:
+                if (host.find('.mccont.com') > -1 or host.find('akvideos.metacafe.com') > -1 )and path.find('ItemFiles') > -1:
                     type = 'METACAFE'
                     try:
                         video_id = urllib2.unquote(path).strip('/').split(' ')[-1]
@@ -595,7 +597,7 @@ def squid_part():
             
             # Google.com caching is handled here.
             if enable_google_cache:
-                if (host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('videoplay') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
+                if (host.find('.youtube.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('videoplay') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
                     type = 'YOUTUBE'
                     arglist = params.split('&')
                     dict = {}
@@ -619,7 +621,7 @@ def squid_part():
             
             # Redtube.com caching is handled here.
             if enable_redtube_cache:
-                if host.find('dl.redtube.com') > -1 and path.find('.flv') > -1:
+                if host.find('.redtube.com') > -1 and path.find('.flv') > -1:
                     type = 'REDTUBE'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -807,10 +809,12 @@ def download_scheduler():
     while True:
         try:
             # Update the cache size after every 50 downloads.
+            """
             if update_cache_size_time <= 0:
                 update_cache_size_time = 50
                 forked = fork(update_cache_size)
                 forked()
+            """
 
             params = video_id_pool.schedule()
             if params == False:

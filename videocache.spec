@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.9.1
+Version:    1.9.2
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    GPL
@@ -114,6 +114,20 @@ if [[ -d %{prefix}/var/spool/videocache1 ]]; then
 fi
 
 %changelog
+* Mon Mar 9 2009 <kulbirsaini@students.iiit.ac.in>
+Entire plugin has been restructured.
+Base plugin is now totally separate from the downloading/caching process which will facilitate enhanced performance.
+Disk size calculation will no more hang up the plugin.
+Directory size is not calculated before every download now.
+The calculated size of the cache directories is cached for next 50 downloads.
+The caching mechanism is not based on time because cache size will not increase unless there is a download.
+The cached directory size stays with XMLRPC server.
+The size calculation is done in a forked daemon so that the normal plugin behavior is not affected.
+Cache size calculator function is also made generic. Earlier it used to work for 2 level deep directories.
+VideoIDPool class is revised to remove unnecessary functions.
+'start' and 'begin' parameters are dropped from url while downloading for caching.
+Logfiles are rotated properly now. Logfile rotation doesn't require restarting squid.
+
 * Fri Feb 20 2009 <kulbirsaini@students.iiit.ac.in>
 If there is only one cache directory, apache alias will be /videocache instead of /videocache/0 .
 Added option disk_avail_threshold to check disk full scenarios.

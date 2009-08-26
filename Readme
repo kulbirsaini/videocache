@@ -1,11 +1,13 @@
 NAME
        videocache - Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
+
 DESCRIPTION
        videocache  is  a  squid  url  rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube,
        xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos and wrzuta.pl audio caching. It can cache videos  from
        various  websites  in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from
        the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
+
 
 DEPENDENCIES
          1. squid >= 2.6
@@ -14,9 +16,11 @@ DEPENDENCIES
          4. python-urlgrabber
          5. Apache or any other Web Server
 
+
 CONFIGURATION
        To use videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below  are  the  steps  to
        configure videocache.
+
 
    SQUID CONFIGURATION
        To  configure  squid to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file
@@ -26,6 +30,8 @@ CONFIGURATION
          url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
          url_rewrite_children 7
          acl videocache_allow_url url_regex -i \.youtube\.com\/get_video\?
+         acl videocache_allow_url url_regex -i \.youtube\.com\/videoplayback \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
+         acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplayback \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
          acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplayback \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.google\.com\/videoplayback \.google\.com\/videoplay \.google\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplayback \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
@@ -43,7 +49,7 @@ CONFIGURATION
          acl videocache_allow_url url_regex -i \.mais\.uol\.com\.br\/(.*)\.flv
          acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
          acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
-         acl videocache_allow_dom dstdomain .mccont.com dl.redtube.com .cdn.dailymotion.com
+         acl videocache_allow_dom dstdomain .mccont.com .metacafe.com .redtube.com .cdn.dailymotion.com
          acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/www\.youtube\.com
          url_rewrite_access deny videocache_deny_url
          url_rewrite_access allow videocache_allow_url
@@ -51,20 +57,26 @@ CONFIGURATION
          redirector_bypass on
          # --END-- videocache config for squid
 
+
        After changes, reload or restart the squid service using the command:
 
          [root@localhost ~]# service squid reload [ENTER]
+
 
        OR
 
          [root@localhost ~]# service squid restart [ENTER]
 
+
+
    VIDEO-CACHE GLOBAL CONFIGURATION
        Config file : /etc/videocache.conf
+
 
        enable_video_cache
               This option controls the global behavior of videocache plugin. If it is 0, videocache will stop caching  or  serving  anything.
               This option’s value can be either 0 or 1. Default 1.
+
 
        cache_host
               The  hostname  or  IP address of the system on which caching is being done. This is used for serving the videos from the cache.
@@ -75,81 +87,103 @@ CONFIGURATION
                 or 192.168.36.204
                 or <Proxy_Server_IP_OR_Domain>
 
+
+
        proxy  Proxy for http content. Default: http://127.0.0.1:3128/.
 
                 Example : http_proxy = http://<Proxy_Server_IP_OR_Domain>:<Proxy_port>/
                 or http://proxy.example.com:3128/
 
+
+
        proxy_username
               If the above proxy requires authentication, please specify the username. Default: <blank>.
+
 
        proxy_password
               If the above proxy requires authentication, please specify the password. Default: <blank>.
 
+
        hit_threshold
               No of times a video should be requested before we start caching it. Default: 2
+
 
        base_dir
               Base directories for caching the videos. You can specify multiple caching directories here separated by ’|’ symbol. Please  try
               to  avoid  special  characters in directory names like spaces, $ etc. For Example : base_dir = /var/spool/videocache/ | /video-
               cache2/stuff-new/|/new_videocache . Default: /var/spool/videocache/.
 
+
        temp_dir
               Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you  specify  temp_dir  =  tmp,
               actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
+
        enable_videocache_cleaner
               Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this
               option can be 0 or 1. Default: 0
+
 
        video_lifetime
               The maximum life of a video in cache without being used. If the video was not accessed for  more  than  ’video_lifetime’  days,
               it’ll  be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove videos which
               were not used since last 3 or more days. Default: 60
 
+
        max_parallel_downloads
               The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default:
               30.
 
+
        logdir Directory where videocache logs will be stored. Default: /var/log/videocache/.
+
 
        max_logfile_size
               Maximum  size  of  logfile  specified  above.  The  size is in megabytes. Don’t use max_logfile_size = 10MB. Don’t append MB.
               Default: 10.
+
 
        max_logfile_backups
               The logfiles are automatically rotated once they have exceeded the  max_logfile_size.  max_logfile_backups  is  the  number  of
               backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2
               as logfiles. Default: 10.
 
+
        rpc_host
               XMLRPCServer is used for memory sharing across different instances of videocache. Leave these settings as it is if you  don ’t
               have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
+
 
        rpc_port
               Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024
               which is not in use by any other program. Default: 9100.
 
+
        enable_youtube_cache
               This option enables the caching of youtube videos. This option’s value can be either 0 or 1. Default: 1.
+
 
        youtube_cache_dir
               Directory to cache youtube videos. Directory name is relative to base_dir. E.g. if you  specify  youtube_cache_dir  =  youtube,
               actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
 
+
        youtube_cache_size
               Maximum total size of youtube caching directory. 0 for unlimited. This size is in megabytes. E.g. youtube_cache_size = 200 will
               limit your cache size to 200MB. Don’t use cache_size = 200MB. Don’t append MB. Default: 0.
+
 
        max_youtube_video_size
               Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  unlimited
               caching.  E.g.  max_youtube_video_size  =  10000.  Only  videos  with  size less than 10MB (10000KB) will be cached. Don’t use
               max_youtube_video_size = 10000KB. Don’t append KB. Default: 0.
 
+
        min_youtube_video_size
               Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use  0  for  no  lower
               limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size
               = 10KB. Don’t append KB. Default: 0.
+
 
 FILES
          /etc/videocache.conf
@@ -161,6 +195,7 @@ FILES
          /var/log/videocache/
          /var/spool/videocache/
 
+
 SEE ALSO
          squid (8)
 
@@ -168,9 +203,12 @@ SEE ALSO
          How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
          How to write custom squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
 
+
 AUTHOR
          Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
          Manpage reformated by Joao Eriberto Mota Filho <eriberto@eriberto.pro.br>
+
+
 
 BUGS, SUGGESTIONS, COMMENTS
          Please visit http://cachevideos.com/forum/.
