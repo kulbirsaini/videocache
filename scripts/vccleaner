@@ -115,7 +115,7 @@ def main(root, etc_dir):
         return (None, None, None, None)
     else:
         video_lifetime = int(mainconf.video_lifetime)
-    base_dir = [apply_install_root(root, dir.strip()) for dir in mainconf.base_dir.split('|')]
+    base_dir = [apply_install_root(root, dir_tup.split(':')[0].strip()) for dir_tup in mainconf.base_dir.strip().split('|')]
     logdir = apply_install_root(root, mainconf.logdir)
 
     # Youtube specific options
