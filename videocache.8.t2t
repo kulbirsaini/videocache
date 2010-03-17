@@ -1,6 +1,6 @@
 VIDEO-CACHE
 
-November 21, 2008
+March 10, 2010
 
 = NAME =
 
@@ -76,11 +76,12 @@ This option controls the global behavior of videocache plugin. If it is 0, video
 : cache_host
 The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
 Please don’t use http:// or slashes (/). Just specify the domain name or IP address. Default: 127.0.0.1.
-
+Additionally you can select an alternative port to use.
 ```
 Example : localhost.localdomain
 or proxy.example.com
 or 192.168.36.204
+or 192.168.36.204:81
 or <Proxy_Server_IP_OR_Domain>
 ```
 
@@ -168,8 +169,7 @@ How to write custom squid redirector in python : http://fedora.co.in/content/wri
 ```
 = AUTHOR =
 ```
-Kulbir Saini <kulbirsaini AT students.iiit.ac.in>
-Manpage reformated by Joao Eriberto Mota Filho <eriberto@eriberto.pro.br>
+Kulbir Saini <saini AT saini.co.in>
 ```
 
 = BUGS, SUGGESTIONS, COMMENTS =
