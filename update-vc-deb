@@ -6,8 +6,6 @@
 # For more information check http://cachevideos.com/
 #
 
-
-from videocache.config import readMainConfig, readStartupConfig
 from optparse import OptionParser
 import logging
 import logging.handlers
@@ -37,7 +35,7 @@ def set_logging(logfile):
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(levelname)s %(message)s',
                         filename=logfile,
-                        filemode='w')
+                        filemode='a')
     return logging.info
 
 def create_dir(dir, user=None, group=None, mode=0755):
@@ -84,7 +82,6 @@ def create_file(filename, user=None, group=None, mode=0755):
     except:
         log(format%("Could not create file " + filename + " ."))
         return False
-
     try:
         os.chmod(filename, mode)
         log(format%("Changed mode of file " + filename + " ."))
@@ -176,20 +173,21 @@ def generate_httpd_conf(conf_file, base_dir):
 def error(error_code):
     """Report error while updating/installing videocache with proper error code."""
     help_message =  """
-Usage: python setup.py install (as root/super user)
-Please see http://cachevideos.com/installation for more information or getting help.
+Usage: update-vc (as root/super user)
+Update script can only be used if videocache is installed on your system.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
-    install_error =  """
-An error has occured while installing videocache.
-Please check videocache-setup.log for more details.
-Please see http://cachevideos.com/installation for more information or getting help.
+    update_error =  """
+An error has occured while updating videocache.
+Please check /var/log/videocache/videocache.log for more details.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
     uid_error = """
 You must be root to setup/install videocache.
-Please see http://cachevideos.com/installation for more information or getting help.
+Please see http://cachevideos.com/update-vc for more information or getting help.
     """
-    if error_code == INSTALL_ERROR:
-        print install_error
+    if error_code == UPDATE_ERROR:
+        print update_error
         sys.exit(error_code)
     if error_code == UID_ERROR:
         print uid_error
@@ -202,22 +200,20 @@ Please see http://cachevideos.com/installation for more information or getting h
 def success():
     """Print informative messages after successfull installation."""
     message = """
-videocache setup has completed successfully.
+videocache update has completed successfully.
 Now you must reload httpd service on your machine by using the following command
 [root@localhost ~]# service httpd reload [ENTER]
-Also, you need to configure squid so that it can use videocache as a url rewritor plugin.
-Check README file for further configurations of squid, httpd and videocache.
 In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
-def setup(root):
-    """Perform the setup."""
-    global base_dir, squid_user, squid_group, install_dir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir, log, logdir, cache_dir_list, old_cache_dirs
+def update(root):
+    global base_dir, squid_user, squid_group, install_dir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir, log, logdir, cache_dir_list
+    """Perform the update."""
     # Create Apache configuration directory.
     if not os.path.isdir(apache_conf_dir):
         if not create_dir(apache_conf_dir):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + apache_conf_dir + " already exists."))
 
@@ -231,38 +227,16 @@ def setup(root):
     # Create videocache installation directory.
     if not os.path.isdir(install_dir):
         if not create_dir(install_dir):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + install_dir + " already exists."))
-
-    # Create directory to store man page.
-    if not os.path.isdir(man_dir):
-        if not create_dir(man_dir):
-            error(INSTALL_ERROR)
-    else:
-        log(format%("Directory " + man_dir + " already exists."))
-
-    # Create usr_sbin_dir directory.
-    if not os.path.isdir(usr_sbin_dir):
-        if not create_dir(usr_sbin_dir):
-            error(INSTALL_ERROR)
-    else:
-        log(format%("Directory " + usr_sbin_dir + " already exists."))
 
     # Create videocache log directory.
     if not os.path.isdir(logdir):
         if not create_dir(logdir, squid_user, squid_group):
-            error(INSTALL_ERROR)
+            error(UPDATE_ERROR)
     else:
         log(format%("Directory " + logdir + " already exists."))
-
-    # Migrate older caching directories to new one if install root is /
-    """
-    if root == '/':
-        for dir in old_cache_dirs:
-            if os.path.isdir(dir) and not os.path.isdir(base_dir[0]):
-                os.rename(dir, base_dir[0])
-    """
 
     # Create directories for video caching.
     for base_path in base_dir:
@@ -270,37 +244,19 @@ def setup(root):
             new_dir = os.path.join(base_path, dir)
             if not os.path.isdir(new_dir):
                 if not create_dir(new_dir, squid_user, squid_group):
-                    error(INSTALL_ERROR)
+                    error(UPDATE_ERROR)
             else:
                 if not dir_perms_and_ownership(new_dir, squid_user, squid_group):
-                    error(INSTALL_ERROR)
+                    error(UPDATE_ERROR)
                 log(format%("Directory " + new_dir + " already exists."))
 
-    # Copy core videocache plugin code to /usr/share/videocache/ .
-    if not copy_dir('./videocache/', os.path.join(install_dir, 'videocache')):
-        error(INSTALL_ERROR)
-
-    # Copy videocache-sysconfig.conf to /etc/videocache.conf .
-    if not copy_file('./videocache-sysconfig.conf', os.path.join(etc_dir, 'videocache.conf')):
-        error(INSTALL_ERROR)
-
-    # Copy vccleaner to /usr/sbin/vccleaner
-    if not copy_file('./scripts/vccleaner', os.path.join(usr_sbin_dir, 'vccleaner')):
-        error(INSTALL_ERROR)
-    os.chmod(os.path.join(usr_sbin_dir, 'vccleaner'),0744)
-
-    # Copy update-vc-deb to /usr/sbin/update-vc
-    if not copy_file('./update-vc-deb', os.path.join(usr_sbin_dir, 'update-vc')):
-        error(INSTALL_ERROR)
-    os.chmod(os.path.join(usr_sbin_dir, 'update-vc'),0744)
-
-    # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
-    if not copy_file('./videocache.8.gz', os.path.join(man_dir, 'videocache.8.gz')):
-        error(INSTALL_ERROR)
+    # Creaet videocache logfile.
+    if not create_file(os.path.join(logdir, 'videocache.log'), squid_user, squid_group):
+        error(UPDATE_ERROR)
 
     # Generate Apache webserver configuration file for videocache.
     if not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), base_dir):
-        error(INSTALL_ERROR)
+        error(UPDATE_ERROR)
 
     success()
     return
@@ -311,13 +267,16 @@ def apply_install_root(root, dir):
 
 def main(root):
     global base_dir, squid_user, squid_group, install_dir, apache_conf_dir, man_dir, usr_sbin_dir, etc_dir, log, logdir, cache_dir_list, old_cache_dirs
-    install_dir = apply_install_root(root, install_dir)
+    # Dont apply --install-root to install_dir because it has been already applied.
+    #install_dir = apply_install_root(root, install_dir)
     apache_conf_dir = apply_install_root(root, apache_conf_dir)
     man_dir = apply_install_root(root, man_dir)
     usr_sbin_dir = apply_install_root(root, usr_sbin_dir)
     etc_dir = apply_install_root(root, etc_dir)
 
-    # Read the configure file. FIXME
+    # The location of system configuration file for videocache.
+    config_file = os.path.join(etc_dir, 'videocache.conf')
+    # Read the configure file.
     mainconf =  readMainConfig(readStartupConfig(config_file, root))
 
     # Global Options
@@ -325,7 +284,7 @@ def main(root):
     temp_dir = mainconf.temp_dir
     logdir = apply_install_root(root, mainconf.logdir)
 
-    # Directories for individual websites
+    # Youtube specific options
     youtube_cache_dir = mainconf.youtube_cache_dir
     metacafe_cache_dir = mainconf.metacafe_cache_dir
     dailymotion_cache_dir = mainconf.dailymotion_cache_dir
@@ -344,9 +303,6 @@ def main(root):
     # List of cache directories
     cache_dir_list = [temp_dir, youtube_cache_dir, metacafe_cache_dir, dailymotion_cache_dir, google_cache_dir, redtube_cache_dir, xtube_cache_dir, vimeo_cache_dir, wrzuta_cache_dir, youporn_cache_dir, soapbox_cache_dir, tube8_cache_dir, tvuol_cache_dir, bliptv_cache_dir, break_cache_dir]
 
-    # videocache directories in older version
-    old_cache_dirs = ['/var/spool/squid/video_cache/', '/var/spool/video_cache']
-
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
@@ -355,33 +311,36 @@ if __name__ == '__main__':
     parser.add_option('--install-root')
     options, args = parser.parse_args()
 
-    # Global Options.
+    #Global Options
     USAGE_ERROR = 1
     UID_ERROR = 2
-    INSTALL_ERROR = 3
+    UPDATE_ERROR = 3
     format = '%s'
-    # The location of system configuration file for videocache.
-    config_file = './videocache-sysconfig.conf'
-    # The location of logfile to write setup/install logs.
-    setup_logfile = './videocache-setup.log'
-    # Set logging.
-    log = set_logging(setup_logfile)
 
-    if 'install' in args:
-        if os.getuid() != 0:
-            log(format%("You must be root to install/setup videocache."))
-            error(UID_ERROR)
-        else:
-            # If --home or --prefix or --install-root option is used, then apply settings.
-            root = '/'
-            if options.home:
-                root = options.home
-            if options.prefix:
-                root = options.prefix
-            if options.install_root:
-                root = options.install_root
-            main(root)
-            setup(root)
-            pass
+    if os.getuid() != 0:
+        print "You must be root to update videocache."
+        error(UID_ERROR)
     else:
-        error(USAGE_ERROR)
+        # If --home or --prefix or --install-root option is used, then apply settings.
+        root = '/'
+        if options.home:
+            root = options.home
+        if options.prefix:
+            root = options.prefix
+        if options.install_root:
+            root = options.install_root
+        # Apply --install-root to install_dir because its need to locate videocache immediately.
+        install_dir = apply_install_root(root, install_dir)
+        # Try to locate the videocache directory containing python files.
+        if os.path.isdir(os.path.join(install_dir, 'videocache')):
+            sys.path = [os.path.join(install_dir, 'videocache')] + sys.path
+            from config import readMainConfig, readStartupConfig
+        else:
+            error(USAGE_ERROR)
+
+        main(root)
+        global logdir
+        # The location of logfile to write setup/install logs.
+        update_logfile = os.path.join(logdir,  'videocache.log')
+        log = set_logging(update_logfile)
+        update(root)

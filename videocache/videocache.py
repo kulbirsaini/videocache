@@ -1,20 +1,8 @@
 #!/usr/bin/env python
 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Library General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-#
-# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+# (C) Copyright 2008-2010 Kulbir Saini <saini@saini.co.in>
+# (C) Copyright 2008-2010 Videocache Pvt Ltd.
 #
 # For more information check http://cachevideos.com/
 #
@@ -413,14 +401,8 @@ def download_from_source(args):
         disk_stat = os.statvfs(cache_dir)
         disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
-        # If cache_size is not 0 and the cache directory size is more than cache_size, we are done with this cache directory.
-        #if cache_size != 0 and video_id_pool.get_cache_dir_size(base_tup[0]) >= cache_size:
-        if cache_size != 0:
-            log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + base_tup[0] + '\' has exceeded the maximum size allowed.'))
-            # Check next cache directory
-            continue
         # If disk availability reached disk_avail_threshold, then we can't use this cache anymore.
-        elif disk_available < disk_avail_threshold:
+        if disk_available < disk_avail_threshold:
             log(format%(pid, client, video_id, 'CACHE_FULL', type, 'Cache directory \'' + base_tup[0] + '\' has reached the disk availability threshold.'))
             # Check next cache directory
             continue
