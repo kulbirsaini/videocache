@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 #
-# (C) Copyright 2008-2009 Kulbir Saini <kulbirsaini@students.iiit.ac.in>
+# (C) Copyright 2008-2010 Kulbir Saini <saini@saini.co.in>
+# (C) Copyright 2008-2010 Videocache Pvt Ltd.
 #
 # For more information check http://cachevideos.com/
 #
