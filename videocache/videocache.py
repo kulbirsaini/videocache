@@ -444,7 +444,7 @@ def download_from_source(args):
             log(format%(pid, client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
             return
 
-    url = refine_url(url, ['begin', 'start'])
+    url = refine_url(url, ['begin', 'start', 'noflv'])
 
     try:
         download_path = os.path.join(tmp_cache, os.path.basename(path))
@@ -534,22 +534,7 @@ def squid_part():
         # Check if videocache plugin is on.
         if enable_video_cache:
             # Youtube.com caching is handled here.
-            if enable_youtube_cache:
-                if host.find('.youtube.com') > -1 and path.find('get_video') > -1 and path.find('get_video_info') < 0:
-                    type = 'YOUTUBE'
-                    arglist = params.split('&')
-                    dict = {}
-                    for arg in arglist:
-                        try:
-                            dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
-                            continue
-                    if dict.has_key('video_id'):
-                        video_id = dict['video_id']
-                        new_url = submit_video(pid, client, type, url, video_id)
-                    else:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'video_id not found in ' + new_url))
-
+            # Merged with Google Video
             # Youtube videos served via cache.googlevideo.com are handled here.
             # This code has been merged with Google.com videos
             
