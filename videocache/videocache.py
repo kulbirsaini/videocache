@@ -64,6 +64,11 @@ DOWNLOAD_SCHEDULER = 2
 redirect = '303'
 format = '%s %s %s %s %s %s'
 cache_url = 'http://' + str(cache_host) + '/' 
+http_headers = (
+        ('Proxy-CONNECTION', 'keep-alive'), 
+        ('ACCEPT', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'), 
+    )
+user_agent = 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6 GTB6'
 
 def set_globals(type_low):
     enable_cache = int(eval('mainconf.enable_' + type_low + '_cache'))
@@ -125,6 +130,9 @@ class VideoIDPool:
         """
         if video_id in self.queue.keys():
             self.inc_score(video_id)
+            [client, urls, video_id, type] = [i for i in self.queue[video_id]]
+            [client, new_urls, video_id, type] = [i for i in values]
+            self.queue[video_id] = [client, list(set(urls + new_urls)), video_id, type]
         else:
             self.queue[video_id] = values
             self.scores[video_id] = 1
@@ -173,6 +181,14 @@ class VideoIDPool:
     def remove(self, video_id):
         """Remove video_id from queue as well as active connection list."""
         return self.remove_from_queue(video_id) and self.remove_conn(video_id)
+
+    def remove_url(self, video_id, url):
+        """Remove url from url list for a video_id."""
+        if len(self.queue[video_id][1]) == 1:
+            return self.remove_from_queue(video_id) and self.remove_conn(video_id)
+        else:
+            self.queue[video_id][1].remove(url)
+            return True
 
     def flush(self):
         """Flush the queue and reinitialize everything."""
@@ -278,7 +294,7 @@ def set_proxy():
             new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
         else:
             new_proxy = proxy
-        return urlgrabber.grabber.URLGrabber(proxies = {'http': new_proxy})
+        return urlgrabber.grabber.URLGrabber(user_agent = user_agent, proxies = {'http': new_proxy}, http_headers = http_headers, keepalive = 1)
     except:
         log(format%(os.getpid(), '-', '-', 'PROXY_ERR', '-', 'Error in setting proxy server.'))
         return None
@@ -316,6 +332,15 @@ def remove(video_id):
     try:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         video_id_pool.remove(video_id)
+    except:
+        log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
+    return
+
+def remove_url(video_id, url):
+    """Remove url from url list for a video_id"""
+    try:
+        video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
+        video_id_pool.remove_url(video_id, url)
     except:
         log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
     return
@@ -383,7 +408,7 @@ def download_from_source(args):
     mode = 0644
     pid = os.getpid()
     try:
-        [client, url, video_id, type] = [i for i in args]
+        [client, urls, video_id, type] = [i for i in args]
     except:
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
         return
@@ -392,7 +417,7 @@ def download_from_source(args):
     for base_tup in base_dir:
         # Pick up cache directories one by one.
         try:
-            (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, url, base_dir.index(base_tup))
+            (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, urls, base_dir.index(base_tup))
         except:
             log(format%(pid, client, video_id, 'PARAM_ERR', type, 'An error occured while querying the video parameters.'))
             continue
@@ -412,7 +437,7 @@ def download_from_source(args):
             break
 
     if index is not None:
-        (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], video_id, type, url, index)
+        (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], video_id, type, urls, index)
     else:
         # No idea what went wrong.
         remove(video_id)
@@ -423,7 +448,7 @@ def download_from_source(args):
         remove(video_id)
         return
 
-    if max_size or min_size:
+    if False: #if max_size or min_size:
         try:
             log(format%(pid, client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
             remote_file = grabber.urlopen(url)
@@ -444,21 +469,27 @@ def download_from_source(args):
             log(format%(pid, client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
             return
 
-    url = refine_url(url, ['begin', 'start'])
+    for url in urls:
+        url = refine_url(url, ['begin', 'start', 'noflv'])
+        try:
+            download_path = os.path.join(tmp_cache, os.path.basename(path))
+            open(download_path, 'a').close()
+            file = grabber.urlgrab(url, download_path)
+            size = os.path.getsize(file)
+            os.rename(file, path)
+            os.chmod(path, mode)
+            os.utime(path, None)
+            remove(video_id)
+            log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+            return
+        except urlgrabber.grabber.URLGrabError as http_error:
+            remove_url(video_id, url)
+            if int(http_error.code) != 403:
+                log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
+        except:
+            remove_url(video_id, url)
+            log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
 
-    try:
-        download_path = os.path.join(tmp_cache, os.path.basename(path))
-        open(download_path, 'a').close()
-        file = grabber.urlgrab(url, download_path)
-        size = os.path.getsize(file)
-        os.rename(file, path)
-        os.chmod(path, mode)
-        os.utime(path, None)
-        remove(video_id)
-        log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
-    except:
-        remove(video_id)
-        log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
     return
 
 def queue(video_id, values):
@@ -493,12 +524,13 @@ def cache_video(client, url, type, video_id):
         if os.path.isfile(path):
             log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
             os.utime(path, None)
-            return redirect + ':' + os.path.join(cached_url, video_id) + '?' + params
-
+            url = os.path.join(cached_url, video_id) + '?' + params
+            return redirect + ':' + refine_url(url, ['noflv'])
+   
     log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
     # Queue video using daemon forking as it'll save time in returning the url.
     forked = fork(queue)
-    forked(video_id, [client, url, video_id, type])
+    forked(video_id, [client, [url], video_id, type])
     return url
 
 def submit_video(pid, client, type, url, video_id):
@@ -776,7 +808,7 @@ def update_cache_size():
 def download_scheduler():
     """Schedule videos from download queue for downloading."""
     pid = os.getpid()
-    log(format%(pid, '-', '-', 'SCHEDULEDER', '-', 'Download Scheduler starting.'))
+    log(format%(pid, '-', '-', 'SCHEDULER', '-', 'Download Scheduler starting.'))
     time.sleep(random.random()*100%2)
     try:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
