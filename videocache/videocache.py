@@ -472,6 +472,13 @@ def download_from_source(args):
     for url in urls:
         url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
+            new_path = None
+            if type == 'YOUTUBE':
+                url_obj = grabber.urlopen(url)
+                if url_obj != url_obj.fo.geturl():
+                    new_video_id = get_new_video_id(url_obj.fo.geturl())
+                    (new_path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], new_video_id, type, urls, index)
+                url_obj.close()
             download_path = os.path.join(tmp_cache, os.path.basename(path))
             open(download_path, 'a').close()
             file = grabber.urlgrab(url, download_path)
@@ -479,10 +486,13 @@ def download_from_source(args):
             os.rename(file, path)
             os.chmod(path, mode)
             os.utime(path, None)
+            if new_path is not None:
+                os.link(path, new_path)
+                os.utime(new_path, None)
             remove(video_id)
             log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
             return
-        except urlgrabber.grabber.URLGrabError as http_error:
+        except urlgrabber.grabber.URLGrabError, http_error:
             remove_url(video_id, url)
             if int(http_error.code) != 403:
                 log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
@@ -491,6 +501,28 @@ def download_from_source(args):
             log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
 
     return
+
+def get_new_video_id(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, params] = [fragments[1], fragments[2], fragments[3]]
+
+    arglist = params.split('&')
+    dict = {}
+    for arg in arglist:
+        try:
+            dict[arg.split('=')[0]] = arg.split('=')[1]
+        except:
+            continue
+    if dict.has_key('video_id'):
+        video_id = dict['video_id']
+    elif dict.has_key('docid'):
+        video_id = dict['docid']
+    elif dict.has_key('id'):
+        video_id = dict['id']
+    else:
+        video_id = None
+    return video_id
 
 def queue(video_id, values):
     """Queue a video for download."""
@@ -501,7 +533,7 @@ def queue(video_id, values):
         log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
     return
 
-def cache_video(client, url, type, video_id):
+def cache_video(client, url, type, video_id, cache_check_only = False):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
     global cache_url
@@ -526,17 +558,20 @@ def cache_video(client, url, type, video_id):
             os.utime(path, None)
             url = os.path.join(cached_url, video_id) + '?' + params
             return redirect + ':' + refine_url(url, ['noflv'])
-   
-    log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
-    # Queue video using daemon forking as it'll save time in returning the url.
-    forked = fork(queue)
-    forked(video_id, [client, [url], video_id, type])
+  
+    if not cache_check_only:
+        log(format%(pid, client, video_id, 'CACHE_MISS', type, 'Requested video was not found in cache.'))
+        # Queue video using daemon forking as it'll save time in returning the url.
+        forked = fork(queue)
+        forked(video_id, [client, [url], video_id, type])
     return url
 
-def submit_video(pid, client, type, url, video_id):
-    log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
-    new_url = cache_video(client, url[0], type, video_id)
-    log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
+def submit_video(pid, client, type, url, video_id, cache_check_only = False):
+    if not cache_check_only:
+        log(format%(pid, client, video_id, 'URL_HIT', type, url[0]))
+    new_url = cache_video(client, url[0], type, video_id, cache_check_only)
+    if not cache_check_only:
+        log(format%(pid, client, video_id, 'NEW_URL', type, new_url))
     return new_url
 
 def squid_part():
@@ -609,9 +644,9 @@ def squid_part():
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
             
-            # Google.com caching is handled here.
+            # Google.com caching is handled here. get_video
             if enable_google_cache:
-                if (host.find('.youtube.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('videoplay') > -1 or path.find('get_video') > -1) and path.find('get_video_info') < 0:
+                if (host.find('.youtube.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('get_video') > -1) and path.find('get_video_info') < 0:
                     type = 'YOUTUBE'
                     arglist = params.split('&')
                     dict = {}
@@ -630,6 +665,30 @@ def squid_part():
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
+                    else:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, 'docid not found in ' + new_url))
+            
+            # Google.com caching is handled here. videoplayback
+            if enable_google_cache:
+                if (host.find('.youtube.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)) and (path.find('videoplayback') > -1 or path.find('videoplay') > -1) and path.find('get_video_info') < 0:
+                    type = 'YOUTUBE'
+                    arglist = params.split('&')
+                    dict = {}
+                    for arg in arglist:
+                        try:
+                            dict[arg.split('=')[0]] = arg.split('=')[1]
+                        except:
+                            continue
+                    if dict.has_key('video_id'):
+                        video_id = dict['video_id']
+                    elif dict.has_key('docid'):
+                        video_id = dict['docid']
+                    elif dict.has_key('id'):
+                        video_id = dict['id']
+                    else:
+                        video_id = None
+                    if video_id is not None:
+                        new_url = submit_video(pid, client, type, url, video_id, True)
                     else:
                         log(format%(pid, client, '-', 'URL_ERROR', type, 'docid not found in ' + new_url))
             
