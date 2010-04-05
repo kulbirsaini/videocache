@@ -627,7 +627,7 @@ def squid_part():
             fragments = urlparse.urlsplit(url[0])
             [host, path, params] = [fragments[1], fragments[2], fragments[3]]
             client = url[1].split('/')[0]
-            log(format%(pid, client, '-', 'REQUEST', '-', url[0]))
+            #log(format%(pid, client, '-', 'REQUEST', '-', url[0]))
         except IOError, e:
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
