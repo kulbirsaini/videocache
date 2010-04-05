@@ -4,8 +4,8 @@ Index
 =====
   1. Requires
   2. Installation
-    a. Using setup.py from source
-    b. Manually from source step by step
+    a. Using setup file from source
+    b. Using rpm 
   3. Configuration
   4. Bugs, Suggestions, Comments
   5. Online Help
@@ -18,61 +18,49 @@ Index
   d. python-iniparse
   e. Apache (httpd) or any other Web Server
 
-2a. Installation (using setup.py from source)
+2a. Installation (using setup file from source)
 =============================================
   a) Download latest version of videocache from http://cachevideos.com/download/ .
-  b) Untar the package.
-  [root@localhost root]# tar -xvzf videocache-x.x.tar.gz
+  b) Untar the videocache-bundle
+  [root@localhost root]# tar -xvzf videocache-bundle.tar.gz
 
-  c) Go to videocache-x.x directory
-  [root@localhost root]# cd videocache-x.x
+  c) Go to videocache-bundle
+  [root@localhost root]# cd videocache-bundle
 
-  d) Run setup.py as root for installing videocache
-  [root@localhost videocache-x.x]# python setup.py install
+  d) Untar the videocache package.
+  [root@localhost videocache-bundle]# tar -xvzf videocache-x.x.tar.gz
+
+  e) Go to videocache-x.x directory
+  [root@localhost videocache-bundle]# cd videocache-x.x
+
+  f) Identify your system 
+    1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
+    [root@localhost videocache-x.x]# python setup.py install
+
+    2) If your system is Debian/Ubuntu/BSD, use setup-deb.py
+    [root@localhost videocache-x.x]# python setup-deb.py install
 
   BINGO!! You are done with installation. In case you get any error while
   installing videocache, there will be proper logging in videocache-setup.log
   in current directory.
 
-  Skip to Configuration step (#3) now.
-
-2b. Installation (from source step by step)
-============================================
+2b. Installation (using rpm file)
+=================================
   a) Download latest version of videocache from http://cachevideos.com/download/ .
-  b) Untar the package.
-  [root@localhost root]# tar -xvzf videocache-x.x.tar.gz
+  b) Untar the videocache-bundle
+  [root@localhost root]# tar -xvzf videocache-bundle.tar.gz
 
-  c) Go to videocache-x.x directory
-  [root@localhost root]# cd videocache-x.x
+  c) Go to videocache-bundle
+  [root@localhost root]# cd videocache-bundle
 
-  d) Copy videocache-httpd.conf to /etc/httpd/conf.d/videocache.conf
-  [root@localhost videocache-x.x]# cp videocache-httpd.conf /etc/httpd/conf.d/videocache.conf
+  d) Untar the videocache package.
+  [root@localhost videocache-bundle]# tar -xvzf videocache-x.x.tar.gz
 
-  e) Copy videocache-sysconfig.conf to /etc/videocache.conf
-  [root@localhost videocache-x.x]# cp videocache-sysconfig.conf /etc/videocache.conf
+  e) Go to videocache-x.x directory
+  [root@localhost videocache-bundle]# cd videocache-x.x
 
-  f) Copy update-vc to /usr/sbin/update-vc and change permission to executable.
-  [root@localhost videocache-x.x]# cp update-vc /usr/sbin/update-vc
-  [root@localhost videocache-x.x]# chmod 744 /usr/sbin/update-vc
-
-  g) Copy vccleaner to /usr/sbin/vccleaner and change permission to executable.
-  [root@localhost videocache-x.x]# cp vccleaner /usr/sbin/vccleaner
-  [root@localhost videocache-x.x]# chmod 744 /usr/sbin/vccleaner
-
-  h) Copy videocache directory to /usr/share/
-  [root@localhost videocache-x.x]# cp -r videocache /usr/share/
-
-  i) Create directories to cache videos
-  [root@localhost root]# cd /var/spool/
-  [root@localhost spool]# mkdir videocache
-  [root@localhost spool]# mkdir videocache/tmp videocache/youtube videocache/metacafe videocache/dailymotion videocache/google videocache/redtube videocache/xtube videocache/vimeo videocache/wrzuta videocache/youporn videocache/soapbox videocache/tube8 videocache/tvuol videocache/bliptv videocache/break
-  [root@localhost spool]# chown -R squid:squid videocache
-  [root@localhost spool]# chmod -R 755 videocache
-
-  j) Create logdir /var/log/videocache/ and change permissions and ownership
-  [root@localhost ~]# mkdir -p /var/log/videocache
-  [root@localhost ~]# chmod -R 755 /var/log/videocache/
-  [root@localhost ~]# chown -R squid:squid /var/log/videocache/
+  g) Install videocache using rpm command
+  [root@localhost videocache-x.x]# rpm -ivh videocache-x.x.x-x.noarch.rpm
 
 3. Configuration
 ================
@@ -110,8 +98,6 @@ Index
   acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
   acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
   acl videocache_allow_dom dstdomain .mccont.com .metacafe.com .redtube.com .cdn.dailymotion.com
-  acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/www\.youtube\.com
-  url_rewrite_access deny videocache_deny_url
   url_rewrite_access allow videocache_allow_url
   url_rewrite_access allow videocache_allow_dom
   redirector_bypass on

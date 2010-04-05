@@ -41,7 +41,7 @@ for dir in base_dir_list:
             base_dir.append((dir_tup[0], 0))
         elif len(dir_tup) == 2:
             base_dir.append((dir_tup[0], int(dir_tup[1])))
-    except:
+    except BaseException, e:
         # WTF?? Can't even set cache directories properly
         pass
 temp_dir = mainconf.temp_dir
@@ -178,6 +178,13 @@ class VideoIDPool:
             self.scores.pop(video_id)
         return True
 
+    def remove_url_from_queue(self, video_id, url):
+        """Dequeue a url for a video_id from the download queue."""
+        if video_id in self.queue.keys():
+            if url in self.queue[video_id]:
+                self.queue[video_id][1].remove(url)
+        return True
+
     def remove(self, video_id):
         """Remove video_id from queue as well as active connection list."""
         return self.remove_from_queue(video_id) and self.remove_conn(video_id)
@@ -187,8 +194,7 @@ class VideoIDPool:
         if len(self.queue[video_id][1]) == 1:
             return self.remove_from_queue(video_id) and self.remove_conn(video_id)
         else:
-            self.queue[video_id][1].remove(url)
-            return True
+            return self.remove_url_from_queue(video_id, url) and self.remove_conn(video_id)
 
     def flush(self):
         """Flush the queue and reinitialize everything."""
@@ -216,8 +222,8 @@ class VideoIDPool:
                     return False
             else:
                 return False
-        except:
-            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error in schedule function.'))
+        except BaseException, e:
+            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', str(e)))
         return True
 
     def set_scheduler(self, pid):
@@ -289,14 +295,17 @@ class MyXMLRPCServer(SimpleXMLRPCServer):
 
 def set_proxy():
     try:
-        if proxy_username and proxy_password:
-            proxy_parts = urlparse.urlsplit(proxy)
-            new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+        if proxy:
+            if proxy_username and proxy_password:
+                proxy_parts = urlparse.urlsplit(proxy)
+                new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+            else:
+                new_proxy = proxy
+            return urlgrabber.grabber.URLGrabber(user_agent = user_agent, proxies = {'http': new_proxy}, http_headers = http_headers, keepalive = 1)
         else:
-            new_proxy = proxy
-        return urlgrabber.grabber.URLGrabber(user_agent = user_agent, proxies = {'http': new_proxy}, http_headers = http_headers, keepalive = 1)
-    except:
-        log(format%(os.getpid(), '-', '-', 'PROXY_ERR', '-', 'Error in setting proxy server.'))
+            return urlgrabber.grabber.URLGrabber(user_agent = user_agent, http_headers = http_headers, keepalive = 1)
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'PROXY_ERR', '-', str(e))) 
         return None
 
 def set_logging():
@@ -306,7 +315,7 @@ def set_logging():
                             filename=logfile,
                             filemode='a')
         return logging.info
-    except:
+    except BaseException, e:
         # No idea where to log. May be logged to syslog.
         return None
 
@@ -322,8 +331,8 @@ def get_cache_size(cache_dir):
                 filename = os.path.join(path, file)
                 size += os.path.getsize(filename)
                 time.sleep(0.000001)
-    except:
-        log(format%(pid, '-', '-', 'CACHE_SIZE_ERR', cache_dir, 'Error occurred while calculating the size of directory.'))
+    except BaseException, e:
+        log(format%(pid, '-', '-', 'CACHE_SIZE_ERR', cache_dir, str(e)))
         return -1
     return size / (1024*1024)
 
@@ -332,8 +341,8 @@ def remove(video_id):
     try:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         video_id_pool.remove(video_id)
-    except:
-        log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', str(e)))
     return
 
 def remove_url(video_id, url):
@@ -341,8 +350,8 @@ def remove_url(video_id, url):
     try:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         video_id_pool.remove_url(video_id, url)
-    except:
-        log(format%(os.getpid(), '-', '-', 'DEQUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'DEQUEUE_URL_ERR', '-', str(e)))
     return
 
 def fork(f):
@@ -397,7 +406,7 @@ def refine_url(url, arg_drop_list = []):
                 continue
             else:
                 query += arg + '&'
-        except:
+        except BaseException, e:
             continue
     return (urllib.splitquery(url)[0] + '?' + query.rstrip('&')).rstrip('?')
 
@@ -409,8 +418,8 @@ def download_from_source(args):
     pid = os.getpid()
     try:
         [client, urls, video_id, type] = [i for i in args]
-    except:
-        log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Scheduler didn\'t provide enough information.'))
+    except BaseException, e:
+        log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', str(e)))
         return
 
     index = None
@@ -418,8 +427,8 @@ def download_from_source(args):
         # Pick up cache directories one by one.
         try:
             (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, urls, base_dir.index(base_tup))
-        except:
-            log(format%(pid, client, video_id, 'PARAM_ERR', type, 'An error occured while querying the video parameters.'))
+        except BaseException, e:
+            log(format%(pid, client, video_id, 'PARAM_ERR', type, str(e)))
             continue
 
         # Check the disk space left in the partition with cache directory.
@@ -455,9 +464,9 @@ def download_from_source(args):
             remote_size = int(remote_file.info().getheader('content-length')) / 1024
             remote_file.close()
             log(format%(pid, client, video_id, 'GOT_SIZE', type, str(remote_size) + ' Successfully retrieved the size of video.'))
-        except:
+        except BaseException, e:
             remove(video_id)
-            log(format%(pid, client, video_id, 'SIZE_ERR', type, 'Could not retrieve size of the video.'))
+            log(format%(pid, client, video_id, 'SIZE_ERR', type, str(e)))
             return
 
         if max_size and remote_size > max_size:
@@ -470,15 +479,35 @@ def download_from_source(args):
             return
 
     for url in urls:
+        original_url = url
         url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
-            new_path = None
-            if type == 'YOUTUBE':
-                url_obj = grabber.urlopen(url)
-                if url_obj != url_obj.fo.geturl():
-                    new_video_id = get_new_video_id(url_obj.fo.geturl())
-                    (new_path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], new_video_id, type, urls, index)
-                url_obj.close()
+            try:
+                new_path = new_url = None
+                if type == 'YOUTUBE':
+                    try:
+                        url_obj = grabber.urlopen(url)
+                        new_url = url_obj.fo.geturl()
+                        url_obj.close()
+                    except urlgrabber.grabber.URLGrabError, http_error:
+                        try:
+                            log(format%(pid, client, video_id, 'ALTERNATE_URL_OPEN_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the alternate video id.  ' + url))
+                        except:
+                            log(format%(pid, client, video_id, 'ALTERNATE_URL_OPEN_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the alternate video id.  ' + url))
+                    except BaseException, e:
+                        log(format%(pid, client, video_id, 'ALTERNATE_URL_ERR', type, str(e)))
+                    if new_url is not None and url != new_url:
+                        new_video_id = get_new_video_id(new_url)
+                        (new_path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], new_video_id, type, urls, index)
+                        if os.path.exists(new_path):
+                            os.link(new_path, path)
+                            os.utime(path, None)
+                            os.utime(new_path, None)
+                            log(format%(pid, client, video_id, 'DOWNLOAD_LINK', type, ' Video was linked to another cached video.'))
+                            remove(video_id)
+                            return
+            except BaseException, e:
+                log(format%(pid, client, video_id, 'ALTERNATE_PATH_ERR', type, str(e)))
             download_path = os.path.join(tmp_cache, os.path.basename(path))
             open(download_path, 'a').close()
             file = grabber.urlgrab(url, download_path)
@@ -486,19 +515,27 @@ def download_from_source(args):
             os.rename(file, path)
             os.chmod(path, mode)
             os.utime(path, None)
-            if new_path is not None:
-                os.link(path, new_path)
-                os.utime(new_path, None)
+            try:
+                if new_path is not None:
+                    if not os.path.exists(new_path):
+                        os.link(path, new_path)
+                    os.utime(new_path, None)
+            except BaseException, e:
+                log(format%(pid, client, video_id, 'ALTERNATE_LINK_ERR', type, str(e)))
             remove(video_id)
             log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
             return
         except urlgrabber.grabber.URLGrabError, http_error:
-            remove_url(video_id, url)
-            if int(http_error.code) != 403:
-                log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
-        except:
-            remove_url(video_id, url)
-            log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, 'An error occured while retrieving the video.'))
+            if urls.index(original_url) == len(urls) - 1:
+                remove(video_id)
+            try:
+                log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the video.  '  + url))
+            except:
+                log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the video.  '  + url))
+        except BaseException, e:
+            if urls.index(original_url) == len(urls) - 1:
+                remove(video_id)
+            log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, str(e)))
 
     return
 
@@ -512,7 +549,7 @@ def get_new_video_id(url):
     for arg in arglist:
         try:
             dict[arg.split('=')[0]] = arg.split('=')[1]
-        except:
+        except BaseException, e:
             continue
     if dict.has_key('video_id'):
         video_id = dict['video_id']
@@ -529,8 +566,8 @@ def queue(video_id, values):
     try:
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         video_id_pool.new_video(video_id, values)
-    except:
-        log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', 'Error querying XMLRPC Server.'))
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'QUEUE_ERR', '-', str(e)))
     return
 
 def cache_video(client, url, type, video_id, cache_check_only = False):
@@ -548,8 +585,8 @@ def cache_video(client, url, type, video_id, cache_check_only = False):
             if len(base_dir) == 1:
                 index = ''
             cached_url = os.path.join(cache_url, 'videocache', str(index) ,type_low)
-        except:
-            log(format%(pid, client, video_id, 'PARAM_ERR', type, 'An error occured while querying the video parameters(cache_video).'))
+        except BaseException, e:
+            log(format%(pid, client, video_id, 'PARAM_ERR', type, '(cache_video_fun) : ' + str(e)))
             continue
 
         # If video is found, heads up!!! Return it.
@@ -609,7 +646,7 @@ def squid_part():
                     for arg in arglist:
                         try:
                             dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
+                        except BaseException, e:
                             continue
                     if dict.has_key('video_id'):
                         video_id = dict['video_id']
@@ -626,8 +663,8 @@ def squid_part():
                     type = 'METACAFE'
                     try:
                         video_id = urllib2.unquote(path).strip('/').split(' ')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -638,8 +675,8 @@ def squid_part():
                     type = 'DAILYMOTION'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -653,7 +690,7 @@ def squid_part():
                     for arg in arglist:
                         try:
                             dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
+                        except BaseException, e:
                             continue
                     if dict.has_key('video_id'):
                         video_id = dict['video_id']
@@ -677,7 +714,7 @@ def squid_part():
                     for arg in arglist:
                         try:
                             dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
+                        except BaseException, e:
                             continue
                     if dict.has_key('video_id'):
                         video_id = dict['video_id']
@@ -698,8 +735,8 @@ def squid_part():
                     type = 'REDTUBE'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -710,8 +747,8 @@ def squid_part():
                     type = 'XTUBE'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -722,8 +759,8 @@ def squid_part():
                     type = 'VIMEO'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -737,7 +774,7 @@ def squid_part():
                     for arg in arglist:
                         try:
                             dict[arg.split('=')[0]] = arg.split('=')[1]
-                        except:
+                        except BaseException, e:
                             continue
                     if dict.has_key('key'):
                         video_id = dict['key']
@@ -751,8 +788,8 @@ def squid_part():
                     type = 'YOUPORN'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -763,8 +800,8 @@ def squid_part():
                     type = 'SOAPBOX'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -775,8 +812,8 @@ def squid_part():
                     type = 'TUBE8'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -787,8 +824,8 @@ def squid_part():
                     type = 'TVUOL'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -799,8 +836,8 @@ def squid_part():
                     type = 'BLIPTV'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -811,8 +848,8 @@ def squid_part():
                     type = 'BREAK'
                     try:
                         video_id = path.strip('/').split('/')[-1]
-                    except:
-                        log(format%(pid, client, '-', 'URL_ERROR', type, 'Error in parsing the url ' + new_url))
+                    except BaseException, e:
+                        log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
                         new_url = submit_video(pid, client, type, url, video_id)
@@ -848,7 +885,7 @@ def start_xmlrpc_server():
         log(format%(pid, '-', '-', 'XMLRPCSERVER', '-', 'Starting XMLRPCServer on port ' + str(rpc_port) + '.'))
         server.serve_forever()
         log(format%(pid, '-', '-', 'XMLRPCSERVER_STOP', '-', 'Stopping XMLRPCServer.'))
-    except:
+    except BaseException, e:
         #log(format%(pid, '-', '-', 'START_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
         os.kill(pid, 1)
         pass
@@ -860,8 +897,8 @@ def update_cache_size():
         for (base_path, base_path_size) in base_dir:
             video_id_pool.set_cache_dir_size(base_path, get_cache_size(base_path))
         log(format%(os.getpid(), '-', '-', 'UPDATE_SIZE', '-', 'Size of all caching directories updated successfully.'))
-    except:
-        log(format%(os.getpid(), '-', '-', 'UPDATE_SIZE_ERR', '-', 'Error while updating cache sizes.'))
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'UPDATE_SIZE_ERR', '-', str(e)))
     return
 
 def download_scheduler():
@@ -873,22 +910,14 @@ def download_scheduler():
         video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
         if not video_id_pool.set_scheduler(pid):
             return
-    except:
-        log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server (while initializing scheduler).'))
+    except BaseException, e:
+        log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', '(while initializing scheduler) : ' + str(e)))
 
     wait_time = 20
     update_cache_size_time = 0
     video_id_pool = ServerProxy('http://' + rpc_host + ':' + str(rpc_port))
     while True:
         try:
-            # Update the cache size after every 50 downloads.
-            """
-            if update_cache_size_time <= 0:
-                update_cache_size_time = 50
-                forked = fork(update_cache_size)
-                forked()
-            """
-
             params = video_id_pool.schedule()
             if params == False:
                 wait_time = 5
@@ -901,12 +930,12 @@ def download_scheduler():
                     log(format%(pid, params[0], params[2], 'SCHEDULED', params[3], 'Video scheduled for download.'))
                     wait_time = 0.2
                     update_cache_size_time -= 1
-                except:
+                except BaseException, e:
                     remove(params[2])
-                    log(format%(pid, '-', '-', 'SCHEDULED_ERR', '-', 'Could not schedule video for download.'))
+                    log(format%(pid, '-', '-', 'SCHEDULED_ERR', '-', str(e)))
                     wait_time = 0.5
-        except:
-            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', 'Error while querying RPC server.'))
+        except BaseException, e:
+            log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', str(e)))
         time.sleep(wait_time)
     log(format%(pid, '-', '-', 'SCHEDULEDER_STOP', '-', 'Download Scheduler stopping.'))
     return
@@ -916,8 +945,8 @@ if __name__ == '__main__':
     log = set_logging()
     try:
         log_rotate()
-    except:
-        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE_ERR', '-', 'Could not rotate logfiles.'))
+    except BaseException, e:
+        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE_ERR', '-', str(e)))
 
     if log is not None:
         # If XMLRPCServer is running already, don't start it again
@@ -928,7 +957,7 @@ if __name__ == '__main__':
             video_id_pool.flush()
             # For testing with squid, use this function
             squid_part()
-        except:
+        except BaseException, e:
             # Start XMLRPC Server, Download Scheduler and Base Plugin in threads.
             thread_xmlrpc = Function_Thread(XMLRPC_SERVER)
             thread_download_scheduler = Function_Thread(DOWNLOAD_SCHEDULER)

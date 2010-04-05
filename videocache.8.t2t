@@ -50,8 +50,6 @@ acl videocache_allow_url url_regex -i \.mais\.uol\.com\.br\/(.*)\.flv
 acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
 acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
 acl videocache_allow_dom dstdomain .mccont.com .metacafe.com .redtube.com .cdn.dailymotion.com
-acl videocache_deny_url url_regex -i http:\/\/[a-z][a-z]\.youtube\.com http:\/\/www\.youtube\.com
-url_rewrite_access deny videocache_deny_url
 url_rewrite_access allow videocache_allow_url
 url_rewrite_access allow videocache_allow_dom
 redirector_bypass on
@@ -86,7 +84,8 @@ or <Proxy_Server_IP_OR_Domain>
 ```
 
 : proxy
-Proxy for http content. Default: http://127.0.0.1:3128/.
+Warning : _USE_THIS_ONLY_IF_ Videocache Server should go via anohter proxy.
+Proxy for http content. Default: <blank>.
 
 ```
 Example : http_proxy = http://<Proxy_Server_IP_OR_Domain>:<Proxy_port>/
@@ -137,15 +136,6 @@ This option enables the caching of youtube videos. This option’s value can be 
 
 : youtube_cache_dir
 Directory to cache youtube videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube, actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
-
-: youtube_cache_size
-Maximum total size of youtube caching directory. 0 for unlimited. This size is in megabytes. E.g. youtube_cache_size = 200 will limit your cache size to 200MB. Don’t use cache_size = 200MB. Don’t append MB. Default: 0.
-
-: max_youtube_video_size
-Youtube videos with size more than max_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for unlimited caching. E.g. max_youtube_video_size = 10000. Only videos with size less than 10MB (10000KB) will be cached. Don’t use max_youtube_video_size = 10000KB. Don’t append KB. Default: 0.
-
-: min_youtube_video_size
-Youtube videos with size less than min_youtube_video_size will not be cached. This size is in kilobytes. Use 0 for no lower limit. E.g. min_youtube_video_size = 10. Only videos with size more than 10KB will be cached. Don’t use min_youtube_video_size = 10KB. Don’t append KB. Default: 0.
 
 
 = FILES =
