@@ -13,6 +13,7 @@ import logging.handlers
 import os
 import pwd
 import shutil
+import stat
 import sys
 
 # The user which runs the squid proxy server or daemon. Change this according to your system.
@@ -52,6 +53,10 @@ def create_dir(dir, user=None, group=None, mode=0755):
 def dir_perms_and_ownership(dir, user=None, group=None, mode=0755):
     """Change the permissions and ownership of a directory."""
     try:
+        stats = os.stat(dir)
+    except:
+        stats = None
+    try:
         os.chmod(dir, mode)
     except:
         log(format%("Could not change permissions of directory " + dir + " ."))
@@ -65,6 +70,8 @@ def dir_perms_and_ownership(dir, user=None, group=None, mode=0755):
     else:
         group = user
 
+    if stats is not None and stats[stat.ST_UID] == user and stats[stat.ST_GID] == group:
+        return True
     try:
         os.chown(dir, user, group)
         log(format%("Changed ownership of " + dir + " ."))
