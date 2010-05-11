@@ -310,11 +310,12 @@ def set_proxy():
 
 def set_logging():
     try:
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s %(message)s',
-                            filename=logfile,
-                            filemode='a')
-        return logging.info
+        logger = logging.Logger('VideocacheLog', )
+        logger.setLevel(logging.DEBUG)
+        handler = logging.handlers.RotatingFileHandler(logfile, mode = 'a', maxBytes = max_logfile_size, backupCount = max_logfile_backups)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+        logger.addHandler(handler)
+        return logger
     except Exception, e:
         # No idea where to log. May be logged to syslog.
         return None
@@ -858,20 +859,9 @@ def squid_part():
         try:
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
-            log_rotate()
         except IOError, e:
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
-
-def log_rotate():
-    # Rotate logfiles if the size is more than the max_logfile_size.
-    global log
-    if os.path.getsize(logfile) >= max_logfile_size:
-        roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
-        roll.doRollover()
-        log = set_logging()
-        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE', '-', 'Rotated log files.'))
-    return
 
 def start_xmlrpc_server():
     """Starts the XMLRPC server in a threaded process."""
@@ -942,11 +932,8 @@ def download_scheduler():
 
 if __name__ == '__main__':
     global log
-    log = set_logging()
-    try:
-        log_rotate()
-    except Exception, e:
-        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE_ERR', '-', str(e)))
+    logger = set_logging()
+    log = logger.info
 
     if log is not None:
         # If XMLRPCServer is running already, don't start it again
