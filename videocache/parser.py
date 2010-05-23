@@ -2,7 +2,7 @@
 
 import re
 import urlparse
-import urlgrabber
+import urllib2
 import os.path
 
 _KEYCRE = re.compile(r"\$(\w+)")
@@ -93,8 +93,8 @@ class ConfigPreProcessor:
         if self._urlalreadyincluded(absurl):
             return None
         try:
-            fo = urlgrabber.grabber.urlopen(absurl)
-        except urlgrabber.grabber.URLGrabError, e:
+            fo = urllib2.urlopen(absurl)
+        except Exception, e:
             fo = None
         if fo is not None:
             self.name = absurl

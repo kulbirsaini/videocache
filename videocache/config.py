@@ -360,7 +360,7 @@ class TestConf(StartupConf):
     logdir = Option('/var/log/videocache/')
     max_logfile_size = Option(10)
     max_logfile_backups = Option(10)
-    proxy = Option('http://127.0.0.1:3128/')
+    proxy = Option()
     proxy_username = Option()
     proxy_password = Option()
 
