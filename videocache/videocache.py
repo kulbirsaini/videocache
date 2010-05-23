@@ -486,8 +486,8 @@ def download_from_source(args):
                 new_path = new_url = None
                 if type == 'YOUTUBE':
                     try:
-                        url_obj = grabber.urlopen(url)
-                        new_url = url_obj.fo.geturl()
+                        url_obj = urllib2.urlopen(url)
+                        new_url = url_obj.geturl()
                         url_obj.close()
                     except urlgrabber.grabber.URLGrabError, http_error:
                         try:
@@ -627,7 +627,7 @@ def squid_part():
             fragments = urlparse.urlsplit(url[0])
             [host, path, params] = [fragments[1], fragments[2], fragments[3]]
             client = url[1].split('/')[0]
-            #log(format%(pid, client, '-', 'REQUEST', '-', url[0]))
+            log(format%(pid, client, '-', 'REQUEST', '-', url[0]))
         except IOError, e:
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
@@ -671,7 +671,7 @@ def squid_part():
 
             # Dailymotion.com caching is handled here.
             if enable_dailymotion_cache:
-                if (re.compile('proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com').search(host) or host.find('vid.akm.dailymotion.com') > -1 or host.find('.cdn.dailymotion.com') > -1)  and (path.find('.flv') > -1 or path.find('.on2') > -1):
+                if (re.compile('proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com').search(host) or host.find('vid.akm.dailymotion.com') > -1 or host.find('.cdn.dailymotion.com') > -1)  and (path.find('flv') > -1 or path.find('.on2') > -1 or path.find('mp4') > -1 or path.find('aac') > -1 or path.find('h264') > -1 or path.find('h263') > -1):
                     type = 'DAILYMOTION'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -679,7 +679,8 @@ def squid_part():
                         log(format%(pid, client, '-', 'URL_ERROR', type, str(e) + ' : ' + new_url))
                         video_id = None
                     if video_id is not None:
-                        new_url = submit_video(pid, client, type, url, video_id)
+                        if (video_id.find('flv') > -1 or video_id.find('.on2') > -1 or video_id.find('mp4') > -1 or video_id.find('aac') > - 1 or video_id.find('h264') > -1 or video_id.find('h263') > -1):
+                            new_url = submit_video(pid, client, type, url, video_id)
             
             # Google.com caching is handled here. get_video
             if enable_google_cache:
