@@ -11,7 +11,6 @@ Source:     %{name}-%{version}.tar.gz
 Buildroot:  %{_tmppath}/%{name}-%{version}-root 
 BuildArch:  noarch
 Requires:   python
-Requires:   python-urlgrabber
 Requires:   python-iniparse
 Requires:   squid
 Requires:   httpd

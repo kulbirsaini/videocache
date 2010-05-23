@@ -14,9 +14,8 @@ Index
 ===========
   a. squid >= 2.6
   b. python >= 2.4
-  c. python-urlgrabber
-  d. python-iniparse
-  e. Apache (httpd) or any other Web Server
+  c. python-iniparse
+  d. Apache (httpd) or any other Web Server
 
 2a. Installation (using setup file from source)
 =============================================
@@ -37,7 +36,7 @@ Index
     1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
     [root@localhost videocache-x.x]# python setup.py install
 
-    2) If your system is Debian/Ubuntu/BSD, use setup-deb.py
+    2) If your system is Debian/Ubuntu, use setup-deb.py
     [root@localhost videocache-x.x]# python setup-deb.py install
 
   BINGO!! You are done with installation. In case you get any error while

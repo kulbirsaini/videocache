@@ -1,6 +1,6 @@
 VIDEO-CACHE
 
-March 10, 2010
+May 24, 2010
 
 = NAME =
 
@@ -15,8 +15,7 @@ videocache is a squid url rewriter plugin written in Python to facilitate youtub
 1. squid >= 2.6
 2. python >= 2.4
 3. python-iniparse
-4. python-urlgrabber
-5. Apache or any other Web Server
+4. Apache or any other Web Server
 ```
 = CONFIGURATION =
 
@@ -155,8 +154,8 @@ Directory to cache youtube videos. Directory name is relative to base_dir. E.g. 
 squid (8)
 
 Project Website : http://cachevideos.com/
-How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
-How to write custom squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
+How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
+How to write custom squid redirector in python : http://gofedora.com/how-to-write-custom-redirector-rewritor-plugin-squid-python/
 ```
 = AUTHOR =
 ```
