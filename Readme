@@ -1,31 +1,29 @@
 NAME
-       videocache - Squid  url  rewriter  plugin to cache dynamic audio/video content from different video portals/websites.
+       videocache - Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
 
 DESCRIPTION
-       videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe,  dailymotion,
-       google,  vimeo,  redtube,  xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos
-       and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than
-       squid  cache),  in  a  browsable fashion and can serve the subsequent requests from the cache. It helps in
-       saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
+       videocache  is  a  squid  url  rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube,
+       xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos and wrzuta.pl audio caching. It can cache videos  from
+       various  websites  in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from
+       the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
 
 
 DEPENDENCIES
          1. squid >= 2.6
          2. python >= 2.4
          3. python-iniparse
-         4. python-urlgrabber
-         5. Apache or any other Web Server
+         4. Apache or any other Web Server
 
 
 CONFIGURATION
-       To use videocache, you need to configure Proxy Server (squid)  and  the  global  videocache  configuration
-       file. Below are the steps to configure videocache.
+       To use videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below  are  the  steps  to
+       configure videocache.
 
 
    SQUID CONFIGURATION
-       To  configure  squid  to  use videocache as a url rewriter program, you need to add the following lines to
-       your squid configuration file (generally found at /etc/squid/squid.conf):
+       To  configure  squid to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file
+       (generally found at /etc/squid/squid.conf):
 
          # --BEGIN-- videocache config for squid
          url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
@@ -74,14 +72,14 @@ CONFIGURATION
 
 
        enable_video_cache
-              This option controls the global behavior of videocache plugin. If it is  0,  videocache  will  stop
-              caching or serving anything. This option’s value can be either 0 or 1. Default 1.
+              This option controls the global behavior of videocache plugin. If it is 0, videocache will stop caching  or  serving  anything.
+              This option’s value can be either 0 or 1. Default 1.
 
 
        cache_host
-              The  hostname  or IP address of the system on which caching is being done. This is used for serving
-              the videos from the cache.  Please don’t use http:// or slashes (/). Just specify the domain  name
-              or IP address. Default: 127.0.0.1.  Additionally you can select an alternative port to use.
+              The  hostname  or  IP address of the system on which caching is being done. This is used for serving the videos from the cache.
+              Please don’t use http:// or slashes (/). Just specify the domain name or IP address. Default: 127.0.0.1.  Additionally you can
+              select an alternative port to use.
                 Example : localhost.localdomain
                 or proxy.example.com
                 or 192.168.36.204
@@ -90,8 +88,7 @@ CONFIGURATION
 
 
 
-       proxy  Warning  :  _USE_THIS_ONLY_IF_  Videocache Server should go via anohter proxy.  Proxy for http con-
-              tent. Default: <blank>.
+       proxy  Warning : _USE_THIS_ONLY_IF_ Videocache Server should go via anohter proxy.  Proxy for http content. Default: <blank>.
 
                 Example : http_proxy = http://<Proxy_Server_IP_OR_Domain>:<Proxy_port>/
                 or http://proxy.example.com:3128/
@@ -111,69 +108,63 @@ CONFIGURATION
 
 
        base_dir
-              Base directories for caching the videos. You can specify multiple caching  directories  here  sepa-
-              rated  by ’|’ symbol. Please try to avoid special characters in directory names like spaces, $ etc.
-              For  Example  :  base_dir  =  /var/spool/videocache/  |  /videocache2/stuff-new/|/new_videocache  .
-              Default: /var/spool/videocache/.
+              Base  directories for caching the videos. You can specify multiple caching directories here separated by ’|’ symbol. Please try
+              to avoid special characters in directory names like spaces, $ etc. For Example : base_dir =  /var/spool/videocache/  |  /video-
+              cache2/stuff-new/|/new_videocache . Default: /var/spool/videocache/.
 
 
        temp_dir
-              Directory to store partially downloaded videos. Directory name is relative to base_dir. E.g. if you
-              specify  temp_dir  =  tmp,  actual  path  for  storing  partially  downloaded   videos   would   be
-              /var/spool/videocache/tmp/. Default: tmp.
+              Directory  to  store  partially  downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp,
+              actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
 
        enable_videocache_cleaner
-              Enable  the  videocache cleaner script which will remove videos from cache which have not been used
-              since long. The value of this option can be 0 or 1. Default: 0
+              Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this
+              option can be 0 or 1. Default: 0
 
 
        video_lifetime
-              The maximum life of a video in cache without being used. If the video was  not  accessed  for  more
-              than  ’video_lifetime’  days,  it’ll be removed from the cache. The unit of video_lifetime is days.
-              For Example : video_lifetime = 3 will remove videos which were not used since last 3 or more  days.
-              Default: 60
+              The  maximum  life  of  a video in cache without being used. If the video was not accessed for more than ’video_lifetime’ days,
+              it’ll be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove videos  which
+              were not used since last 3 or more days. Default: 60
 
 
        max_parallel_downloads
-              The  maximum  number of parallel downloads allowed. If all connections are consumed, videos will be
-              queued for download. Default: 30.
+              The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default:
+              30.
 
 
        logdir Directory where videocache logs will be stored. Default: /var/log/videocache/.
 
 
        max_logfile_size
-              Maximum size of logfile specified above. The size is in megabytes. Don’t  use  max_logfile_size  =
-              10MB. Don’t append MB.  Default: 10.
+              Maximum size of logfile specified above. The size is in megabytes. Don’t use  max_logfile_size  =  10MB.  Don ’t  append  MB.
+              Default: 10.
 
 
        max_logfile_backups
-              The  logfiles  are  automatically  rotated  once  they have exceeded the max_logfile_size. max_log-
-              file_backups is the number of backup files you want to keep.  e.g.  max_logfile_backups  =  2  will
-              keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles. Default: 10.
+              The  logfiles  are  automatically  rotated  once  they have exceeded the max_logfile_size. max_logfile_backups is the number of
+              backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2
+              as logfiles. Default: 10.
 
 
        rpc_host
-              XMLRPCServer  is used for memory sharing across different instances of videocache. Leave these set-
-              tings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as  cache_host  in
-              almost all the cases. Default: 127.0.0.1.
+              XMLRPCServer  is  used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t
+              have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 
        rpc_port
-              Please  make  sure this port is not currently in use. If it is in use by some other program, change
-              this to some port above 1024 which is not in use by any other program. Default: 9100.
+              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above  1024
+              which is not in use by any other program. Default: 9100.
 
 
        enable_youtube_cache
-              This option enables the caching of youtube videos. This option’s value  can  be  either  0  or  1.
-              Default: 1.
+              This option enables the caching of youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
 
        youtube_cache_dir
-              Directory  to  cache  youtube  videos.  Directory name is relative to base_dir. E.g. if you specify
-              youtube_cache_dir = youtube, actual path for caching  youtube  videos  would  be  /var/spool/video-
-              cache/youtube/. Default: youtube.
+              Directory  to  cache  youtube  videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube,
+              actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
 
 
 FILES
@@ -191,8 +182,8 @@ SEE ALSO
          squid (8)
 
          Project Website : http://cachevideos.com/
-         How to configure squid : http://fedora.co.in/content/how-configure-squid-proxy-server
-         How to write custom squid redirector in python : http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
+         How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
+         How to write custom squid redirector in python : http://gofedora.com/how-to-write-custom-redirector-rewritor-plugin-squid-python/
 
 
 AUTHOR

@@ -23,7 +23,6 @@ import statvfs
 import sys
 import threading
 import time
-import urlgrabber
 import urllib
 import urllib2
 import urlparse
@@ -58,17 +57,31 @@ proxy = mainconf.proxy
 proxy_username = mainconf.proxy_username
 proxy_password = mainconf.proxy_password
 
+# Setup proxy
+try:
+    if proxy and proxy_username and proxy_password:
+        proxy_parts = urlparse.urlsplit(proxy)
+        new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+    else:
+        new_proxy = proxy
+    if new_proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : new_proxy } )))
+    socket.setdefaulttimeout(60)
+except Exception, e:
+    pass
+
 BASE_PLUGIN = 0
 XMLRPC_SERVER = 1
 DOWNLOAD_SCHEDULER = 2
 redirect = '303'
 format = '%s %s %s %s %s %s'
 cache_url = 'http://' + str(cache_host) + '/' 
-http_headers = (
-        ('Proxy-CONNECTION', 'keep-alive'), 
-        ('ACCEPT', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'), 
-    )
-user_agent = 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6 GTB6'
+std_headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6',
+    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+    'Accept': 'text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5',
+    'Accept-Language': 'en-us,en;q=0.5',
+}
 
 def set_globals(type_low):
     enable_cache = int(eval('mainconf.enable_' + type_low + '_cache'))
@@ -293,30 +306,18 @@ class MyXMLRPCServer(SimpleXMLRPCServer):
         while not self.finished:
             self.handle_request()
 
-def set_proxy():
-    try:
-        if proxy:
-            if proxy_username and proxy_password:
-                proxy_parts = urlparse.urlsplit(proxy)
-                new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
-            else:
-                new_proxy = proxy
-            return urlgrabber.grabber.URLGrabber(user_agent = user_agent, proxies = {'http': new_proxy}, http_headers = http_headers, keepalive = 1)
-        else:
-            return urlgrabber.grabber.URLGrabber(user_agent = user_agent, http_headers = http_headers, keepalive = 1)
-    except Exception, e:
-        log(format%(os.getpid(), '-', '-', 'PROXY_ERR', '-', str(e))) 
-        return None
-
 def set_logging():
     try:
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s %(message)s',
-                            filename=logfile,
-                            filemode='a')
-        return logging.info
+        logger = logging.Logger('VideocacheLog', )
+        logger.setLevel(logging.DEBUG)
+        handler = logging.handlers.RotatingFileHandler(logfile, mode = 'a', maxBytes = max_logfile_size, backupCount = max_logfile_backups)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+        logger.addHandler(handler)
+        return logger
     except Exception, e:
-        # No idea where to log. May be logged to syslog.
+        # Logged to squid's cache.log
+        print >>sys.stderr, 'Videocache Error : Could not initialize logging.'
+        print >>sys.stderr, 'Videocache Error : Please check /var/log/videocache/ or cache_dir for ownership and permission problems. '
         return None
 
 def get_cache_size(cache_dir):
@@ -452,32 +453,6 @@ def download_from_source(args):
         remove(video_id)
         return
 
-    grabber = set_proxy()
-    if grabber is None:
-        remove(video_id)
-        return
-
-    if False: #if max_size or min_size:
-        try:
-            log(format%(pid, client, video_id, 'GET_SIZE', type, 'Trying to get the size of video.'))
-            remote_file = grabber.urlopen(url)
-            remote_size = int(remote_file.info().getheader('content-length')) / 1024
-            remote_file.close()
-            log(format%(pid, client, video_id, 'GOT_SIZE', type, str(remote_size) + ' Successfully retrieved the size of video.'))
-        except Exception, e:
-            remove(video_id)
-            log(format%(pid, client, video_id, 'SIZE_ERR', type, str(e)))
-            return
-
-        if max_size and remote_size > max_size:
-            remove(video_id)
-            log(format%(pid, client, video_id, 'MAX_SIZE', type, 'Video size ' + str(remote_size) + ' is larger than maximum allowed.'))
-            return
-        if min_size and remote_size < min_size:
-            remove(video_id)
-            log(format%(pid, client, video_id, 'MIN_SIZE', type, 'Video size ' + str(remote_size) + ' is smaller than minimum allowed.'))
-            return
-
     for url in urls:
         original_url = url
         url = refine_url(url, ['begin', 'start', 'noflv'])
@@ -486,10 +461,12 @@ def download_from_source(args):
                 new_path = new_url = None
                 if type == 'YOUTUBE':
                     try:
-                        url_obj = urllib2.urlopen(url)
-                        new_url = url_obj.geturl()
+                        request = urllib2.Request(url, None, std_headers)
+                        url_obj = urllib2.urlopen(request)
+                        url_obj.read(10)
+                        new_url = url_obj.url
                         url_obj.close()
-                    except urlgrabber.grabber.URLGrabError, http_error:
+                    except urllib2.HTTPError, http_error:
                         try:
                             log(format%(pid, client, video_id, 'ALTERNATE_URL_OPEN_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the alternate video id.  ' + url))
                         except:
@@ -509,29 +486,44 @@ def download_from_source(args):
             except Exception, e:
                 log(format%(pid, client, video_id, 'ALTERNATE_PATH_ERR', type, str(e)))
             download_path = os.path.join(tmp_cache, os.path.basename(path))
-            open(download_path, 'a').close()
-            file = grabber.urlgrab(url, download_path)
-            size = os.path.getsize(file)
-            os.rename(file, path)
-            os.chmod(path, mode)
-            os.utime(path, None)
+            request = urllib2.Request(url, None, std_headers)
+            connection = urllib2.urlopen(request)
             try:
-                if new_path is not None:
-                    if not os.path.exists(new_path):
-                        os.link(path, new_path)
-                    os.utime(new_path, None)
+                file = None
+                while True:
+                    block = connection.read(8192)
+                    if len(block) == 0:
+                        break
+                    if not file:
+                        file = open(download_path, 'wb')
+                    file.write(block)
+                if file:
+                    file.close()
+            except urllib2.HTTPError, http_error:
+                if urls.index(original_url) == len(urls) - 1:
+                    remove(video_id)
+                try:
+                    log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the video.  '  + url))
+                except:
+                    log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the video.  '  + url))
             except Exception, e:
-                log(format%(pid, client, video_id, 'ALTERNATE_LINK_ERR', type, str(e)))
+                log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, str(e)))
+
+            if file:
+                size = os.path.getsize(file.name)
+                os.rename(file.name, path)
+                os.chmod(path, mode)
+                os.utime(path, None)
+                try:
+                    if new_path is not None:
+                        if not os.path.exists(new_path):
+                            os.link(path, new_path)
+                        os.utime(new_path, None)
+                except Exception, e:
+                    log(format%(pid, client, video_id, 'ALTERNATE_LINK_ERR', type, str(e)))
+                log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
             remove(video_id)
-            log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
             return
-        except urlgrabber.grabber.URLGrabError, http_error:
-            if urls.index(original_url) == len(urls) - 1:
-                remove(video_id)
-            try:
-                log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the video.  '  + url))
-            except:
-                log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the video.  '  + url))
         except Exception, e:
             if urls.index(original_url) == len(urls) - 1:
                 remove(video_id)
@@ -859,20 +851,9 @@ def squid_part():
         try:
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
-            log_rotate()
         except IOError, e:
             if e.errno == 32:
                 os.kill(os.getpid(), 1)
-
-def log_rotate():
-    # Rotate logfiles if the size is more than the max_logfile_size.
-    global log
-    if os.path.getsize(logfile) >= max_logfile_size:
-        roll = logging.handlers.RotatingFileHandler(filename=logfile, mode='r', maxBytes=max_logfile_size, backupCount=max_logfile_backups)
-        roll.doRollover()
-        log = set_logging()
-        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE', '-', 'Rotated log files.'))
-    return
 
 def start_xmlrpc_server():
     """Starts the XMLRPC server in a threaded process."""
@@ -943,11 +924,10 @@ def download_scheduler():
 
 if __name__ == '__main__':
     global log
-    log = set_logging()
-    try:
-        log_rotate()
-    except Exception, e:
-        log(format%(os.getpid(), '-', '-', 'LOG_ROTATE_ERR', '-', str(e)))
+    logger = set_logging()
+    if not logger:
+        sys.exit(1)
+    log = logger.info
 
     if log is not None:
         # If XMLRPCServer is running already, don't start it again
