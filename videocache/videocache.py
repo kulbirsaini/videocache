@@ -2,15 +2,15 @@
 
 #
 # (C) Copyright 2008-2010 Kulbir Saini <saini@saini.co.in>
-# (C) Copyright 2008-2010 Videocache Pvt Ltd.
 #
 # For more information check http://cachevideos.com/
 #
 
-__author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
+__author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from config import readMainConfig, readStartupConfig
+from optparse import OptionParser
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 import logging
@@ -26,6 +26,10 @@ import time
 import urllib
 import urllib2
 import urlparse
+
+# Parse command line options.
+parser = OptionParser()
+parser.add_option('--config')
 
 mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
@@ -747,7 +751,7 @@ def squid_part():
             
             # Vimeo.com caching is handled here.
             if enable_vimeo_cache:
-                if host.find('bitcast.vimeo.com') > -1 and path.find('vimeo/videos/') > -1 and path.find('.flv') > -1:
+                if host.find('.vimeo.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4') > -1):
                     type = 'VIMEO'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -776,7 +780,7 @@ def squid_part():
             
             # Youporn.com audio file caching is handled here.
             if enable_youporn_cache:
-                if host.find('.files.youporn.com') > -1 and path.find('/flv/') > -1 and path.find('.flv') > -1:
+                if host.find('.youporn.com') > -1 and path.find('.flv') > -1:
                     type = 'YOUPORN'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -800,7 +804,7 @@ def squid_part():
             
             # Tube8.com Video file caching is handled here.
             if enable_tube8_cache:
-                if (re.compile('media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host) or re.compile('mobile[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com').search(host)) and (path.find('.flv') > -1 or path.find('.3gp') > -1):
+                if re.compile('\.tube8\.com').search(host) and (path.find('.flv') > -1 or path.find('.3gp') > -1):
                     type = 'TUBE8'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -824,7 +828,7 @@ def squid_part():
             
             # Blip.tv Video file caching is handled here.
             if enable_bliptv_cache:
-                if re.compile('\.video[a-z0-9]?[a-z0-9]?\.blip\.tv').search(host) and (path.find('.flv') > -1 or path.find('.wmv') > -1 or path.find('.mp4') > -1 or path.find('.rm') > -1 or path.find('.ram') > -1 or path.find('.mov') > -1 or path.find('.avi') > -1 or path.find('.m4v') > -1 or path.find('.mp3') > -1) :
+                if re.compile('\.blip\.tv').search(host) and (path.find('.flv') > -1 or path.find('.wmv') > -1 or path.find('.mp4') > -1 or path.find('.rm') > -1 or path.find('.ram') > -1 or path.find('.mov') > -1 or path.find('.avi') > -1 or path.find('.m4v') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1) :
                     type = 'BLIPTV'
                     try:
                         video_id = path.strip('/').split('/')[-1]
@@ -836,7 +840,7 @@ def squid_part():
             
             # Break.com Video file caching is handled here.
             if enable_break_cache:
-                if host.find('video.break.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4')):
+                if host.find('.break.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4')):
                     type = 'BREAK'
                     try:
                         video_id = path.strip('/').split('/')[-1]
