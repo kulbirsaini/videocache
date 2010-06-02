@@ -3,9 +3,9 @@ NAME
 
 
 DESCRIPTION
-       videocache  is  a  squid  url  rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube,
-       xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos and wrzuta.pl audio caching. It can cache videos  from
-       various  websites  in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from
+       videocache  is  a  squid  url  rewriter  plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube,
+       xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com videos and wrzuta.pl audio caching. It can cache  videos  from
+       various  websites  in  a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from
        the cache. It helps in saving bandwidth and loading time of the videos. videocache is currently used by many ISPs.
 
 
@@ -17,39 +17,38 @@ DEPENDENCIES
 
 
 CONFIGURATION
-       To use videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below  are  the  steps  to
-       configure videocache.
+       To use videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below are the steps to con-
+       figure videocache.
 
 
    SQUID CONFIGURATION
-       To  configure  squid to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file
+       To  configure  squid  to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file
        (generally found at /etc/squid/squid.conf):
 
          # --BEGIN-- videocache config for squid
-         url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
-         url_rewrite_children 7
+         url_rewrite_program /usr/bin/python /home/saini/timepass/videocache/videocache/videocache.py
+         url_rewrite_children 15
          acl videocache_allow_url url_regex -i \.youtube\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.youtube\.com\/videoplayback \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplayback \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
          acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplayback \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.google\.com\/videoplayback \.google\.com\/videoplay \.google\.com\/get_video\?
          acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplayback \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
-         acl videocache_allow_url url_regex -i (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/videoplayback\?
-         acl videocache_allow_url url_regex -i (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/videoplay\?
-         acl videocache_allow_url url_regex -i (25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/get_video\?
          acl videocache_allow_url url_regex -i proxy[a-z0-9\-][a-z0-9][a-z0-9][a-z0-9]?\.dailymotion\.com\/
          acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/
          acl videocache_allow_url url_regex -i [a-z0-9][0-9a-z][0-9a-z]?[0-9a-z]?[0-9a-z]?\.xtube\.com\/(.*)flv
-         acl videocache_allow_url url_regex -i bitcast\.vimeo\.com\/vimeo\/videos\/
+         acl videocache_allow_url url_regex -i \.vimeo\.com\/(.*)\.(flv|mp4)
          acl videocache_allow_url url_regex -i va\.wrzuta\.pl\/wa[0-9][0-9][0-9][0-9]?
-         acl videocache_allow_url url_regex -i \.files\.youporn\.com\/(.*)\/flv\/
+         acl videocache_allow_url url_regex -i \.youporn\.com\/(.*)\.flv
          acl videocache_allow_url url_regex -i \.msn\.com\.edgesuite\.net\/(.*)\.flv
-         acl videocache_allow_url url_regex -i media[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/ mobile[a-z0-9]?[a-z0-9]?[a-z0-9]?\.tube8\.com\/
+         acl videocache_allow_url url_regex -i \.tube8\.com\/(.*)\.(flv|3gp)
          acl videocache_allow_url url_regex -i \.mais\.uol\.com\.br\/(.*)\.flv
-         acl videocache_allow_url url_regex -i \.video[a-z0-9]?[a-z0-9]?\.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram)
-         acl videocache_allow_url url_regex -i video\.break\.com\/(.*)\.(flv|mp4)
+         acl videocache_allow_url url_regex -i \.blip\.tv\/(.*)\.(flv|avi|mov|mp3|m4v|mp4|wmv|rm|ram|m4v)
+         acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4)
          acl videocache_allow_url url_regex -i redtube\.com\/(.*)\.flv
          acl videocache_allow_dom dstdomain .mccont.com .metacafe.com .cdn.dailymotion.com
+         acl videocache_deny_dom  dstdomain .download.youporn.com .static.blip.tv
+         url_rewrite_access deny  videocache_deny_dom
          url_rewrite_access allow videocache_allow_url
          url_rewrite_access allow videocache_allow_dom
          redirector_bypass on
@@ -72,13 +71,13 @@ CONFIGURATION
 
 
        enable_video_cache
-              This option controls the global behavior of videocache plugin. If it is 0, videocache will stop caching  or  serving  anything.
+              This option controls the global behavior of videocache plugin. If it is 0, videocache will stop  caching  or  serving  anything.
               This option’s value can be either 0 or 1. Default 1.
 
 
        cache_host
-              The  hostname  or  IP address of the system on which caching is being done. This is used for serving the videos from the cache.
-              Please don’t use http:// or slashes (/). Just specify the domain name or IP address. Default: 127.0.0.1.  Additionally you can
+              The  hostname  or  IP  address of the system on which caching is being done. This is used for serving the videos from the cache.
+              Please don’t use http:// or slashes (/). Just specify the domain name or IP address. Default: 127.0.0.1.  Additionally you  can
               select an alternative port to use.
                 Example : localhost.localdomain
                 or proxy.example.com
@@ -108,29 +107,29 @@ CONFIGURATION
 
 
        base_dir
-              Base  directories for caching the videos. You can specify multiple caching directories here separated by ’|’ symbol. Please try
-              to avoid special characters in directory names like spaces, $ etc. For Example : base_dir =  /var/spool/videocache/  |  /video-
+              Base  directories  for caching the videos. You can specify multiple caching directories here separated by ’|’ symbol. Please try
+              to avoid special characters in directory names like spaces, $ etc. For Example : base_dir  =  /var/spool/videocache/  |  /video-
               cache2/stuff-new/|/new_videocache . Default: /var/spool/videocache/.
 
 
        temp_dir
-              Directory  to  store  partially  downloaded videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp,
+              Directory  to  store  partially  downloaded  videos. Directory name is relative to base_dir. E.g. if you specify temp_dir = tmp,
               actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/. Default: tmp.
 
 
        enable_videocache_cleaner
-              Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this
+              Enable the videocache cleaner script which will remove videos from cache which have not been used since long. The value of  this
               option can be 0 or 1. Default: 0
 
 
        video_lifetime
-              The  maximum  life  of  a video in cache without being used. If the video was not accessed for more than ’video_lifetime’ days,
-              it’ll be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove videos  which
+              The  maximum  life  of  a  video in cache without being used. If the video was not accessed for more than ’video_lifetime’ days,
+              it’ll be removed from the cache. The unit of video_lifetime is days. For Example : video_lifetime = 3 will remove  videos  which
               were not used since last 3 or more days. Default: 60
 
 
        max_parallel_downloads
-              The maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default:
+              The  maximum number of parallel downloads allowed. If all connections are consumed, videos will be queued for download. Default:
               30.
 
 
@@ -138,23 +137,23 @@ CONFIGURATION
 
 
        max_logfile_size
-              Maximum size of logfile specified above. The size is in megabytes. Don’t use  max_logfile_size  =  10MB.  Don ’t  append  MB.
+              Maximum size of logfile specified above. The size is in megabytes. Don’t  use  max_logfile_size  =  10MB.  Don ’t  append  MB.
               Default: 10.
 
 
        max_logfile_backups
-              The  logfiles  are  automatically  rotated  once  they have exceeded the max_logfile_size. max_logfile_backups is the number of
-              backup files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2
-              as logfiles. Default: 10.
+              The logfiles are automatically rotated once they have exceeded the max_logfile_size. max_logfile_backups is the number of backup
+              files you want to keep.  e.g. max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as log-
+              files. Default: 10.
 
 
        rpc_host
-              XMLRPCServer  is  used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t
+              XMLRPCServer  is  used  for memory sharing across different instances of videocache. Leave these settings as it is if you don’t
               have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 
        rpc_port
-              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above  1024
+              Please make sure this port is not currently in use. If it is in use by some other program, change this to some port  above  1024
               which is not in use by any other program. Default: 9100.
 
 
@@ -163,7 +162,7 @@ CONFIGURATION
 
 
        youtube_cache_dir
-              Directory  to  cache  youtube  videos. Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube,
+              Directory  to  cache  youtube  videos.  Directory name is relative to base_dir. E.g. if you specify youtube_cache_dir = youtube,
               actual path for caching youtube videos would be /var/spool/videocache/youtube/. Default: youtube.
 
 
