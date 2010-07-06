@@ -26,7 +26,7 @@ To use videocache, you need to configure Proxy Server (squid) and the global vid
 To configure squid to use videocache as a url rewriter program, you need to add the following lines to your squid configuration file (generally found at ///etc/squid/squid.conf//):
 ```
 # --BEGIN-- videocache config for squid
-url_rewrite_program /usr/bin/python /home/saini/timepass/videocache/videocache/videocache.py
+url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
 url_rewrite_children 15
 acl videocache_allow_url url_regex -i \.youtube\.com\/get_video\?
 acl videocache_allow_url url_regex -i \.youtube\.com\/videoplayback \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
