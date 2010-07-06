@@ -841,7 +841,7 @@ def squid_part():
             
             # Break.com Video file caching is handled here.
             if enable_break_cache:
-                if host.find('.break.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4')):
+                if host.find('.break.com') > -1 and (path.find('.flv') > -1 or path.find('.mp4') > -1):
                     type = 'BREAK'
                     try:
                         video_id = path.strip('/').split('/')[-1]
