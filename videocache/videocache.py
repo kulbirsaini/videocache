@@ -13,6 +13,7 @@ from config import readMainConfig, readStartupConfig
 from optparse import OptionParser
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
+import cgi
 import logging
 import logging.handlers
 import os
@@ -28,8 +29,8 @@ import urllib2
 import urlparse
 
 # Parse command line options.
-parser = OptionParser()
-parser.add_option('--config')
+#parser = OptionParser()
+#parser.add_option('--config')
 
 mainconf =  readMainConfig(readStartupConfig('/etc/videocache.conf', '/'))
 
@@ -46,7 +47,8 @@ for dir in base_dir_list:
             base_dir.append((dir_tup[0], int(dir_tup[1])))
     except Exception, e:
         # WTF?? Can't even set cache directories properly
-        pass
+        print >>sys.stderr, 'Videocache: Warning: Could not completely parse cache_dir from videocache.conf.'
+
 temp_dir = mainconf.temp_dir
 disk_avail_threshold = int(mainconf.disk_avail_threshold)
 max_parallel_downloads = int(mainconf.max_parallel_downloads)
@@ -61,19 +63,6 @@ proxy = mainconf.proxy
 proxy_username = mainconf.proxy_username
 proxy_password = mainconf.proxy_password
 
-# Setup proxy
-try:
-    if proxy and proxy_username and proxy_password:
-        proxy_parts = urlparse.urlsplit(proxy)
-        new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
-    else:
-        new_proxy = proxy
-    if new_proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : new_proxy } )))
-    socket.setdefaulttimeout(60)
-except Exception, e:
-    pass
-
 BASE_PLUGIN = 0
 XMLRPC_SERVER = 1
 DOWNLOAD_SCHEDULER = 2
@@ -81,11 +70,29 @@ redirect = '303'
 format = '%s %s %s %s %s %s'
 cache_url = 'http://' + str(cache_host) + '/' 
 std_headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6',
+    'User-Agent': 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.2.8) Gecko/20100723 Firefox/3.6.8',
     'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-    'Accept': 'text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'en-us,en;q=0.5',
 }
+
+# Cookie processor and default socket timeout
+urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor()))
+socket.setdefaulttimeout(60)
+# Setup proxy
+try:
+    new_proxy = None
+    if proxy and proxy_username and proxy_password:
+        proxy_parts = urlparse.urlsplit(proxy)
+        new_proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+    else:
+        new_proxy = proxy
+    if new_proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : new_proxy } )))
+    else:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler()))
+except Exception, e:
+    print >>sys.stderr, 'Videocache: Warning: Could not set proxy.'
 
 def set_globals(type_low):
     enable_cache = int(eval('mainconf.enable_' + type_low + '_cache'))
@@ -320,8 +327,8 @@ def set_logging():
         return logger
     except Exception, e:
         # Logged to squid's cache.log
-        print >>sys.stderr, 'Videocache Error : Could not initialize logging.'
-        print >>sys.stderr, 'Videocache Error : Please check /var/log/videocache/ or cache_dir for ownership and permission problems. '
+        print >>sys.stderr, 'Videocache: Error: Could not initialize logging.'
+        print >>sys.stderr, 'Videocache: Error: Please check /var/log/videocache/ or cache_dir for ownership and permission problems.'
         return None
 
 def get_cache_size(cache_dir):
@@ -388,7 +395,7 @@ def fork(f):
 
     return wrapper
 
-def video_params_all((base_path, base_path_size), video_id, type, url, index = ''):
+def video_params_all((base_path, base_path_size), video_id, type, index = ''):
     if len(base_dir) == 1:
         index = ''
     type_low = type.lower()
@@ -415,6 +422,72 @@ def refine_url(url, arg_drop_list = []):
             continue
     return (urllib.splitquery(url)[0] + '?' + query.rstrip('&')).rstrip('?')
 
+def download_youtube_video(args):
+    [index, client, video_id, path, tmp_cache, type, format_id, mode] = args
+    pid = os.getpid()
+    request = urllib2.Request('http://www.youtube.com/watch?v=%s&gl=US&hl=en' % video_id, None, std_headers)
+    try:
+        webpage = urllib2.urlopen(request).read()
+    except Exception, e:
+        log(format%(pid, client, video_id, 'VIDEO_PAGE_ERR', type, ' Error occured while fetching video webpage. ' + str(e)))
+        return None
+
+    for el in ['&el=embedded', '&el=detailpage', '&el=vevo', '']:
+        info_url = 'http://www.youtube.com/get_video_info?&video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
+        request = urllib2.Request(info_url, None, std_headers)
+        try:
+            info_page = urllib2.urlopen(request).read()
+            info = cgi.parse_qs(info_page)
+            if 'token' in info:
+                break
+        except Exception, e:
+            log(format%(pid, client, video_id, 'VIDEO_INFO_ERR', type, ' Error occured while fetching video info.'))
+            return None
+
+    token = urllib.unquote_plus(info['token'][0])
+    video_url = 'http://www.youtube.com/get_video?video_id=%s&t=%s&eurl=&el=&ps=&asv=&fmt=%s' % (video_id, token, format_id)
+    alternate_ids = []
+    try:
+        if 'fmt_url_map' in info:
+            urls = [ u.split('|')[1] for u in info['fmt_url_map'][0].split(',') ]
+            for url in urls:
+                vid = get_new_video_id(url)
+                if vid and vid not in alternate_ids:
+                    alternate_ids.append(vid)
+    except Exception, e:
+        log(format%(pid, client, video_id, 'ALTERNATE_VIDEO_ID_ERROR', type, ' Error occured while fetching alternate video id. ' + str(e)))
+
+    try:
+        download_path = os.path.join(tmp_cache, os.path.basename(path))
+        if not os.path.exists(path):
+            result = download(video_url, download_path)
+            if result[0]:
+                size = os.path.getsize(download_path)
+                os.rename(download_path, path)
+                os.chmod(path, mode)
+                os.utime(path, None)
+                log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+            else:
+                log(format%(pid, client, video_id, result[1], type, result[2]))
+        else:
+            log(format%(pid, client, video_id, 'VIDEO_EXISTS', type, ' Video already exists.'))
+
+        for vid in alternate_ids:
+            try:
+                (new_path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], vid, type, index)
+                if new_path is not None:
+                    if not os.path.exists(new_path):
+                        os.link(path, new_path)
+                    os.utime(new_path, None)
+            except Exception, e:
+                log(format%(pid, client, video_id, 'ALTERNATE_LINK_ERR', type, str(e)))
+                continue
+        remove(video_id)
+        return True
+    except Exception, e:
+        log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, ' Error while caching video. ' + str(e)))
+    return None
+
 def download_from_source(args):
     """This function downloads the file from remote source and caches it."""
     # The expected mode of the cached file, so that it is readable by apache
@@ -422,7 +495,7 @@ def download_from_source(args):
     mode = 0644
     pid = os.getpid()
     try:
-        [client, urls, video_id, type] = [i for i in args]
+        [client, urls, video_id, type] = args
     except Exception, e:
         log(format%(pid, '-', '-', 'SCHEDULE_ERR', '-', str(e)))
         return
@@ -431,7 +504,7 @@ def download_from_source(args):
     for base_tup in base_dir:
         # Pick up cache directories one by one.
         try:
-            (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, urls, base_dir.index(base_tup))
+            (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_tup, video_id, type, base_dir.index(base_tup))
         except Exception, e:
             log(format%(pid, client, video_id, 'PARAM_ERR', type, str(e)))
             continue
@@ -451,9 +524,10 @@ def download_from_source(args):
             break
 
     if index is not None:
-        (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], video_id, type, urls, index)
+        (path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], video_id, type, index)
     else:
         # No idea what went wrong.
+        print >>sys.stderr, 'Videocache: Warning: Something wrong with cache directories.'
         remove(video_id)
         return
 
@@ -461,79 +535,73 @@ def download_from_source(args):
         original_url = url
         url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
-            try:
-                new_path = new_url = None
-                if type == 'YOUTUBE':
-                    try:
-                        request = urllib2.Request(url, None, std_headers)
-                        url_obj = urllib2.urlopen(request)
-                        url_obj.read(10)
-                        new_url = url_obj.url
-                        url_obj.close()
-                    except urllib2.HTTPError, http_error:
-                        try:
-                            log(format%(pid, client, video_id, 'ALTERNATE_URL_OPEN_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the alternate video id.  ' + url))
-                        except:
-                            log(format%(pid, client, video_id, 'ALTERNATE_URL_OPEN_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the alternate video id.  ' + url))
-                    except Exception, e:
-                        log(format%(pid, client, video_id, 'ALTERNATE_URL_ERR', type, str(e)))
-                    if new_url is not None and url != new_url:
-                        new_video_id = get_new_video_id(new_url)
-                        (new_path, max_size, min_size, cache_size, cache_dir, tmp_cache) = video_params_all(base_dir[index], new_video_id, type, urls, index)
-                        if os.path.exists(new_path):
-                            os.link(new_path, path)
-                            os.utime(path, None)
-                            os.utime(new_path, None)
-                            log(format%(pid, client, video_id, 'DOWNLOAD_LINK', type, ' Video was linked to another cached video.'))
-                            remove(video_id)
-                            return
-            except Exception, e:
-                log(format%(pid, client, video_id, 'ALTERNATE_PATH_ERR', type, str(e)))
-            download_path = os.path.join(tmp_cache, os.path.basename(path))
-            request = urllib2.Request(url, None, std_headers)
-            connection = urllib2.urlopen(request)
-            try:
-                file = None
-                while True:
-                    block = connection.read(8192)
-                    if len(block) == 0:
-                        break
-                    if not file:
-                        file = open(download_path, 'wb')
-                    file.write(block)
-                if file:
-                    file.close()
-            except urllib2.HTTPError, http_error:
-                if urls.index(original_url) == len(urls) - 1:
-                    remove(video_id)
-                try:
-                    log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error.code) + ' : An error occured while retrieving the video.  '  + url))
-                except:
-                    log(format%(pid, client, video_id, 'DOWNLOAD_HTTP_ERR', type, 'HTTP ERROR : ' + str(http_error) + ' : An error occured while retrieving the video.  '  + url))
-            except Exception, e:
-                log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, str(e)))
-
-            if file:
-                size = os.path.getsize(file.name)
-                os.rename(file.name, path)
-                os.chmod(path, mode)
-                os.utime(path, None)
-                try:
-                    if new_path is not None:
-                        if not os.path.exists(new_path):
-                            os.link(path, new_path)
-                        os.utime(new_path, None)
-                except Exception, e:
-                    log(format%(pid, client, video_id, 'ALTERNATE_LINK_ERR', type, str(e)))
-                log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+            if type == 'YOUTUBE':
+                format_id = get_youtube_video_format(url)
+                return download_youtube_video([index, client, video_id, path, tmp_cache, type, format_id, mode])
+            if not os.path.exists(path):
+                download_path = os.path.join(tmp_cache, os.path.basename(path))
+                result = download(url, download_path)
+                if result[0]:
+                    size = os.path.getsize(download_path)
+                    os.rename(download_path, path)
+                    os.chmod(path, mode)
+                    os.utime(path, None)
+                    log(format%(pid, client, video_id, 'DOWNLOAD', type, str(size) + ' Video was downloaded and cached.'))
+                else:
+                    log(format%(pid, client, video_id, result[1], type, result[2]))
+            else:
+                log(format%(pid, client, video_id, 'VIDEO_EXISTS', type, ' Video already exists.'))
             remove(video_id)
             return
         except Exception, e:
             if urls.index(original_url) == len(urls) - 1:
                 remove(video_id)
             log(format%(pid, client, video_id, 'DOWNLOAD_ERR', type, str(e)))
-
     return
+
+def download(remote_url, target_file):
+    request = urllib2.Request(remote_url, None, std_headers)
+    connection = urllib2.urlopen(request)
+    try:
+        file = None
+        while True:
+            block = connection.read(8192)
+            if len(block) == 0:
+                break
+            if not file:
+                file = open(target_file, 'wb')
+            file.write(block)
+        if file:
+            file.close()
+    except urllib2.HTTPError, e:
+        try:
+            return [None, 'DOWNLOAD_HTTP_ERR', 'HTTP ERROR : ' + str(e.code) + ' : An error occured while retrieving the video.  '  + remote_url ]
+        except:
+            return [None, 'DOWNLOAD_HTTP_ERR', 'HTTP ERROR : ' + str(e) + ' : An error occured while retrieving the video.  '  + remote_url ]
+    except Exception, e:
+        return [None, 'DOWNLOAD_ERR', str(e)]
+    return [True, None, None]
+
+def get_youtube_video_format(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, params] = [fragments[1], fragments[2], fragments[3]]
+
+    arglist = params.split('&')
+    dict = {}
+    for arg in arglist:
+        try:
+            dict[arg.split('=')[0]] = arg.split('=')[1]
+        except Exception, e:
+            continue
+    if dict.has_key('fmt'):
+        format_id = dict['fmt']
+    elif dict.has_key('itag'):
+        format_id = dict['itag']
+    else:
+        format_id = 34
+    return format_id
+
 
 def get_new_video_id(url):
     """Youtube Specific"""
@@ -590,6 +658,9 @@ def cache_video(client, url, type, video_id, cache_check_only = False):
             log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
             os.utime(path, None)
             url = os.path.join(cached_url, video_id) + '?' + params
+            if type == 'YOUTUBE' and not cache_check_only:
+                forked = fork(queue)
+                forked(video_id, [client, [url], video_id, type])
             return redirect + ':' + refine_url(url, ['noflv'])
   
     if not cache_check_only:
@@ -874,7 +945,6 @@ def start_xmlrpc_server():
     except Exception, e:
         #log(format%(pid, '-', '-', 'START_XMLRPC_SERVER_ERR', '-', 'Cannot start XMLRPC Server - Exiting'))
         os.kill(pid, 1)
-        pass
 
 def update_cache_size():
     """Calculates the size of cache directories and informs the XMLRPC server."""
@@ -953,4 +1023,6 @@ if __name__ == '__main__':
             thread_xmlrpc.join()
             thread_download_scheduler.join()
             thread_base_plugin.join()
+    else:
+        print >>sys.stderr, 'Videocache: Error: Logging facility is not available.'
 
