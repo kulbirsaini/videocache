@@ -14,6 +14,7 @@ from optparse import OptionParser
 from xmlrpclib import ServerProxy
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 import cgi
+import cookielib
 import logging
 import logging.handlers
 import os
@@ -77,8 +78,10 @@ std_headers = {
 }
 
 # Cookie processor and default socket timeout
-urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor()))
-socket.setdefaulttimeout(60)
+cj = cookielib.CookieJar()
+urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
+socket.setdefaulttimeout(30)
+
 # Setup proxy
 try:
     new_proxy = None
@@ -432,30 +435,35 @@ def download_youtube_video(args):
         log(format%(pid, client, video_id, 'VIDEO_PAGE_ERR', type, ' Error occured while fetching video webpage. ' + str(e)))
         return None
 
-    for el in ['&el=embedded', '&el=detailpage', '&el=vevo', '']:
+    for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
         info_url = 'http://www.youtube.com/get_video_info?&video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
         request = urllib2.Request(info_url, None, std_headers)
         try:
             info_page = urllib2.urlopen(request).read()
             info = cgi.parse_qs(info_page)
-            if 'token' in info:
+            if 'fmt_url_map' in info:
                 break
         except Exception, e:
             log(format%(pid, client, video_id, 'VIDEO_INFO_ERR', type, ' Error occured while fetching video info.'))
             return None
 
-    token = urllib.unquote_plus(info['token'][0])
-    video_url = 'http://www.youtube.com/get_video?video_id=%s&t=%s&eurl=&el=&ps=&asv=&fmt=%s' % (video_id, token, format_id)
     alternate_ids = []
+    video_url = None
     try:
         if 'fmt_url_map' in info:
             urls = [ u.split('|')[1] for u in info['fmt_url_map'][0].split(',') ]
+            video_url = urls[0]
             for url in urls:
                 vid = get_new_video_id(url)
                 if vid and vid not in alternate_ids:
                     alternate_ids.append(vid)
     except Exception, e:
         log(format%(pid, client, video_id, 'ALTERNATE_VIDEO_ID_ERROR', type, ' Error occured while fetching alternate video id. ' + str(e)))
+
+
+    if not video_url:
+        log(format%(pid, client, video_id, 'VIDEO_URL_ERR', type, ' Error occured while determining video URL.'))
+        return
 
     try:
         download_path = os.path.join(tmp_cache, os.path.basename(path))
