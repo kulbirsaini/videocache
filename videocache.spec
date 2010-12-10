@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.9.6
+Version:    1.9.7
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    Videocache Commercial License
