@@ -80,7 +80,7 @@ std_headers = {
 # Cookie processor and default socket timeout
 cj = cookielib.CookieJar()
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
-socket.setdefaulttimeout(30)
+socket.setdefaulttimeout(120)
 
 # Setup proxy
 try:
