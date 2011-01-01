@@ -666,9 +666,6 @@ def cache_video(client, url, type, video_id, cache_check_only = False):
             log(format%(pid, client, video_id, 'CACHE_HIT', type, 'Video was served from cache.'))
             os.utime(path, None)
             url = os.path.join(cached_url, video_id) + '?' + params
-            if type == 'YOUTUBE' and not cache_check_only:
-                forked = fork(queue)
-                forked(video_id, [client, [url], video_id, type])
             return redirect + ':' + refine_url(url, ['noflv'])
   
     if not cache_check_only:
