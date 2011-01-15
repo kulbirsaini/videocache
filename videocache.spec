@@ -1,7 +1,7 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.9.4
+Version:    1.9.7
 Release:    1
 Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
 License:    Videocache Commercial License
@@ -11,7 +11,6 @@ Source:     %{name}-%{version}.tar.gz
 Buildroot:  %{_tmppath}/%{name}-%{version}-root 
 BuildArch:  noarch
 Requires:   python
-Requires:   python-urlgrabber
 Requires:   python-iniparse
 Requires:   squid
 Requires:   httpd
@@ -99,17 +98,17 @@ if [[ -d %{prefix}/var/spool/videocache/ ]]; then
   chmod 755 %{prefix}/var/spool/videocache/
   chmod 755 %{prefix}/var/spool/videocache/*
 fi
-echo "You need to modify /etc/videocache.conf to make caching work properly."
+echo "You need to modify /etc/videocache.conf to make videocache work properly."
 echo "Also you need to configure squid. Check videocache manpage for more details."
-echo "Check http://cachevideos.com/ in case of any problems."
+echo "Please visit http://cachevideos.com/ in case of any problems."
 
 %preun
 if [[ -d %{prefix}/var/spool/videocache ]];then
-  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache1
+  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache12345
 fi
 
 %postun
 if [[ -d %{prefix}/var/spool/videocache1 ]]; then
-  mv %{prefix}/var/spool/videocache1 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
+  mv %{prefix}/var/spool/videocache12345 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
 fi
 
