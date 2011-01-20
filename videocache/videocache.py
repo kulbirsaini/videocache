@@ -59,11 +59,12 @@ def sync_video_info():
             if videos:
                 num_tries = 0
                 while videos and num_tries < 5:
-                    if video_pool.ping():
+                    try:
+                        video_pool.ping()
                         if submit_videos(videos):
                             videos = {}
                             break
-                    else:
+                    except Exception, e:
                         connection()
 
                     for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):

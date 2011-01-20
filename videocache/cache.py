@@ -16,6 +16,7 @@ import cookielib
 import os
 import socket
 import sys
+import time
 import traceback
 import urllib2
 import urlparse
@@ -24,6 +25,10 @@ import urlparse
 cj = cookielib.CookieJar()
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
 socket.setdefaulttimeout(120)
+
+def cache(params):
+    syslog_msg('Cache thread was called indeed!!! ' + str(params))
+    time.sleep(20)
 
 def video_params_all((base_path, base_path_size), video_id, type, index = ''):
     if len(base_dir) == 1:

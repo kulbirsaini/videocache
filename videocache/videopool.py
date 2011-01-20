@@ -57,9 +57,8 @@ class VideoPool:
     """
     scores = {}
     queue = {}
-    active = []
+    active = {}
     time_threshold = 15
-    scheduler = None
 
     def __init__(self):
         pass
@@ -68,7 +67,7 @@ class VideoPool:
         return True
 
     def get_active_videos(self):
-        return self.active
+        return self.active.keys()
 
     def get_video_scores(self):
         return self.scores
@@ -173,44 +172,57 @@ class VideoPool:
         """Flush the queue and reinitialize everything."""
         self.queue = {}
         self.scores = {}
-        self.active = []
+        self.active = {}
+        return True
+
+    def start_cache_thread(self, video_id, params):
+        """Start a new thread which will cache the vdieo"""
+        new_thread = threading.Thread(target = cache, name = str(video_id), kwargs = { 'params' : params })
+        self.set_score(video_id, 0)
+        self.add_conn(video_id, new_thread)
+        new_thread.start()
+        info( { 'code' : CACHE_THREAD_START, 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'message' : 'Starting cache thread.' } )
+        return True
+
+    def clean_threads(self):
+        """Cleanup threads which have exitted."""
+        for (video_id, thread) in self.active.items():
+            try:
+                if not thread.isAlive():
+                    self.remove(video_id)
+                    info( { 'code' : CACHE_THREAD_REMOVE, 'video_id' : video_id, 'message' : 'Cache thread completed. Removing from active list.' } )
+            except Exception, e:
+                error( { 'code' : CACHE_THREAD_REMOVE_ERR, 'message' : 'Unable to remove cache thread from thread list', 'debug' : str(e), 'video_id' : video_id } )
+                trace( { 'code' : CACHE_THREAD_REMOVE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id } )
         return True
 
     def schedule(self):
         """Returns the parameters for a video to be downloaded from remote."""
         try:
-            if self.get_conn_number() < self.o.max_cache_processes:
+            self.clean_threads()
+            if self.get_conn_number() < o.max_cache_processes:
                 video_id = self.get_popular()
-                if video_id != False and self.is_active(video_id) == False and self.get_score(video_id) >= self.o.hit_threshold:
+                if video_id != False and self.is_active(video_id) == False and self.get_score(video_id) >= o.hit_threshold:
                     params = self.get_details(video_id)
                     if params != False:
-                        self.set_score(video_id, 0)
-                        self.add_conn(video_id)
-                        return params
+                        self.start_cache_thread(video_id, params)
+                        return True
                 elif self.is_active(video_id) == True:
                     self.set_score(video_id, 0)
                     return False
-                else:
-                    return False
-            else:
-                return False
         except Exception, e:
-            pass
-        return True
-
-    def set_scheduler(self, pid):
-        if self.scheduler is None:
-            self.scheduler = pid
-            return True
+            error( { 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not find out the next video to schedule.', 'debug' : str(e) } )
+            trace( { 'code' : VIDEO_SCHEDULE_ERR, 'message' : traceback.format_exc() } )
+            return False
         return False
 
     # Functions related download scheduling.
     # Have to mess up things in single class because python
     # RPCServer doesn't allow to register multiple instances.
-    def add_conn(self, video_id):
+    def add_conn(self, video_id, thread):
         """Add video_id to active connections list."""
         if video_id not in self.active:
-            self.active.append(video_id)
+            self.active[video_id] = thread
         return True
 
     def get_conn_number(self):
@@ -224,7 +236,7 @@ class VideoPool:
     def remove_conn(self, video_id):
         """Remove video_id from active connections list."""
         if video_id in self.active:
-            self.active.remove(video_id)
+            self.active.pop(video_id)
         return True
 
 class VideoPoolRPCServer(SimpleXMLRPCServer):
@@ -263,10 +275,26 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
 #            trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
 #            sys.stdout.write(traceback.format_exc())
 
-def test_func():
+def cache_thread_scheduler():
+    info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
+    connection()
     while True:
-        info( { 'code' : 'In test thread. LOL' } )
-        time.sleep(3)
+        try:
+            num_tries = 0
+            while num_tries < 5:
+                try:
+                    video_pool.schedule()
+                    break
+                except Exception, e:
+                    connection()
+                num_tries += 1
+                time.sleep(min(2 ** num_tries, 10))
+            else:
+                warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+        except Exception, e:
+            warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
+            trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
+        time.sleep(5)
 
 class VideoPoolDaemon(VideocacheDaemon):
 
@@ -284,7 +312,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(self.o.rpc_port) + '.' } )
 
             server_thread = threading.Thread(target = server.serve_forever)
-            cache_thread = threading.Thread(target = test_func)
+            cache_thread = threading.Thread(target = cache_thread_scheduler)
             server_thread.start()
             cache_thread.start()
             server_thread.join()
@@ -327,6 +355,10 @@ if __name__ == '__main__':
             sys.exit(1)
 
         daemon = VideoPoolDaemon(o, uid = uid)
+
+        video_pool = None
+        exit = False
+
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
