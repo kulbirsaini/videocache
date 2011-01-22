@@ -90,7 +90,7 @@ class VideocacheConf:
     proxy_username = Option()
     proxy_password = Option()
 
-    # Youtube.com Specific Options
+    # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)
     youtube_cache_dir = Option('youtube')
 
@@ -101,10 +101,6 @@ class VideocacheConf:
     # Dailymotion.com Specific Options
     enable_dailymotion_cache = Option(1)
     dailymotion_cache_dir = Option('dailymotion')
-
-    # Google.com Specific Options
-    enable_google_cache = Option(1)
-    google_cache_dir = Option('google')
 
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
@@ -126,17 +122,13 @@ class VideocacheConf:
     enable_youporn_cache = Option(1)
     youporn_cache_dir = Option('youporn')
 
-    # Soapbox.msn.com Specific Options
-    enable_soapbox_cache = Option(1)
-    soapbox_cache_dir = Option('soapbox')
+    # Bing.com Specific Options
+    enable_bing_cache = Option(1)
+    bing_cache_dir = Option('bing')
 
     # Tube8.com Specific Options
     enable_tube8_cache = Option(1)
     tube8_cache_dir = Option('tube8')
-
-    # Tvuol.uol.com.br Specific Options
-    enable_tvuol_cache = Option(1)
-    tvuol_cache_dir = Option('tvuol')
 
     # Blip.tv Specific Options
     enable_bliptv_cache = Option(1)

@@ -26,7 +26,7 @@ class VideocacheOptions:
     def __init__(self, config_file = '/etc/videocache.conf', root = '/'):
         self.config_file = config_file
         self.root = root
-        self.websites = ['youtube', 'metacafe', 'dailymotion', 'google', 'redtube', 'xtube', 'vimeo', 'wrzuta', 'youporn', 'soapbox', 'tube8', 'tvuol', 'bliptv', 'break']
+        self.websites = ['youtube', 'metacafe', 'dailymotion', 'redtube', 'xtube', 'vimeo', 'wrzuta', 'youporn', 'bing', 'tube8', 'bliptv', 'break']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
         return self.initialize()
@@ -99,6 +99,7 @@ class VideocacheOptions:
             base_dirs = {}
             for website_id in self.websites:
                 base_dirs[website_id] = [os.path.join(dir, eval('self.__class__.' + website_id + '_cache_dir')) for dir in base_dir_list]
+            base_dirs['tmp'] = [os.path.join(dir, self.__class__.temp_dir) for dir in base_dir_list]
             self.__class__.base_dirs = base_dirs
         except Exception, e:
             syslog_msg('Could not build a list of cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
