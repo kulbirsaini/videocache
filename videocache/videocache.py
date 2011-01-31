@@ -94,20 +94,10 @@ def submit_videos(videos):
         trace({ 'code' : VIDEO_SUBMIT_ERR, 'message' : traceback.format_exc() })
     return False
 
-#def connection():
-#    global video_pool
-#    try:
-#        c = rpyc.connect(str(o.rpc_host), int(o.rpc_port))
-#        video_pool = c.root
-#        info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
-#    except Exception, e:
-#        error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server.', 'debug' : str(e)})
-#        trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
-
 def connection():
     global video_pool
     try:
-        video_pool = ServerProxy('http://' + o.rpc_host + ':' + str(o.rpc_port))
+        video_pool = ServerProxy(o.rpc_url)
         info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
     except Exception, e:
         error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server.', 'debug' : str(e)})
@@ -145,8 +135,8 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Video was served from cache using the URL ' + new_url } )
                 return new_url
     except Exception, e:
-        warn( { 'code' : VIDEO_SEARCH_WARN, 'message' : 'Could not search video in local cache.', 'debug' : str(e) } )
-        trace( { 'code' : VIDEO_SEARCH_WARN, 'message' : traceback.format_exc() } )
+        warn( { 'code' : VIDEO_SEARCH_WARN, 'message' : 'Could not search video in local cache.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+        trace( { 'code' : VIDEO_SEARCH_WARN, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
     info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
     if not cache_check_only:
@@ -164,7 +154,6 @@ def squid_part():
     while input:
         new_url = ''
         skip = False
-        info( { 'code' : 'GOT_INPUT', 'message' : input } )
         try:
             # Read url from stdin (this is provided by squid)
             fields = input.strip().split(' ')
@@ -378,21 +367,6 @@ def squid_part():
 
                     if video_id is not None:
                         new_url = cache_video(client_ip, website_id, url, video_id)
-
-            # Tvuol.uol.com.br Video file caching is handled here.
-            #if not matched and o.enable_tvuol_cache:
-            #    if host.find('mais.uol.com.br') > -1 and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-            #        website_id = 'tvuol'
-            #        matched = True
-            #        try:
-            #            video_id = path.strip('/').split('/')[-1]
-            #        except Exception, e:
-            #            video_id = None
-            #            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-            #            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-
-            #        if video_id is not None:
-            #            new_url = cache_video(client_ip, website_id, url, video_id)
 
             # Blip.tv Video file caching is handled here.
             if not matched and o.enable_bliptv_cache:

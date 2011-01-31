@@ -3,7 +3,7 @@
 Name:       videocache
 Version:    1.9.8
 Release:    1
-Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV, Break.com and Wrzuta.pl videos.
+Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, Blip TV, Break.com and Wrzuta.pl videos.
 License:    Videocache Commercial License
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -16,7 +16,7 @@ Requires:   squid
 Requires:   httpd
 
 %description
-Videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
+Videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
 
 %prep
 %setup -n %{name}-%{version}
@@ -48,7 +48,6 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youporn/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bing/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tube8/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tvuol/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/break/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tmp/

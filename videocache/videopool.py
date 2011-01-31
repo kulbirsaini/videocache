@@ -19,6 +19,7 @@ from xmlrpclib import ServerProxy
 
 import cookielib
 import logging
+import pickle
 import pwd
 import socket
 import statvfs
@@ -53,7 +54,7 @@ def trace(params = {}):
 def connection():
     global video_pool
     try:
-        video_pool = ServerProxy('http://' + o.rpc_host + ':' + str(o.rpc_port))
+        video_pool = ServerProxy(o.rpc_url)
         info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
     except Exception, e:
         error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server.', 'debug' : str(e)})
@@ -68,11 +69,42 @@ class VideoPool:
     queue = {}
     active = {}
     time_threshold = 15
+    last_dump = 0
+    dump_threshold = 120
 
     def __init__(self):
         pass
 
     def ping(self):
+        return True
+
+    def load_queue(self):
+        for dir in o.base_dir_list:
+            queue_file = os.path.join(dir, o.queue_dump_file)
+            if os.path.isfile(queue_file):
+                try:
+                    [scores, queue] = pickle.load(file(queue_file, 'r'))
+                    self.scores = scores
+                    self.queue = queue
+                    for (video_id, score) in self.scores.items():
+                        if score == 0:
+                            self.scores[video_id] = 5
+                    return True
+                except Exception, e:
+                    warn( { 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file + '.', 'debug' : str(e) } )
+                    trace( { 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() } )
+        return False
+
+    def dump_queue(self, now = False):
+        if now or int(time.time() - self.last_dump) > self.dump_threshold:
+            self.last_dump = time.time()
+            for dir in o.base_dir_list:
+                queue_file = os.path.join(dir, o.queue_dump_file)
+                try:
+                    pickle.dump([self.scores, self.queue], file(queue_file, 'w'))
+                except Exception, e:
+                    warn( { 'code' : QUEUE_DUMP_WARN, 'message' : 'Unable to dump video queue to dump file at ' + queue_file + '.', 'debug' : str(e) } )
+                    trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
         return True
 
     def get_active_videos(self):
@@ -190,7 +222,7 @@ class VideoPool:
         self.set_score(video_id, 0)
         self.add_conn(video_id, new_thread)
         new_thread.start()
-        info( { 'code' : CACHE_THREAD_START, 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'message' : 'Starting cache thread.' } )
+        info( { 'code' : CACHE_THREAD_START, 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'client_ip' : params['client_ip'], 'message' : 'Starting cache thread.' } )
         return True
 
     def clean_threads(self):
@@ -209,6 +241,7 @@ class VideoPool:
         """Returns the parameters for a video to be downloaded from remote."""
         try:
             self.clean_threads()
+            self.dump_queue()
             if o.offline_mode:
                 return False
             if self.get_conn_number() < o.max_cache_processes:
@@ -269,23 +302,6 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
         while not self.finished:
             self.handle_request()
 
-#class VideoPoolDaemon(VideocacheDaemon):
-#
-#    def __init__(self, o = None, **kwargs):
-#        self.o = o
-#        VideocacheDaemon.__init__(self, o.scheduler_pidfile, **kwargs)
-#
-#    def run(self):
-#        try:
-#            self.o.set_loggers()
-#            server = ThreadedServer(VideoPool, hostname = self.o.rpc_host, port = self.o.rpc_port)
-#            info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(self.o.rpc_port) + '.' } )
-#            server.start()
-#        except Exception, e:
-#            error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
-#            trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
-#            sys.stdout.write(traceback.format_exc())
-
 def cache(params):
     """This function caches the remote file."""
     client_ip = params.get('client_ip', '-')
@@ -328,8 +344,6 @@ def cache(params):
         trace( {'code' : CACHE_THREAD_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip} )
 
 def cache_remote_url(remote_url, target_file, params = {}):
-    info( { 'code' : 'REMOTE_URL_DEBUGGING', 'message' : remote_url } )
-
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -534,6 +548,17 @@ def cache_thread_scheduler():
     connection()
     while True:
         try:
+            video_pool.load_queue()
+            info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
+            break
+        except Exception, e:
+            warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
+            trace({ 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() })
+            time.sleep(5)
+            connection()
+
+    while True:
+        try:
             if not o.offline_mode:
                 num_tries = 0
                 while num_tries < 5:
@@ -585,7 +610,7 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
-    parser.add_option('-s', '--signal', dest = 'sig', type='string', help = 'Send one of the following signals. start, stop, restart, reload, kill')
+    parser.add_option('-s', '--signal', dest = 'sig', type='string', help = 'Send one of the following signals. start, stop, restart, kill')
     options, args = parser.parse_args()
 
     if options.sig:
@@ -623,8 +648,6 @@ if __name__ == '__main__':
             daemon.stop()
         elif options.sig == 'restart':
             daemon.restart()
-        elif options.sig == 'reload':
-            daemon.reload()
         elif options.sig == 'kill':
             daemon.kill()
         else:

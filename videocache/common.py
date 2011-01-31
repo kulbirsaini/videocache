@@ -76,7 +76,6 @@ def proc_test(pid):
 
 def is_running(pid):
     import sys
-    import os
     import errno
 
     try:

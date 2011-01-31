@@ -49,6 +49,8 @@ class VideocacheConf:
     will not be available in Options class.
     """
 
+    # Options not in config file
+    queue_dump_file = Option('videocache.queue')
     # Global Options
     # General
     enable_videocache = Option(1)

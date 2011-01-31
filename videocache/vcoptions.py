@@ -42,6 +42,8 @@ class VideocacheOptions:
             return None
 
         try:
+            # Options not in configuration file
+            self.__class__.queue_dump_file = mainconf.queue_dump_file
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
             self.__class__.enable_videocache_cleaner = int(mainconf.enable_videocache_cleaner)
@@ -55,7 +57,7 @@ class VideocacheOptions:
             self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
 
             # Filesystem
-            base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
+            self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
             self.__class__.temp_dir = mainconf.temp_dir
             self.__class__.disk_avail_threshold = int(mainconf.disk_avail_threshold)
 
@@ -99,8 +101,8 @@ class VideocacheOptions:
         try:
             base_dirs = {}
             for website_id in self.websites:
-                base_dirs[website_id] = [os.path.join(dir, eval('self.__class__.' + website_id + '_cache_dir')) for dir in base_dir_list]
-            base_dirs['tmp'] = [os.path.join(dir, self.__class__.temp_dir) for dir in base_dir_list]
+                base_dirs[website_id] = [os.path.join(dir, eval('self.__class__.' + website_id + '_cache_dir')) for dir in self.__class__.base_dir_list]
+            base_dirs['tmp'] = [os.path.join(dir, self.__class__.temp_dir) for dir in self.__class__.base_dir_list]
             self.__class__.base_dirs = base_dirs
         except Exception, e:
             syslog_msg('Could not build a list of cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
@@ -110,6 +112,12 @@ class VideocacheOptions:
             self.__class__.cache_url = 'http://' + str(self.__class__.cache_host) + '/'
         except Exception, e:
             syslog_msg('Could not generate Cache URL for serving videos from cache. Debug: ' + traceback.format_exc().replace('\n', ''))
+            return None
+
+        try:
+            self.__class__.rpc_url = 'http://' + self.__class__.rpc_host + ':' + str(self.__class__.rpc_port)
+        except Exception, e:
+            syslog_msg('Could not generate RPC URL for XMLRPC communication. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         try:
