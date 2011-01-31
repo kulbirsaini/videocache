@@ -41,8 +41,8 @@ def warn(params = {}):
     o.vc_logger.debug(build_message(params))
 
 def trace(params = {}):
-    params.update({ 'trace_logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
-    o.trace_logger.info(build_trace(params))
+    params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
+    o.trace_logger.info(build_message(params))
 
 def sync_video_info():
     global local_video_pool

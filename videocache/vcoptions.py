@@ -67,6 +67,7 @@ class VideocacheOptions:
             self.__class__.max_tracefile_size = int(mainconf.max_tracefile_size) * 1024 * 1024
             self.__class__.max_tracefile_backups = int(mainconf.max_tracefile_backups)
             self.__class__.logformat = mainconf.logformat
+            self.__class__.scheduler_logformat = mainconf.scheduler_logformat
             self.__class__.timeformat = mainconf.timeformat
             self.__class__.scheduler_logfile = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
             self.__class__.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
@@ -140,6 +141,7 @@ class VideocacheOptions:
         try:
             for key in self.format_map:
                 self.__class__.logformat = self.__class__.logformat.replace(key, self.format_map[key])
+                self.__class__.scheduler_logformat = self.__class__.scheduler_logformat.replace(key, self.format_map[key])
             # Main Log file
             self.__class__.vc_logger = logging.Logger('VideocacheLog')
             self.__class__.vc_logger.setLevel(logging.DEBUG)

@@ -76,6 +76,7 @@ class VideocacheConf:
     max_tracefile_size = Option(10)
     max_tracefile_backups = Option(1)
     logformat = Option('%tl %p %s %i %w %c %v %m %d')
+    scheduler_logformat = Option('%tl %p %s %i %w %c %v %m %d')
     timeformat = Option('%d/%b/%Y:%H:%M:%S')
     scheduler_logfile = Option('scheduler.log')
     max_scheduler_logfile_size = Option(10)

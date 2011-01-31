@@ -35,20 +35,20 @@ urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
 socket.setdefaulttimeout(90)
 
 def info(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id })
+    params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id })
     o.vcs_logger.info(build_message(params))
 
 def error(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id })
+    params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id })
     o.vcs_logger.error(build_message(params))
 
 def warn(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id })
+    params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id })
     o.vcs_logger.debug(build_message(params))
 
 def trace(params = {}):
-    params.update({ 'trace_logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
-    o.trace_logger.info(build_trace(params))
+    params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
+    o.trace_logger.info(build_message(params))
 
 def connection():
     global video_pool

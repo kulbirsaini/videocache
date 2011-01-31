@@ -1,9 +1,9 @@
 %define prefix	/
 
 Name:       videocache
-Version:    1.9.7
+Version:    1.9.8
 Release:    1
-Summary:    videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV and Break.com Videos and Wrzuta.pl audio.
+Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Metacafe, Dailymotion, Google, Vimeo, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, TV UOL(BR), Blip TV, Break.com and Wrzuta.pl videos.
 License:    Videocache Commercial License
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -16,7 +16,7 @@ Requires:   squid
 Requires:   httpd
 
 %description
-videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv and break.com videos and wrzuta.pl audio caching. It can cache videos from various websites in a separate directory (other than squid cache) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and loading time.
+Videocache is a squid url rewriter plugin written in Python to facilitate youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, tvuol.uol.com.br, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
 
 %prep
 %setup -n %{name}-%{version}
@@ -25,21 +25,7 @@ videocache is a squid url rewriter plugin written in Python to facilitate youtub
 echo "No building... its python..." > /dev/null
 
 %pre
-# Migrate old caching directories to new one.
-if [[ -d %{prefix}/var/spool/squid/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
-  mv %{prefix}/var/spool/squid/video_cache %{prefix}/var/spool/videocache
-  chown squid:squid %{prefix}/var/spool/videocache
-  chown squid:squid %{prefix}/var/spool/videocache/*
-  chmod 755 %{prefix}/var/spool/videocache
-  chmod 755 %{prefix}/var/spool/videocache/*
-fi
-if [[ -d %{prefix}/var/spool/video_cache ]] && ! ([[ -d %{prefix}/var/spool/videocache ]]); then
-  mv %{prefix}/var/spool/video_cache %{prefix}/var/spool/videocache
-  chown squid:squid %{prefix}/var/spool/videocache
-  chown squid:squid %{prefix}/var/spool/videocache/*
-  chmod 755 %{prefix}/var/spool/videocache
-  chmod 755 %{prefix}/var/spool/videocache/*
-fi
+echo "That's way too old :)" > /dev/null
 
 %install
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
@@ -49,18 +35,18 @@ install -m 755 -d ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/
 install -m 755 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/
 install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/
+install -m 744 -d ${RPM_BUILD_ROOT}%{prefix}/var/run/
 install -m 744 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/metacafe/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/dailymotion/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/google/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/vimeo/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/redtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/wrzuta/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youporn/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/soapbox/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bing/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tube8/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tvuol/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
@@ -70,8 +56,8 @@ install -m 644 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/videocache.conf
 install -m 644 videocache-httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/videocache.conf
 install -m 644 videocache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/videocache.8.gz
-install -m 744 update-vc -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/update-vc
-install -m 744 scripts/vccleaner -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vccleaner
+install -m 744 vc-update -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vc-update
+install -m 744 scripts/vc-cleaner -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vc-cleaner
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 
 %clean
@@ -82,10 +68,11 @@ touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 %{prefix}/etc/httpd/conf.d/videocache.conf
 %{prefix}/usr/share/videocache/
 %{prefix}/usr/share/man/man8/videocache.8.gz
-%{prefix}/usr/sbin/update-vc
-%{prefix}/usr/sbin/vccleaner
+%{prefix}/usr/sbin/vc-update
+%{prefix}/usr/sbin/vc-cleaner
 %{prefix}/var/log/videocache/
 %{prefix}/var/spool/videocache/
+%{prefix}/var/run/videocache.pid
 
 %post
 if [[ -d %{prefix}/var/log/videocache/ ]]; then
@@ -104,11 +91,11 @@ echo "Please visit http://cachevideos.com/ in case of any problems."
 
 %preun
 if [[ -d %{prefix}/var/spool/videocache ]];then
-  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache12345
+  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache801c03efe2a34699cb782c4bc4ff3a11
 fi
 
 %postun
 if [[ -d %{prefix}/var/spool/videocache1 ]]; then
-  mv %{prefix}/var/spool/videocache12345 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
+  mv %{prefix}/var/spool/videocache801c03efe2a34699cb782c4bc4ff3a11 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
 fi
 

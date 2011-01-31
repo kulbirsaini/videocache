@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
 #
-# (C) Copyright 2008-2010 Kulbir Saini <saini@saini.co.in>
-# (C) Copyright 2008-2010 Videocache Pvt Ltd.
+# (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
 #
 # For more information check http://cachevideos.com/
 #
 
-__author__ = """Kulbir Saini <kulbirsaini@students.iiit.ac.in>"""
+__author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 CACHE_URL_ERR = 'CACHE_URL_ERR'
@@ -70,3 +69,4 @@ VIDEO_SIZE_NOT_SUPPLIED = 'VIDEO_SIZE_NOT_SUPPLIED'
 VIDEO_TOO_LARGE = 'VIDEO_TOO_LARGE'
 VIDEO_TOO_SMALL = 'VIDEO_TOO_SMALL'
 CONNECTION_INFO_ERR = 'CONNECTION_INFO_ERR'
+
