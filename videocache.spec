@@ -51,12 +51,10 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/break/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tmp/
-install -m 644 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
+install -m 744 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/videocache.conf
 install -m 644 videocache-httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/videocache.conf
 install -m 644 videocache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/videocache.8.gz
-install -m 744 vc-update -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vc-update
-install -m 744 scripts/vc-cleaner -T ${RPM_BUILD_ROOT}%{prefix}/usr/sbin/vc-cleaner
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 
 %clean
@@ -69,11 +67,21 @@ touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
 %{prefix}/usr/share/man/man8/videocache.8.gz
 %{prefix}/usr/sbin/vc-update
 %{prefix}/usr/sbin/vc-cleaner
+%{prefix}/usr/sbin/vc-scheduler
 %{prefix}/var/log/videocache/
 %{prefix}/var/spool/videocache/
 %{prefix}/var/run/videocache.pid
 
 %post
+if [[ -f %{prefix}/usr/share/videocache/vc-update ]]; then
+  ln -s %{prefix}/usr/share/videocache/vc-update %{prefix}/usr/sbin/vc-update
+fi
+if [[ -f %{prefix}/usr/share/videocache/vc-cleaner ]]; then
+  ln -s %{prefix}/usr/share/videocache/vc-cleaner %{prefix}/usr/sbin/vc-cleaner
+fi
+if [[ -f %{prefix}/usr/share/videocache/vc-scheduler ]]; then
+  ln -s %{prefix}/usr/share/videocache/vc-scheduler %{prefix}/usr/sbin/vc-scheduler
+fi
 if [[ -d %{prefix}/var/log/videocache/ ]]; then
   chown squid:squid %{prefix}/var/log/videocache/
   chown squid:squid %{prefix}/var/log/videocache/*
