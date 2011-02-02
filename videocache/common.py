@@ -97,7 +97,7 @@ def is_running(pid):
     else:
         return True
 
-# Videocache update specific functions
+# Videocache setup/update specific functions
 def create_dir(dir, user=None, mode=0755):
     """Create a directory in the filesystem with user:group ownership and mode as permissions."""
     try:
@@ -244,13 +244,13 @@ You must be root to update Videocache installation.
 Please see http://cachevideos.com/vc-update for more information or getting help.
     """
     if error_code == 'update':
-        print update_error
+        sys.stderr.write(update_error + '\n')
         sys.exit(1)
     if error_code == 'uid':
-        print uid_error
+        sys.stderr.write(uid_error + '\n')
         sys.exit(1)
     if error_code == 'usage':
-        print help_message
+        sys.stderr.write(help_message + '\n')
         sys.exit(1)
 
 def update_success():
@@ -272,7 +272,7 @@ def update_vc(o, root, install_dir, apache_conf_dir):
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     apache_conf_dir = apply_install_root(root, apache_conf_dir)
-    var_dir = apply_install_root(root, os.path.dirname(o.scheduler_logfile))
+    var_dir = os.path.dirname(o.scheduler_pidfile)
     man_dir = apply_install_root(root, '/usr/share/man/man8/')
 
     # Create /etc/ directory.
@@ -315,6 +315,8 @@ def update_vc(o, root, install_dir, apache_conf_dir):
         if not create_dir(o.logdir, o.videocache_user):
             update_error('update')
     else:
+        if not dir_perms_and_ownership(o.logdir, o.videocache_user):
+            update_error('update')
         print "Directory " + o.logdir + " already exists."
 
     # Create base directories
@@ -358,10 +360,10 @@ You must be root to run videocache cleaner.
 Please see http://cachevideos.com/vc-cleaner for more information or getting help.
     """
     if error_code == 'uid':
-        print uid_error
+        sys.stderr.write(uid_error + '\n')
         sys.exit(1)
     if error_code == 'usage':
-        print help_message
+        sys.stderr.write(help_message + '\n')
         sys.exit(1)
     return
 
@@ -381,13 +383,13 @@ You must be root to setup/install videocache.
 Please see http://cachevideos.com/installation for more information or getting help.
     """
     if error_code == 'install':
-        print install_error
+        sys.stderr.write(install_error + '\n')
         sys.exit(1)
     if error_code == 'uid':
-        print uid_error
+        sys.stderr.write(uid_error + '\n')
         sys.exit(1)
     if error_code == 'usage':
-        print help_message
+        sys.stderr.write(help_message + '\n')
         sys.exit(1)
     return
 
@@ -409,7 +411,7 @@ def setup_vc(o, root, apache_conf_dir, working_dir):
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     apache_conf_dir = apply_install_root(root, apache_conf_dir)
-    var_dir = apply_install_root(root, os.path.dirname(o.scheduler_logfile))
+    var_dir = os.path.dirname(o.scheduler_pidfile)
     man_dir = apply_install_root(root, '/usr/share/man/man8/')
 
     # Create videocache installation directory.
@@ -417,51 +419,60 @@ def setup_vc(o, root, apache_conf_dir, working_dir):
         if not create_dir(install_dir):
             setup_error('install')
     else:
-        log(format%("Directory " + install_dir + " already exists."))
+        print "Directory " + install_dir + " already exists."
 
     # Create /etc/ directory.
     if not os.path.isdir(etc_dir):
         if not create_dir(etc_dir):
-            update_error('update')
+            setup_error('install')
     else:
         print "Directory " + etc_dir + " already exists."
 
     # Create /usr/sbin/ directory.
     if not os.path.isdir(usr_sbin_dir):
         if not create_dir(usr_sbin_dir):
-            update_error('update')
+            setup_error('install')
     else:
         print "Directory " + usr_sbin_dir + " already exists."
 
     # Create Apache configuration directory.
     if not os.path.isdir(apache_conf_dir):
         if not create_dir(apache_conf_dir):
-            update_error('update')
+            setup_error('install')
     else:
         print "Directory " + apache_conf_dir + " already exists."
 
     # Create /var/run
     if not os.path.isdir(var_dir):
         if not create_dir(var_dir):
-            update_error('update')
+            setup_error('install')
     else:
         print "Directory " + var_dir + " already exists."
 
     # Create man directory.
     if not os.path.isdir(man_dir):
         if not create_dir(man_dir):
-            update_error('update')
+            setup_error('install')
     else:
         print "Directory " + man_dir + " already exists."
+
+    # Create videocache log directory.
+    if not os.path.isdir(o.logdir):
+        if not create_dir(o.logdir, o.videocache_user):
+            setup_error('install')
+    else:
+        print "Directory " + o.logdir + " already exists."
+        if not dir_perms_and_ownership(o.logdir, o.videocache_user):
+            setup_error('install')
 
     # Create base directories
     for dir in o.base_dir_list:
         if not os.path.isdir(dir):
             if not create_dir(dir, o.videocache_user):
-                update_error('update')
+                setup_error('install')
         else:
             if not dir_perms_and_ownership(dir, o.videocache_user):
-                update_error('update')
+                setup_error('install')
             print "Directory " + dir + " already exists."
 
     # Create directories for video caching.
@@ -469,14 +480,14 @@ def setup_vc(o, root, apache_conf_dir, working_dir):
         for dir in dir_list:
             if not os.path.isdir(dir):
                 if not create_dir(dir, o.videocache_user):
-                    update_error('update')
+                    setup_error('install')
             else:
                 if not dir_perms_and_ownership(dir, o.videocache_user):
-                    update_error('update')
+                    setup_error('install')
                 print "Directory " + dir + " already exists."
 
     # Copy core videocache plugin code to /usr/share/videocache/ .
-    if not copy_dir(videocache_dir, install_dir):
+    if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir):
         setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
@@ -503,4 +514,5 @@ def setup_vc(o, root, apache_conf_dir, working_dir):
         setup_error('install')
 
     setup_success()
+    return
 

@@ -20,6 +20,11 @@ if __name__ == '__main__':
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. Default is /etc/httpd/conf.d/', default = '/etc/httpd/conf.d/')
     options, args = parser.parse_args()
 
+    if options.vc_root[0] != '/':
+        root = os.path.join(os.getcwd(), options.vc_root)
+    else:
+        root = options.vc_root
+
     working_dir = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
     # The location of system configuration file for videocache.
     videocache_dir = os.path.join(working_dir, 'videocache')
@@ -36,25 +41,31 @@ if __name__ == '__main__':
 Usage: python setup.py install (as root/super user)
 Please see http://cachevideos.com/installation for more information or getting help.
         """
-        sys.stderr.write(help_message)
+        sys.stderr.write(help_message + '\n')
+        parser.print_help()
+        sys.exit(1)
 
     if 'install' not in args:
+        parser.print_help()
         setup_error('usage')
 
     if os.getuid() != 0:
+        parser.print_help()
         setup_error('uid')
 
     try:
         o = VideocacheOptions(config_file)
     except Exception, e:
         message = 'vc-setup: Could not read options from configuration file.'
-        sys.stderr.write(message)
+        sys.stderr.write(message + '\n')
+        parser.print_help()
         sys.exit(1)
 
     if o.halt:
         message = 'vc-setup: One or more errors occured in reading configure file. Please check syslog messages generally located at /var/log/messages.'
-        sys.stderr.write(message)
+        sys.stderr.write(message + '\n')
+        parser.print_help()
         sys.exit(1)
 
-    setup_vc(o, options.vc_root, options.apache_dir, working_dir)
+    setup_vc(o, root, options.apache_dir, working_dir)
 
