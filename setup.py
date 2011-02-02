@@ -20,12 +20,6 @@ if __name__ == '__main__':
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. Default is /etc/httpd/conf.d/', default = '/etc/httpd/conf.d/')
     options, args = parser.parse_args()
 
-    if 'install' not in args:
-        setup_error('usage')
-
-    if os.getuid() != 0:
-        setup_error('uid')
-
     working_dir = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
     # The location of system configuration file for videocache.
     videocache_dir = os.path.join(working_dir, 'videocache')
@@ -38,7 +32,17 @@ if __name__ == '__main__':
         from vcoptions import VideocacheOptions
         from common import *
     else:
+        help_message =  """
+Usage: python setup.py install (as root/super user)
+Please see http://cachevideos.com/installation for more information or getting help.
+        """
+        sys.stderr.write(help_message)
+
+    if 'install' not in args:
         setup_error('usage')
+
+    if os.getuid() != 0:
+        setup_error('uid')
 
     try:
         o = VideocacheOptions(config_file)

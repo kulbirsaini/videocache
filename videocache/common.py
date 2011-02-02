@@ -343,6 +343,7 @@ def update_vc(o, root, install_dir, apache_conf_dir):
         update_error('update')
 
     update_success()
+    return
 
 # Videocache Cleaner specific functions
 def cleaner_error(error_code):

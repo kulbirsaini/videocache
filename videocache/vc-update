@@ -21,9 +21,6 @@ if __name__ == '__main__':
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. Default is /etc/httpd/conf.d/', default = '/etc/httpd/conf.d/')
     options, args = parser.parse_args()
 
-    if os.getuid() != 0:
-        update_error('uid')
-
     install_dir = os.path.join(options.vc_root, 'usr/share/videocache/')
     # Try to locate the videocache directory containing python files.
     if os.path.isdir(install_dir):
@@ -36,7 +33,15 @@ if __name__ == '__main__':
         from vcoptions import VideocacheOptions
         from common import *
     else:
-        update_error('usage')
+        help_message =  """
+Usage: vc-update -h (as root/super user)
+Update script can only be used if Videocache is installed on your system.
+Please see http://cachevideos.com/vc-update for more information or getting help.
+        """
+        print help_message
+
+    if os.getuid() != 0:
+        update_error('uid')
 
     try:
         o = VideocacheOptions(options.config_file, options.vc_root)

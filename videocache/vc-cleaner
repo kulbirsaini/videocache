@@ -72,10 +72,6 @@ if __name__ == '__main__':
     parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     options, args = parser.parse_args()
 
-    if os.getuid() != 0:
-        error_and_syslog('vc-cleaner: Videocache cleaner must be run as root or super user.')
-        cleaner_error('uid')
-
     install_dir = os.path.join(options.vc_root, 'usr/share/videocache/')
     # Try to locate the videocache directory containing python files.
     if os.path.isdir(install_dir):
@@ -91,6 +87,10 @@ if __name__ == '__main__':
     else:
         error_and_syslog('vc-cleaner: Could not located videocache installation. Please make sure videocache is installed properly.')
         cleaner_error('usage')
+
+    if os.getuid() != 0:
+        error_and_syslog('vc-cleaner: Videocache cleaner must be run as root or super user.')
+        cleaner_error('uid')
 
     try:
         o = VideocacheOptions(options.config_file, options.vc_root)
