@@ -66,22 +66,19 @@ touch ${RPM_BUILD_ROOT}%{prefix}/var/run/videocache.pid
 %{prefix}/etc/httpd/conf.d/videocache.conf
 %{prefix}/usr/share/videocache/
 %{prefix}/usr/share/man/man8/videocache.8.gz
-%{prefix}/usr/sbin/vc-update
-%{prefix}/usr/sbin/vc-cleaner
-%{prefix}/usr/sbin/vc-scheduler
 %{prefix}/var/log/videocache/
 %{prefix}/var/spool/videocache/
 %{prefix}/var/run/videocache.pid
 
 %post
 if [[ -f %{prefix}/usr/share/videocache/vc-update ]]; then
-  ln -s %{prefix}/usr/share/videocache/vc-update %{prefix}/usr/sbin/vc-update
+  ln -f -s %{prefix}/usr/share/videocache/vc-update %{prefix}/usr/sbin/vc-update
 fi
 if [[ -f %{prefix}/usr/share/videocache/vc-cleaner ]]; then
-  ln -s %{prefix}/usr/share/videocache/vc-cleaner %{prefix}/usr/sbin/vc-cleaner
+  ln -f -s %{prefix}/usr/share/videocache/vc-cleaner %{prefix}/usr/sbin/vc-cleaner
 fi
 if [[ -f %{prefix}/usr/share/videocache/vc-scheduler ]]; then
-  ln -s %{prefix}/usr/share/videocache/vc-scheduler %{prefix}/usr/sbin/vc-scheduler
+  ln -f -s %{prefix}/usr/share/videocache/vc-scheduler %{prefix}/usr/sbin/vc-scheduler
 fi
 if [[ -f %{prefix}/var/log/videocache/videocache.log ]]; then
   rm -f %{prefix}/var/log/videocache/videocache.log
@@ -90,8 +87,7 @@ if [[ -f %{prefix}/var/run/videocache.pid ]]; then
   rm -f %{prefix}/var/run/videocache.pid
 fi
 if [[ -d %{prefix}/var/log/videocache/ ]]; then
-  chown squid:squid %{prefix}/var/log/videocache/
-  chown squid:squid %{prefix}/var/log/videocache/*
+  chown -R squid:squid %{prefix}/var/log/videocache/
 fi
 if [[ -d %{prefix}/var/spool/videocache/ ]]; then
   chown squid:squid %{prefix}/var/spool/videocache/
@@ -105,11 +101,20 @@ echo "Please visit http://cachevideos.com/ in case of any problems."
 
 %preun
 if [[ -d %{prefix}/var/spool/videocache ]];then
-  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache801c03efe2a34699cb782c4bc4ff3a11
+  mv %{prefix}/var/spool/videocache ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocacheff3a11
 fi
 
 %postun
-if [[ -d %{prefix}/var/spool/videocache1 ]]; then
-  mv %{prefix}/var/spool/videocache801c03efe2a34699cb782c4bc4ff3a11 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
+if [[ -d %{prefix}/var/spool/videocacheff3a11 ]]; then
+  mv %{prefix}/var/spool/videocacheff3a11 ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache
+fi
+if [[ -h %{prefix}/usr/sbin/vc-update ]]; then
+  rm -f %{prefix}/usr/sbin/vc-update
+fi
+if [[ -h %{prefix}/usr/sbin/vc-cleaner ]]; then
+  rm -f %{prefix}/usr/sbin/vc-cleaner
+fi
+if [[ -h %{prefix}/usr/sbin/vc-scheduler ]]; then
+  rm -f %{prefix}/usr/sbin/vc-scheduler
 fi
 

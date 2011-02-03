@@ -62,7 +62,7 @@ def cleancache(root):
     return
 
 def error_and_syslog(msg):
-    sys.stderr.write(msg)
+    sys.stderr.write(msg + '\n')
     syslog_msg(msg)
 
 if __name__ == '__main__':
@@ -96,6 +96,7 @@ if __name__ == '__main__':
         o = VideocacheOptions(options.config_file, options.vc_root)
     except Exception, e:
         error_and_syslog('vc-cleaner: Could not read options from configuration file.')
+        log_traceback()
         sys.exit(1)
 
     if o.halt:
@@ -112,6 +113,7 @@ if __name__ == '__main__':
             pass
     if uid == None:
         error_and_syslog('vc-cleaner: Could not determine User ID for videocache user ' + o.videocache_user + '. \nDebugging output: \n' + traceback.format_exc())
+        log_traceback()
         sys.exit(1)
 
     os.setgid(uid)
