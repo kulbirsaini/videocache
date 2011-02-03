@@ -3,7 +3,7 @@ IMPORTANT NOTE : Check http://cachevideos.com/installation/ for latest details.
 Index
 =====
   1. Requires
-  2. Installation
+  2. Installation/Upgrade
     a. Using setup file from source
     b. Using rpm 
   3. Configuration
@@ -17,116 +17,110 @@ Index
   c. python-iniparse
   d. Apache (httpd) or any other Web Server
 
-2a. Installation (using setup file from source)
-=============================================
-  a) Download latest version of videocache from http://cachevideos.com/download/ .
-  b) Untar the videocache-bundle
-  [root@localhost root]# tar -xvzf videocache-bundle.tar.gz
+2. Installation/Upgrade
+=======================
+  Installation and upgrade procedure for videocache is same. Installation is as
+  simple as explained below. To upgrade, take a backup of your existing configuration
+  file located at /etc/videocache.conf and then perform the normal install. After
+  installation, reference your old configuration file and set the options in new
+  configuration file generated at /etc/videocache.conf.
 
-  c) Go to videocache-bundle
-  [root@localhost root]# cd videocache-bundle
+2a. Installation/Upgrade (using setup file from source)
+=======================================================
+  a) Untar the videocache-bundle-x.x.x
+  [root@proxy root]# tar -xvzf videocache-bundle-x.x.x.tar.gz
 
-  d) Untar the videocache package.
-  [root@localhost videocache-bundle]# tar -xvzf videocache-x.x.tar.gz
+  b) Go to videocache-bundle-x.x.x
+  [root@proxy root]# cd videocache-bundle-x.x.x
 
-  e) Go to videocache-x.x directory
-  [root@localhost videocache-bundle]# cd videocache-x.x
+  c) Untar the videocache package.
+  [root@proxy videocache-bundle-x.x.x]# tar -xvzf videocache-x.x.x.tar.gz
 
-  f) Identify your system 
+  d) Go to videocache-x.x.x directory
+  [root@proxy videocache-bundle]# cd videocache-x.x.x
+
+  e) Identify your system 
     1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
-    [root@localhost videocache-x.x]# python setup.py install
+    [root@proxy videocache-x.x.x]# python setup.py install
 
-    2) If your system is Debian/Ubuntu, use setup-deb.py
-    [root@localhost videocache-x.x]# python setup-deb.py install
+    2) If your system is Debian/Ubuntu/BSD, use setup-deb.py
+    [root@proxy videocache-x.x.x]# python setup-deb.py install
 
   BINGO!! You are done with installation. In case you get any error while
-  installing videocache, there will be proper logging in videocache-setup.log
-  in current directory.
+  installing videocache, there will be proper logging in the console.
 
-2b. Installation (using rpm file)
-=================================
-  a) Download latest version of videocache from http://cachevideos.com/download/ .
-  b) Untar the videocache-bundle
-  [root@localhost root]# tar -xvzf videocache-bundle.tar.gz
+2b. Installation/Upgrade (using rpm file)
+=========================================
+  a) Untar the videocache-bundle-x.x.x
+  [root@proxy root]# tar -xvzf videocache-bundle-x.x.x.tar.gz
 
-  c) Go to videocache-bundle
-  [root@localhost root]# cd videocache-bundle
+  b) Go to videocache-bundle-x.x.x
+  [root@proxy root]# cd videocache-bundle-x.x.x
 
-  d) Untar the videocache package.
-  [root@localhost videocache-bundle]# tar -xvzf videocache-x.x.tar.gz
+  c) Untar the videocache package.
+  [root@proxy videocache-bundle-x.x.x]# tar -xvzf videocache-x.x.x.tar.gz
 
-  e) Go to videocache-x.x directory
-  [root@localhost videocache-bundle]# cd videocache-x.x
+  d) Go to videocache-x.x.x directory
+  [root@proxy videocache-bundle]# cd videocache-x.x.x
 
-  g) Install videocache using rpm command
-  [root@localhost videocache-x.x]# rpm -ivh videocache-x.x.x-x.noarch.rpm
+  e) Install/Upgrade videocache using rpm command
+    1) To install, use the following command
+    [root@proxy videocache-x.x.x]# rpm -ivh videocache-x.x.x-x.noarch.rpm
+
+    2) To upgrade, use the following command
+    [root@proxy videocache-x.x.x]# rpm -Uvh videocache-x.x.x-x.noarch.rpm
 
 3. Configuration
 ================
-  Assuming you have squid installed. The following configurations are required to get it running.
-  Newbies are instructed to stick with default configuration as much as possible otherwise
-  you'll be lost in directory permissions.
+  Assuming you have squid installed. The following configurations are required
+  to get videocache running. Users new to Squid are instructed to stick with default
+  configuration as much as possible otherwise you'll be lost in directory permissions.
 
-  Reload the httpd service as
-  [root@localhost root]# service httpd reload
+  Restart the httpd service as
+  [root@proxy root]# apachectl -k restart
 
-  Add the following lines to your squid.conf which is generally found in /etc/squid/squid.conf
+  Add the following lines to your squid.conf which is generally located at /etc/squid/squid.conf
 
-# --BEGIN-- videocache config for squid
-url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
-url_rewrite_children 15 startup=15
+  # --BEGIN-- videocache config for squid
+  url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
+  url_rewrite_children 15 startup=15
 
-# Youtube
-acl videocache_allow_url url_regex -i \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
-# Google
-acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.com\/videoplay \.google\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
-# Metacafe
-acl videocache_allow_url url_regex -i \.mccont\.com\/ItemFiles\/(.*)?\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Dailymotion
-acl videocache_allow_url url_regex -i proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i cdn\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Redtube
-acl videocache_allow_url url_regex -i redtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Xtube
-acl videocache_allow_url url_regex -i \.xtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_deny_url  url_regex -i \.xtube\.com\/(.*)(Thumb|videowall)
-# Vimeo
-acl videocache_allow_url url_regex -i \.vimeo\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i \.amazonaws\.com\/(.*)\.vimeo\.com(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Wrzuta
-acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/wa[0-9][0-9]?[0-9]?[0-9]?[0-9]?
-# Youporn
-acl videocache_allow_url url_regex -i \.youporn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Bing
-acl videocache_allow_url url_regex -i msn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i msn\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i msnbc\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Tube8
-acl videocache_allow_url url_regex -i \.tube8\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# Blip TV
-acl videocache_allow_url url_regex -i \.blip\.tv\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_deny_url  url_regex -i \.blip\.tv\/(.*)filename
-# Break
-acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-# General
-acl videocache_deny_url  url_regex -i crossdomain.xml
-acl videocache_method method GET
-# Access Rules
-url_rewrite_access deny  videocache_deny_url
-url_rewrite_access allow videocache_method videocache_allow_url
-url_rewrite_access deny all
-url_rewrite_bypass on
-# --END-- videocache config for squid
+  acl videocache_allow_url url_regex -i \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.com\/videoplay \.google\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.mccont\.com\/ItemFiles\/(.*)?\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i cdn\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i redtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.xtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i \.xtube\.com\/(.*)(Thumb|videowall)
+  acl videocache_allow_url url_regex -i \.vimeo\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.amazonaws\.com\/(.*)\.vimeo\.com(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/wa[0-9][0-9]?[0-9]?[0-9]?[0-9]?
+  acl videocache_allow_url url_regex -i \.youporn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msn\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msnbc\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.tube8\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.blip\.tv\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i \.blip\.tv\/(.*)filename
+  acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i crossdomain.xml
+  acl videocache_method method GET
+  url_rewrite_access deny  videocache_deny_url
+  url_rewrite_access allow videocache_method videocache_allow_url
+  url_rewrite_access deny all
+  url_rewrite_bypass on
+  # --END-- videocache config for squid
 
   Save squid.conf and reload the squid service using
-  [root@proxy root]# service squid reload
+  [root@proxy root]# /etc/init.d/squid reload
 
   SEE README FILE FOR MORE CONFIGURATION OPTIONS.
 
@@ -137,5 +131,5 @@ url_rewrite_bypass on
 5. Online Help
 ==============
   1. Project Website : http://cachevideos.com/
-  2. How to configure squid http://fedora.co.in/content/how-configure-squid-proxy-server
-  3. How to write custorm squid redirector in python http://fedora.co.in/content/writing-custom-redirector-plugin-squid-python
+  2. How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
+

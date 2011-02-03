@@ -2,7 +2,7 @@
 #
 # (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
 #
-# For more information on Videocache check http://cachevideos.com/
+# For more information check http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <saini@saini.co.in>"""

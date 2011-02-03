@@ -56,6 +56,7 @@ install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/video
 install -m 644 videocache-httpd.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/httpd/conf.d/videocache.conf
 install -m 644 videocache.8.gz -T ${RPM_BUILD_ROOT}%{prefix}/usr/share/man/man8/videocache.8.gz
 touch ${RPM_BUILD_ROOT}%{prefix}/var/log/videocache/videocache.log
+touch ${RPM_BUILD_ROOT}%{prefix}/var/run/videocache.pid
 
 %clean
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
@@ -81,6 +82,12 @@ if [[ -f %{prefix}/usr/share/videocache/vc-cleaner ]]; then
 fi
 if [[ -f %{prefix}/usr/share/videocache/vc-scheduler ]]; then
   ln -s %{prefix}/usr/share/videocache/vc-scheduler %{prefix}/usr/sbin/vc-scheduler
+fi
+if [[ -f %{prefix}/var/log/videocache/videocache.log ]]; then
+  rm -f %{prefix}/var/log/videocache/videocache.log
+fi
+if [[ -f %{prefix}/var/run/videocache.pid ]]; then
+  rm -f %{prefix}/var/run/videocache.pid
 fi
 if [[ -d %{prefix}/var/log/videocache/ ]]; then
   chown squid:squid %{prefix}/var/log/videocache/

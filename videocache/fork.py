@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #
 # (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
 #

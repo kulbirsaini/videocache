@@ -2,7 +2,7 @@
 #
 # (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
 #
-# For more information on Videocache check http://cachevideos.com/
+# For more information check http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
@@ -56,9 +56,8 @@ class VideocacheConf:
     enable_videocache = Option(1)
     offline_mode = Option(0)
     videocache_user = Option('squid')
-    videocache_group = Option('squid')
-    enable_videocache_cleaner = Option(0)
-    video_lifetime = Option(60)
+    enable_videocache_cleaner = Option(1)
+    video_lifetime = Option(30)
     max_cache_processes = Option(30)
     hit_threshold = Option(2)
     max_video_size = Option(0)
@@ -78,10 +77,6 @@ class VideocacheConf:
     logfile = Option('videocache.log')
     max_logfile_size = Option(10)
     max_logfile_backups = Option(10)
-    # Trace file
-    tracefile = Option('trace.log')
-    max_tracefile_size = Option(10)
-    max_tracefile_backups = Option(1)
     # Scheduler Logfile
     scheduler_logformat = Option('%tl %p %s %i %w %c %v %m %d')
     scheduler_logfile = Option('scheduler.log')
@@ -91,7 +86,11 @@ class VideocacheConf:
     cleaner_logformat = Option('%tl %p %s %w %c %v %m %d')
     cleaner_logfile = Option('cleaner.log')
     max_cleaner_logfile_size = Option(10)
-    max_cleaner_logfile_backups = Option(1)
+    max_cleaner_logfile_backups = Option(5)
+    # Trace file
+    tracefile = Option('trace.log')
+    max_tracefile_size = Option(10)
+    max_tracefile_backups = Option(1)
 
     # Network
     cache_host = Option('127.0.0.1')

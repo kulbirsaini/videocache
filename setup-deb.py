@@ -29,7 +29,6 @@ if __name__ == '__main__':
     # The location of system configuration file for videocache.
     videocache_dir = os.path.join(working_dir, 'videocache')
     config_file = os.path.join(working_dir, 'videocache-sysconfig.conf')
-    apache_config_file = os.path.join(working_dir, 'videocache-httpd.conf')
     man_page = os.path.join(working_dir, 'videocache.8.gz')
 
     if os.path.isdir(videocache_dir):
