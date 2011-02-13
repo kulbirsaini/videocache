@@ -17,6 +17,7 @@ from optparse import OptionParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from xmlrpclib import ServerProxy
 
+import cgi
 import cookielib
 import logging
 import pickle
@@ -422,7 +423,7 @@ def cache_youtube_video(params):
         request = urllib2.Request(info_url, None, o.std_headers)
         try:
             info_page = urllib2.urlopen(request).read()
-            video_info = urlparse.parse_qs(info_page)
+            video_info = cgi.parse_qs(info_page)
             if 'fmt_url_map' in video_info:
                 break
         except Exception, e:
@@ -653,6 +654,7 @@ if __name__ == '__main__':
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:
-        sys.stderr.write('Nothing to do. Exiting. See --help for more options.\n')
+        parser.print_help()
+        sys.stderr.write('\nNothing to do. Exiting.\n')
         sys.exit(0)
 

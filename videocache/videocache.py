@@ -15,16 +15,18 @@ from vcoptions import VideocacheOptions
 
 from optparse import OptionParser
 from xmlrpclib import ServerProxy
+
+import cgi
 import logging
 import logging.handlers
 import os
 import re
-import rpyc
 import sys
 import syslog
 import threading
 import time
 import traceback
+import urllib
 import urllib2
 import urlparse
 
@@ -118,7 +120,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
 
     info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
 
-    video_id = urllib2.unquote(video_id)
+    video_id = urllib.unquote(video_id)
     try:
         for dir in o.base_dirs[website_id]:
             video_path = os.path.join(dir, video_id)
@@ -130,7 +132,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
                     index = ''
                 query = urlparse.urlsplit(url)[3]
                 cached_url = os.path.join(o.cache_url, 'videocache', str(index), website_id)
-                url = os.path.join(cached_url, urllib2.quote(video_id)) + '?' + query
+                url = os.path.join(cached_url, urllib.quote(video_id)) + '?' + query
                 new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Video was served from cache using the URL ' + new_url } )
                 return new_url
@@ -186,7 +188,7 @@ def squid_part():
                 if path.find('get_video') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
                     website_id = 'youtube'
                     matched = True
-                    dict = urlparse.parse_qs(query)
+                    dict = cgi.parse_qs(query)
                     if 'video_id' in dict:
                         video_id = dict['video_id'][0]
                     elif 'docid' in dict:
@@ -206,7 +208,7 @@ def squid_part():
                 if path.find('videoplay') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
                     website_id = 'youtube'
                     matched = True
-                    dict = urlparse.parse_qs(query)
+                    dict = cgi.parse_qs(query)
                     if 'video_id' in dict:
                         video_id = dict['video_id'][0]
                     elif 'docid' in dict:
@@ -227,7 +229,7 @@ def squid_part():
                     website_id = 'metacafe'
                     matched = True
                     try:
-                        video_id = urllib2.unquote(path).strip('/').split(' ')[-1]
+                        video_id = urllib.unquote(path).strip('/').split(' ')[-1]
                     except Exception, e:
                         video_id = None
                         warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )

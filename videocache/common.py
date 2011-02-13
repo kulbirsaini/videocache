@@ -8,6 +8,7 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
+import cgi
 import os
 import pwd
 import shutil
@@ -26,7 +27,7 @@ def syslog_msg(msg):
 def refine_url(url, arg_drop_list = []):
     """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
     query = urlparse.urlsplit(url)[3]
-    args = urlparse.parse_qs(query, True)
+    args = cgi.parse_qs(query, True)
     [args.has_key(arg) and args.pop(arg) for arg in arg_drop_list]
     new_args = []
     for (k,v) in args.items():
@@ -49,7 +50,7 @@ def get_youtube_video_id(url):
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    dict = urlparse.parse_qs(query)
+    dict = cgi.parse_qs(query)
     if dict.has_key('video_id'):
         video_id = dict['video_id'][0]
     elif dict.has_key('docid'):
@@ -65,7 +66,7 @@ def get_youtube_video_format(url):
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    dict = urlparse.parse_qs(query)
+    dict = cgi.parse_qs(query)
     if dict.has_key('fmt'):
         format_id = dict['fmt'][0]
     elif dict.has_key('itag'):

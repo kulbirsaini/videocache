@@ -28,25 +28,17 @@ class VideocacheDaemon:
         self.uid = kwargs.get('uid', 0)
 
     def daemonize(self):
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                sys.exit(0) 
-        except Exception, e: 
-            sys.stderr.write("Fork #1 failed: (%s)\n" % str(e))
-            sys.exit(1)
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
 
-        os.chdir("/") 
-        os.setsid() 
-        os.umask(0) 
+        os.chdir("/")
+        os.setsid()
+        os.umask(0)
 
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                sys.exit(0) 
-        except Exception, e: 
-            sys.stderr.write("Fork #2 failed: (%s)\n" % str(e))
-            sys.exit(1)
+        pid = os.fork()
+        if pid > 0:
+            sys.exit(0)
 
         # redirect standard file descriptors
         sys.stdout.flush()
