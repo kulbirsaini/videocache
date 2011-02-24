@@ -1,95 +1,92 @@
-VIDEO-CACHE
+Videocache
 
 %%date(%B %d, %Y)
 %!postproc(man): "^(\.TH.*) 1 "  "\1 8 "
 
-= NAME =
+== Name and Description ==
 
-Videocache - Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
+Videocache (http://cachevideos.com/) - A Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
-= DESCRIPTION =
+Videocache is a Squid url rewriter plugin written in Python to facilitate caching youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl videos. It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
 
-Videocache is a squid url rewriter plugin written in Python to facilitate caching youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl videos. It can cache videos from various websites in a separate directory (other than squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
+**NOTE** : If you are new to Squid or you are willing to explore Squid in details, please check my new book **Squid Proxy Server 3.1: Beginner's Guide** at http://tinyurl.com/squidbook.
 
-= DEPENDENCIES =
+== Dependencies ==
++ Squid >= 2.6
++ python >= 2.4
++ python-iniparse
++ Apache or any other Web Server
+
+
+== Installation & Configuration ==
+See INSTALL file in Videocache source or visit http://cachevideos.com/installation for installation instructions.
+
+== Running or Updating Videocache ==
+
+If you update your Videocache configuration file located at ///etc/videocache.conf// or you just finished installing Videocache, then you need to perform the following four steps. These steps are mandatory and Videocache will not work properly unless you perform these steps.
+
+=== 1. Update Script (vc-update) ===
+
+**NOTE** : Please check http://cachevideos.com/vc-update for latest documentation.
+
+Once you are done updating the Videocache configuration file and ready to deploy the new options, you should, first of all, run the update script (vc-update) which will update your cache directories, Apache configuration file and other system file accordingly. You can run this command as follows
 ```
-1. squid >= 2.6
-2. python >= 2.4
-3. python-iniparse
-4. Apache or any other Web Server
+[root@proxy root]# vc-update
 ```
-= INSTALLATION =
-See INSTALL file in Videocache source for installation instructions.
-
-= CONFIGURATION =
-
-To use Videocache, you need to configure Proxy Server (squid) and the global videocache configuration file. Below are the steps to configure videocache.
-
-== SQUID CONFIGURATION ==
-
-To configure squid to use Videocache as a url rewriter program, you need to add the following lines to your squid configuration file (generally found at ///etc/squid/squid.conf//):
+To know the available options, please use the following command
 ```
-# --BEGIN-- videocache config for squid
-url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
-url_rewrite_children 15 startup=15
-
-acl videocache_allow_url url_regex -i \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.com\/videoplay \.google\.com\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
-acl videocache_allow_url url_regex -i \.mccont\.com\/ItemFiles\/(.*)?\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i cdn\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i redtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i \.xtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_deny_url  url_regex -i \.xtube\.com\/(.*)(Thumb|videowall)
-acl videocache_allow_url url_regex -i \.vimeo\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i \.amazonaws\.com\/(.*)\.vimeo\.com(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/wa[0-9][0-9]?[0-9]?[0-9]?[0-9]?
-acl videocache_allow_url url_regex -i \.youporn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i msn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i msn\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i msnbc\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i \.tube8\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_allow_url url_regex -i \.blip\.tv\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_deny_url  url_regex -i \.blip\.tv\/(.*)filename
-acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
-acl videocache_deny_url  url_regex -i crossdomain.xml
-acl videocache_method method GET
-url_rewrite_access deny  videocache_deny_url
-url_rewrite_access allow videocache_method videocache_allow_url
-url_rewrite_access deny all
-url_rewrite_bypass on
-# --END-- videocache config for squid
-```
-After changes, reload or restart the squid service using the command:
-```
-[root@proxy ~]# /etc/init.d/squid reload [ENTER]
-```
-OR
-```
-[root@proxy ~]# /etc/init.d/squid restart [ENTER]
+[root@proxy root]# vc-update -h
 ```
 
-== VIDEO-CACHE GLOBAL CONFIGURATION ==
+=== 2. Videocache Scheduler ===
+
+**NOTE** : Please check http://cachevideos.com/vc-scheduler for latest documenation.
+
+Make sure that the Videocache scheduler (vc-scheduler) is running. Restart vc-scheduler using the following command
+```
+[root@proxy root]# vc-scheduler -s restart
+```
+To see the list of options availbale, please use the following command
+```
+[root@proxy root]# vc-scheduler -h
+```
+
+=== 3. Apache Web Server ===
+
+Restart the Apache web server using the following command
+```
+[root@proxy root]# apachectl -k restart
+```
+
+=== 4. Squid Proxy Server ===
+
+Once all the above steps have succeeded, you need to reload or restart your proxy server daemon which will run Videocache with the updating configuration.
+
+To reload Squid proxy server, use the following command 
+```
+[root@proxy root]# /etc/init.d/squid reload
+```
+Or to restart Squid proxy server, use the following command
+```
+[root@proxy root]# /etc/init.d/squid restart
+```
+
+== Videocache Global Configuration ==
+
+Below is a description of various options you can use to configure Videocache. A description of these options is also available at http://cachevideos.com/configure.
 
 Config file : /etc/videocache.conf
 
 : enable_videocache
-This option controls the global behavior of videocache plugin. If it is 0, videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
+This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
 
 : offline_mode
 When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache will cache new video and when set to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters. Default: 0.
 
 : videocache_user
-Use this option to set the user which should be running Videocache scheduler. This user must be same as the squid user. On RedHat/CentOS/SuSE, it's generally //squid// and on Debian/Ubuntu/BSDs, it generally //proxy//. Default: //squid//.
+Use this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On RedHat/CentOS/SuSE, it's generally //squid// and on Debian/Ubuntu/BSDs, it generally //proxy//. Default: //squid//.
 
-**IMPORTANT** : This must be set appropriately otherwise videocache will not work.
+**IMPORTANT** : This must be set appropriately otherwise Videocache will not work.
 
 : cache_host
 The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
@@ -136,21 +133,21 @@ The video of size more than //max_video_size// (MegaBytes) will not be cached. D
 
 : min_video_size
 The video of size less than //min_video_size// (MegaBytes) will not be cached. Default: 0.
-``` EXAMPLE: If min_video_size = 2, videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
+``` EXAMPLE: If min_video_size = 2, Videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
 
 : disk_avail_threshold
-This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before videocache treats that partition as FULL. Default: 1000.
-``` EXAMPLE: If disk_avail_threshold = 200, videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 1000.
+``` EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
 : enable_videocache_cleaner
-Enables the videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
+Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
 
 : video_lifetime
 The maximum life of a video in cache without being used. If the video was not accessed for more than //video_lifetime// days, it'll be removed from the cache. The unit of video_lifetime is days. Default: 30.
 ``` Example : video_lifetime = 15 will remove videos which were not used since last 15 or more days.
 
 : logformat, scheduler_logformat, cleaner_logformat
-Logformat allows you to get log messages in your preferred format. The //logformat//, //scheduler_logformat//, //cleaner_logformat// are applicable to main videocache log, scheduler log and cleaner log respectively. Use the format codes described below.
+Logformat allows you to get log messages in your preferred format. The //logformat//, //scheduler_logformat//, //cleaner_logformat// are applicable to main Videocache log, scheduler log and cleaner log respectively. Use the format codes described below.
 ```
 %  - A literal % character
 ts - Seconds since epoch
@@ -199,7 +196,7 @@ Default: %d/%b/%Y:%H:%M:%S
 
 : logdir
 
-Directory where videocache logs will be stored. Default: ///var/log/videocache///.
+Directory where Videocache logs will be stored. Default: ///var/log/videocache///.
 
 : logfile, scheduler_logfile, cleaner_logfile, tracefile
 The name of log file can be specified using different logfile options. Please avoid any special characters in filename.
@@ -247,13 +244,13 @@ Directory to store partially downloaded videos. Directory name is relative to //
 ``` Example: If temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/.
 
 : rpc_host
-XMLRPCServer is used for memory sharing across different instances of videocache. Leave these settings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
+XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 : rpc_port
 Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in use by any other program. Default: 9100.
 
 
-= FILES =
+== Videocache Files ==
 ```
 /etc/videocache.conf
 /etc/httpd/conf.d/videocache.conf OR /etc/apache2/conf.d/videocache.conf
@@ -266,19 +263,21 @@ Please make sure this port is not currently in use. If it is in use by some othe
 /var/spool/videocache/
 /var/run/videocache.pid
 ```
-= SEE ALSO =
+== See Also ==
 ```
 squid (8)
+```
+- Squid Proxy Server 3.1: Beginner's Guide : http://tinyurl.com/squidbook
+- Project Website : http://cachevideos.com/
+- How to configure Squid : http://gofedora.com/how-to-configure-squid-proxy-server/
 
-Project Website : http://cachevideos.com/
-How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
-```
-= AUTHOR =
-```
-Kulbir Saini <saini@saini.co.in>
-```
 
-= BUGS, SUGGESTIONS, COMMENTS =
-```
+== Author ==
+Kulbir Saini <saini AT saini.co.in>. Check http://saini.co.in/ for more information on author.
+
+== Bugs, Suggestions, Comments ==
 Please visit http://cachevideos.com/forum/.
-```
+
+== Copyright ==
+Copyright (c) 2008-2011 Kulbir Saini.
+

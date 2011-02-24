@@ -36,7 +36,7 @@ def trace(params = {}):
     params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
     o.trace_logger.info(build_message(params))
 
-def cleancache(root):
+def cleancache():
     """Perform the cleanup."""
     cur_time = time.time()
 
@@ -58,7 +58,7 @@ def cleancache(root):
                         error({ 'code' : VIDEO_PURGE_ERR, 'message' : 'Error occured while purging video at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'debug' : str(e) })
                         trace({ 'code' : VIDEO_PURGE_ERR, 'message' : traceback.format_exc(), 'website_id' : website_id, 'video_id' : video_id })
             else:
-                warn( { 'code' : CACHE_DIR_NOT_FOUND, 'message' : 'Cache directory ' + dir + ' does not exist.', 'website_id' : website_id } )
+                warn( { 'code' : CACHE_DIR_NOT_FOUND, 'message' : 'Cache directory ' + dir + ' does not exist. Please use vc-update command to update cache directories.', 'website_id' : website_id } )
     return
 
 def error_and_syslog(msg):
@@ -76,14 +76,20 @@ if __name__ == '__main__':
     # Try to locate the videocache directory containing python files.
     if os.path.isdir(install_dir):
         sys.path = [install_dir] + sys.path
-        from vcoptions import VideocacheOptions
-        from common import *
-        from error_codes import *
+        try:
+            from vcoptions import VideocacheOptions
+            from common import *
+            from error_codes import *
+        except Exception, e:
+            error_and_syslog('vc-cleaner: Could not import required modules. Please check your videocache installation. Run vc-update command to update your installation.')
     elif os.path.isdir('/usr/share/videocache/'):
         sys.path = ['/usr/share/videocache/'] + sys.path
-        from vcoptions import VideocacheOptions
-        from common import *
-        from error_codes import *
+        try:
+            from vcoptions import VideocacheOptions
+            from common import *
+            from error_codes import *
+        except Exception, e:
+            error_and_syslog('vc-cleaner: Could not import required modules. Please check your videocache installation. Run vc-update command to update your installation.')
     else:
         error_and_syslog('vc-cleaner: Could not located videocache installation. Please make sure videocache is installed properly.')
         cleaner_error('usage')
@@ -107,12 +113,10 @@ if __name__ == '__main__':
     try:
         uid = pwd.getpwnam( o.videocache_user ).pw_uid
     except Exception, e:
-        try:
-            uid = pwd.getpwnam( 'nobody' ).pw_uid
-        except Exception, e:
-            pass
+        pass
+
     if uid == None:
-        error_and_syslog('vc-cleaner: Could not determine User ID for videocache user ' + o.videocache_user + '. \nDebugging output: \n' + traceback.format_exc())
+        error_and_syslog('vc-cleaner: Could not determine User ID for videocache user ' + o.videocache_user + '. Please check videocache_user option in /etc/videocache.conf file. \nDebugging output: \n' + traceback.format_exc())
         log_traceback()
         sys.exit(1)
 
@@ -128,6 +132,10 @@ if __name__ == '__main__':
         info( { 'code' : CLEANER_DISABLED, 'message' : 'Videocache Cleaner is disabled in configuration file. Please set enable_videocache_cleaner to 1 if you want to use videocache cleaner.' } )
 
     info( { 'code' : CLEANER_START, 'message' : 'Starting Videocache Cleaner to purge stale videos from cache.' } )
-    cleancache(root)
+    try:
+        cleancache()
+    except Exception, e:
+        error( { 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning up stale videocache.', 'debug' : str(e) } )
+        trace( { 'code' : CLEANER_ERR, 'message' : traceback.format_exc() } )
     info( { 'code' : CLEANER_STOP, 'message' : 'Stopping Videocache Cleaner.' } )
 

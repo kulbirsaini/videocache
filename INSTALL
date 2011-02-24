@@ -5,10 +5,15 @@ Index
   1. Requires
   2. Installation/Upgrade
     a. Using setup file from source
-    b. Using rpm 
+    b. Using rpm
   3. Configuration
   4. Bugs, Suggestions, Comments
   5. Online Help
+
+NOTE
+====
+If you are new to Squid or you are willing to explore Squid in details, please check
+my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squidbook.
 
 1. Requires
 ===========
@@ -39,7 +44,7 @@ Index
   d) Go to videocache-x.x.x directory
   [root@proxy videocache-bundle]# cd videocache-x.x.x
 
-  e) Identify your system 
+  e) Identify your system
     1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
     [root@proxy videocache-x.x.x]# python setup.py install
 
@@ -76,14 +81,20 @@ Index
   to get videocache running. Users new to Squid are instructed to stick with default
   configuration as much as possible otherwise you'll be lost in directory permissions.
 
-  Restart the httpd service as
-  [root@proxy root]# apachectl -k restart
+  a) Restart the httpd service as
+    [root@proxy root]# apachectl -k restart
 
-  Add the following lines to your squid.conf which is generally located at /etc/squid/squid.conf
+  b) Start/restart videocache scheduler (vc-scheduler) using the following command
+    [root@proxy root]# vc-scheduler -s restart
+
+    Use the following command to see available options
+    [root@proxy root]# vc-scheduler -h
+
+  c) Add the following lines to your squid.conf which is generally located at /etc/squid/squid.conf
 
   # --BEGIN-- videocache config for squid
   url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
-  url_rewrite_children 15 startup=15
+  url_rewrite_children 15
 
   acl videocache_allow_url url_regex -i \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
   acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
@@ -113,16 +124,20 @@ Index
   acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
   acl videocache_deny_url  url_regex -i crossdomain.xml
   acl videocache_method method GET
+  acl videocache_other  src 0.0.0.0/0.0.0.0
   url_rewrite_access deny  videocache_deny_url
   url_rewrite_access allow videocache_method videocache_allow_url
-  url_rewrite_access deny all
-  url_rewrite_bypass on
+  url_rewrite_access deny videocache_other
+  # Use 'url_rewrite_bypass on' if you are using Squid 3.x
+  #url_rewrite_bypass on
+  # User 'redirector_bypass on' if you are using Squid 2.x
+  redirector_bypass on
   # --END-- videocache config for squid
 
   Save squid.conf and reload the squid service using
   [root@proxy root]# /etc/init.d/squid reload
 
-  SEE README FILE FOR MORE CONFIGURATION OPTIONS.
+  SEE Readme FILE FOR MORE CONFIGURATION OPTIONS.
 
 4. Bugs, Suggestions, Comments
 ==============================
@@ -131,5 +146,6 @@ Index
 5. Online Help
 ==============
   1. Project Website : http://cachevideos.com/
-  2. How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
+  2. Squid Proxy Server 3.1: Beginner's Guide : http://tinyurl.com/squidbook
+  3. How to configure squid : http://gofedora.com/how-to-configure-squid-proxy-server/
 

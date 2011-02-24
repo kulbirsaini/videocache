@@ -100,9 +100,10 @@ def connection():
     global video_pool
     try:
         video_pool = ServerProxy(o.rpc_url)
+        video_pool.ping()
         info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
     except Exception, e:
-        error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server.', 'debug' : str(e)})
+        error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
         trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 def add_video_to_local_pool(video_id, params):

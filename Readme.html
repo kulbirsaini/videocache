@@ -1,0 +1,373 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+<META NAME="generator" CONTENT="http://txt2tags.sf.net">
+<TITLE>Videocache</TITLE>
+</HEAD><BODY BGCOLOR="white" TEXT="black">
+<P ALIGN="center"><CENTER><H1>Videocache</H1>
+<FONT SIZE="4">
+February 25, 2011
+</FONT></CENTER>
+
+<P></P>
+<HR NOSHADE SIZE=1>
+<P></P>
+    <UL>
+    <LI><A HREF="#toc1">Name and Description</A>
+    <LI><A HREF="#toc2">Dependencies</A>
+    <LI><A HREF="#toc3">Installation &amp; Configuration</A>
+    <LI><A HREF="#toc4">Running or Updating Videocache</A>
+      <UL>
+      <LI><A HREF="#toc5">1. Update Script (vc-update)</A>
+      <LI><A HREF="#toc6">2. Videocache Scheduler</A>
+      <LI><A HREF="#toc7">3. Apache Web Server</A>
+      <LI><A HREF="#toc8">4. Squid Proxy Server</A>
+      </UL>
+    <LI><A HREF="#toc9">Videocache Global Configuration</A>
+    <LI><A HREF="#toc10">Videocache Files</A>
+    <LI><A HREF="#toc11">See Also</A>
+    <LI><A HREF="#toc12">Author</A>
+    <LI><A HREF="#toc13">Bugs, Suggestions, Comments</A>
+    <LI><A HREF="#toc14">Copyright</A>
+    </UL>
+
+<P></P>
+<HR NOSHADE SIZE=1>
+<P></P>
+<A NAME="toc1"></A>
+<H2>Name and Description</H2>
+<P>
+Videocache (<A HREF="http://cachevideos.com/">http://cachevideos.com/</A>) - A Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
+</P>
+<P>
+Videocache is a Squid url rewriter plugin written in Python to facilitate caching youtube, metacafe, dailymotion, google, vimeo, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl videos. It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
+</P>
+<P>
+<B>NOTE</B> : If you are new to Squid or you are willing to explore Squid in details, please check my new book <B>Squid Proxy Server 3.1: Beginner's Guide</B> at <A HREF="http://tinyurl.com/squidbook">http://tinyurl.com/squidbook</A>.
+</P>
+<A NAME="toc2"></A>
+<H2>Dependencies</H2>
+<OL>
+<LI>Squid &gt;= 2.6
+<LI>python &gt;= 2.4
+<LI>python-iniparse
+<LI>Apache or any other Web Server
+</OL>
+
+<A NAME="toc3"></A>
+<H2>Installation &amp; Configuration</H2>
+<P>
+See INSTALL file in Videocache source or visit <A HREF="http://cachevideos.com/installation">http://cachevideos.com/installation</A> for installation instructions.
+</P>
+<A NAME="toc4"></A>
+<H2>Running or Updating Videocache</H2>
+<P>
+If you update your Videocache configuration file located at <I>/etc/videocache.conf</I> or you just finished installing Videocache, then you need to perform the following four steps. These steps are mandatory and Videocache will not work properly unless you perform these steps.
+</P>
+<A NAME="toc5"></A>
+<H3>1. Update Script (vc-update)</H3>
+<P>
+<B>NOTE</B> : Please check <A HREF="http://cachevideos.com/vc-update">http://cachevideos.com/vc-update</A> for latest documentation.
+</P>
+<P>
+Once you are done updating the Videocache configuration file and ready to deploy the new options, you should, first of all, run the update script (vc-update) which will update your cache directories, Apache configuration file and other system file accordingly. You can run this command as follows
+</P>
+<PRE>
+  [root@proxy root]# vc-update
+</PRE>
+<P>
+To know the available options, please use the following command
+</P>
+<PRE>
+  [root@proxy root]# vc-update -h
+</PRE>
+<P></P>
+<A NAME="toc6"></A>
+<H3>2. Videocache Scheduler</H3>
+<P>
+<B>NOTE</B> : Please check <A HREF="http://cachevideos.com/vc-scheduler">http://cachevideos.com/vc-scheduler</A> for latest documenation.
+</P>
+<P>
+Make sure that the Videocache scheduler (vc-scheduler) is running. Restart vc-scheduler using the following command
+</P>
+<PRE>
+  [root@proxy root]# vc-scheduler -s restart
+</PRE>
+<P>
+To see the list of options availbale, please use the following command
+</P>
+<PRE>
+  [root@proxy root]# vc-scheduler -h
+</PRE>
+<P></P>
+<A NAME="toc7"></A>
+<H3>3. Apache Web Server</H3>
+<P>
+Restart the Apache web server using the following command
+</P>
+<PRE>
+  [root@proxy root]# apachectl -k restart
+</PRE>
+<P></P>
+<A NAME="toc8"></A>
+<H3>4. Squid Proxy Server</H3>
+<P>
+Once all the above steps have succeeded, you need to reload or restart your proxy server daemon which will run Videocache with the updating configuration.
+</P>
+<P>
+To reload Squid proxy server, use the following command 
+</P>
+<PRE>
+  [root@proxy root]# /etc/init.d/squid reload
+</PRE>
+<P>
+Or to restart Squid proxy server, use the following command
+</P>
+<PRE>
+  [root@proxy root]# /etc/init.d/squid restart
+</PRE>
+<P></P>
+<A NAME="toc9"></A>
+<H2>Videocache Global Configuration</H2>
+<P>
+Below is a description of various options you can use to configure Videocache. A description of these options is also available at <A HREF="http://cachevideos.com/configure">http://cachevideos.com/configure</A>.
+</P>
+<P>
+Config file : /etc/videocache.conf
+</P>
+<DL>
+<DT>enable_videocache</DT><DD>
+This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
+<P></P>
+<DT>offline_mode</DT><DD>
+When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache will cache new video and when set to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters. Default: 0.
+<P></P>
+<DT>videocache_user</DT><DD>
+Use this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On RedHat/CentOS/SuSE, it's generally <I>squid</I> and on Debian/Ubuntu/BSDs, it generally <I>proxy</I>. Default: <I>squid</I>.
+<P></P>
+<B>IMPORTANT</B> : This must be set appropriately otherwise Videocache will not work.
+<P></P>
+<DT>cache_host</DT><DD>
+The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
+<P></P>
+<B>IMPORTANT</B> : Please don’t use http:// or slashes (/). Just specify the domain name or IP address.
+Additionally you can select an alternative port to use.
+<PRE>
+  Example : proxy.example.com
+  or 192.168.36.204
+  or 192.168.36.204:81
+  or &lt;Proxy_Server_IP_OR_Domain:HTTP_PORT&gt;
+</PRE>
+Default: 127.0.0.1.
+<P></P>
+<DT>base_dir</DT><DD>
+Base directories for caching the videos. You can specify multiple caching directories here separated by '|' symbol. Please try to avoid special characters in directory names like spaces, $ etc.
+<PRE>
+  Example : base_dir = /var/spool/videocache/ | /videocache2/stuff-new/|/new_videocache.
+</PRE>
+Default: <I>/var/spool/videocache/</I>.
+<P></P>
+<DT>max_cache_processes</DT><DD>
+The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 20.
+<P></P>
+<DT>proxy</DT><DD>
+<B>Warning</B> : <U><B>USE THIS ONLY IF</B></U> Videocache Server should go via anohter proxy.
+<P></P>
+Proxy for http content. Default: &lt;blank&gt;.
+<PRE>
+  Example : http_proxy = http://&lt;Proxy_Server_IP_OR_Domain&gt;:&lt;Proxy_port&gt;/
+  or http://proxy.example.com:3128/
+</PRE>
+<P></P>
+<DT>proxy_username</DT><DD>
+If the above proxy requires authentication, please specify the username. Default: &lt;blank&gt;.
+<P></P>
+<DT>proxy_password</DT><DD>
+If the above proxy requires authentication, please specify the password. Default: &lt;blank&gt;.
+<P></P>
+<DT>hit_threshold</DT><DD>
+No of times a video should be requested before we start caching it. Default: 2
+<P></P>
+<DT>max_video_size</DT><DD>
+The video of size more than <I>max_video_size</I> (MegaBytes) will not be cached. Default: 0.
+<PRE>
+  EXAMPLE: If max_video_size = 50, Videocache will not cache videos of size more than 50MB.  Set this to 0 to disable this check. Don't append MB.
+</PRE>
+<P></P>
+<DT>min_video_size</DT><DD>
+The video of size less than <I>min_video_size</I> (MegaBytes) will not be cached. Default: 0.
+<PRE>
+  EXAMPLE: If min_video_size = 2, Videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
+</PRE>
+<P></P>
+<DT>disk_avail_threshold</DT><DD>
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 1000.
+<PRE>
+  EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
+</PRE>
+<P></P>
+<DT>enable_videocache_cleaner</DT><DD>
+Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
+<P></P>
+<DT>video_lifetime</DT><DD>
+The maximum life of a video in cache without being used. If the video was not accessed for more than <I>video_lifetime</I> days, it'll be removed from the cache. The unit of video_lifetime is days. Default: 30.
+<PRE>
+  Example : video_lifetime = 15 will remove videos which were not used since last 15 or more days.
+</PRE>
+<P></P>
+<DT>logformat, scheduler_logformat, cleaner_logformat</DT><DD>
+Logformat allows you to get log messages in your preferred format. The <I>logformat</I>, <I>scheduler_logformat</I>, <I>cleaner_logformat</I> are applicable to main Videocache log, scheduler log and cleaner log respectively. Use the format codes described below.
+<PRE>
+  %  - A literal % character
+  ts - Seconds since epoch
+  tu - Time in millisecond
+  tl - Local Time
+  tg - GMT Time
+  p  - Process ID of the process logging the message
+  s  - Severity level of the log message
+  i  - Client's IP address
+  w  - Website ID (eg. YOUTUBE/GOOGLE/VIMEO etc.)
+  c  - Status Code (CACHE_HIT/CACHE_MISS etc.)
+  v  - Video ID of current video
+  m  - Additional Message (for verbose logs)
+  d  - Debug message (for debugging purpose)
+</PRE>
+<PRE>
+  Example: logformat = %ts %i %w %c %v
+</PRE>
+Default logformats: 
+<PRE>
+  logformat = %tl %p %s %i %w %c %v %m %d
+  scheduler_logformat =  %tl %p %s %i %w %c %v %m %d
+  cleaner_logformat = %tl %p %s %w %c %v %m %d
+</PRE>
+<P></P>
+<DT>timeformat</DT><DD>
+You can use a custom format for displaying time in log messages. Use the format codes described below
+<P></P>
+<B>IMPORTANT</B> : This format will be applicable to localtime and GMT time in the log messages.
+<PRE>
+  %a    Abbreviated weekday name (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
+  %A    Full weekday name (Sunday, Monday, ...)
+  %b    Abbreviated month name (Jan, Feb, Mar, ...)
+  %B    Full month name (January, February, ...)
+  %d    Day of the month as a decimal number [01..31]
+  %H    Hour (24-hour clock) as a decimal number [00..23]
+  %I    Hour (12-hour clock) as a decimal number [01..12]
+  %j    Day of the year as a decimal number [001..366]
+  %m    Month as a decimal number [01..12]
+  %M    Minute as a decimal number [00..59]
+  %p    Either AM or PM
+  %S    Second as a decimal number [00..59]
+  %y    Year without century as a decimal number [00..99]
+  %Y    Year with century as a decimal number
+</PRE>
+<PRE>
+  Example: timeformat = %B %d, %Y %H:%M:%S
+</PRE>
+Default: %d/%b/%Y:%H:%M:%S
+<P></P>
+<DT>logdir</DT><DD>
+<P></P>
+Directory where Videocache logs will be stored. Default: <I>/var/log/videocache/</I>.
+<P></P>
+<DT>logfile, scheduler_logfile, cleaner_logfile, tracefile</DT><DD>
+The name of log file can be specified using different logfile options. Please avoid any special characters in filename.
+<P></P>
+Default logfile names:
+<PRE>
+  logfile : videocache.log
+  scheduler_logfile : scheduler.log
+  cleaner_logfile : cleaner.log
+  tracefile : trace.log
+</PRE>
+<P></P>
+<DT>max_logfile_size, max_scheduler_logfile_size, max_cleaner_logfile_size, max_tracefile_size</DT><DD>
+Maximum size of logfiles specified above. The size is in mega bytes.
+<P></P>
+<B>IMPORTANT</B> : Please don't use max_logfile_size = 10MB. Don't append MB.
+<P></P>
+Default logfile sizes:
+<PRE>
+  max_logfile_size : 10
+  max_scheduler_logfile_size : 10
+  max_cleaner_logfile_size : 10
+  max_tracefile_size : 10
+</PRE>
+<P></P>
+<DT>max_logfile_backups, max_scheduler_logfile_backups, max_cleaner_logfile_backups, max_tracefile_backups</DT><DD>
+The logfiles are automatically rotated once they have exceeded the <I>max_logfile_size</I>. The <I>max_logfile_backups</I> is the number of backup files you want to keep.
+<PRE>
+  Example: max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles.
+</PRE>
+Default logfile backups:
+<PRE>
+  max_logfile_backups : 10
+  max_scheduler_logfile_backups : 10
+  max_cleaner_logfile_backups : 5
+  max_tracefile_backups : 1
+</PRE>
+<P></P>
+<DT>scheduler_pidfile</DT><DD>
+The <I>scheduler_logfile</I> option can be used to specify the location of a file which will be used to track process ID of the currently running Videocache scheduler. Default: <I>/var/run/videocache.pid</I>.
+<P></P>
+<DT>enable_youtube_cache</DT><DD>
+This option enables the caching of Youtube videos. This option’s value can be either 0 or 1. Default: 1.
+<P></P>
+<DT>temp_dir</DT><DD>
+Directory to store partially downloaded videos. Directory name is relative to <I>base_dir</I>. Default: <I>tmp</I>.
+<PRE>
+  Example: If temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/.
+</PRE>
+<P></P>
+<DT>rpc_host</DT><DD>
+XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
+<P></P>
+<DT>rpc_port</DT><DD>
+Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in use by any other program. Default: 9100.
+</DL>
+
+<A NAME="toc10"></A>
+<H2>Videocache Files</H2>
+<PRE>
+  /etc/videocache.conf
+  /etc/httpd/conf.d/videocache.conf OR /etc/apache2/conf.d/videocache.conf
+  /usr/share/videocache/
+  /usr/share/man/man8/videocache.8.gz
+  /usr/sbin/vc-update
+  /usr/sbin/vc-scheduler
+  /usr/sbin/vc-cleaner
+  /var/log/videocache/
+  /var/spool/videocache/
+  /var/run/videocache.pid
+</PRE>
+<A NAME="toc11"></A>
+<H2>See Also</H2>
+<PRE>
+  squid (8)
+</PRE>
+<UL>
+<LI>Squid Proxy Server 3.1: Beginner's Guide : <A HREF="http://tinyurl.com/squidbook">http://tinyurl.com/squidbook</A>
+<LI>Project Website : <A HREF="http://cachevideos.com/">http://cachevideos.com/</A>
+<LI>How to configure Squid : <A HREF="http://gofedora.com/how-to-configure-squid-proxy-server/">http://gofedora.com/how-to-configure-squid-proxy-server/</A>
+</UL>
+
+<A NAME="toc12"></A>
+<H2>Author</H2>
+<P>
+Kulbir Saini &lt;saini AT saini.co.in&gt;. Check <A HREF="http://saini.co.in/">http://saini.co.in/</A> for more information on author.
+</P>
+<A NAME="toc13"></A>
+<H2>Bugs, Suggestions, Comments</H2>
+<P>
+Please visit <A HREF="http://cachevideos.com/forum/">http://cachevideos.com/forum/</A>.
+</P>
+<A NAME="toc14"></A>
+<H2>Copyright</H2>
+<P>
+Copyright (c) 2008-2011 Kulbir Saini.
+</P>
+
+<!-- html code generated by txt2tags 2.5 (http://txt2tags.sf.net) -->
+<!-- cmdline: txt2tags -t html -\-toc -i videocache.8.t2t -o Readme.html -->
+</BODY></HTML>
