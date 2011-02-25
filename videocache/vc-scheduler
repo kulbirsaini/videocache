@@ -583,23 +583,30 @@ def cache_thread_scheduler():
         warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
 
 def submit_system_info():
+    submit_period = 86400
     while True:
         try:
             if o.client_email != '':
                 cookie_handler = urllib2.HTTPCookieProcessor()
                 redirect_handler = urllib2.HTTPRedirectHandler()
                 info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-                info = { 'email' : o.client_email, 'report_time' : time.strftime('%Y%m%d%H%M%S', time.gmtime()) }
+                info = { 'email' : o.client_email }
                 info.update(get_all_info())
                 new_info = {}
                 for k,v in info.items():
                     new_info['[server][' + k + ']'] = v
 
-                info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
-            time.sleep(86400)
+                status = info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
+                if status == 'OK':
+                    submit_period = 86400
+                else:
+                    submit_period = 30
+            else:
+                warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
+                submit_period = 600
         except Exception, e:
-            time.sleep(1800)
             pass
+        time.sleep(submit_period)
 
 
 class VideoPoolDaemon(VideocacheDaemon):
