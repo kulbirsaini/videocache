@@ -98,6 +98,12 @@ Videocache Global Configuration
            value can be either 0 or 1. Default: 1.
 
 
+    client_email
+           Please set this option to the email address using which you purchased Videocache license.
+
+           IMPORTANT : This must be set appropriately otherwise Videocache will not work.
+
+
     offline_mode
            When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache
            will cache new video and when set to 1, Videocache will serve the already cached videos and will  not  cache  the  new  videos  is  encounters.

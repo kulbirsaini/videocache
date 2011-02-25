@@ -119,10 +119,6 @@ def create_dir(dir, user=None, mode=0755):
 def dir_perms_and_ownership(dir, user=None, mode=0755):
     """Change the permissions and ownership of a directory."""
     try:
-        stats = os.stat(dir)
-    except:
-        stats = None
-    try:
         os.chmod(dir, mode)
     except:
         print "Failed to change permission : " + dir
@@ -133,6 +129,10 @@ def dir_perms_and_ownership(dir, user=None, mode=0755):
 
     user = pwd.getpwnam(user)[2]
 
+    try:
+        stats = os.stat(dir)
+    except:
+        stats = None
     if stats is not None and stats[stat.ST_UID] == user and stats[stat.ST_GID] == user:
         return True
     try:
@@ -440,6 +440,8 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
     if not os.path.isdir(install_dir):
         if not create_dir(install_dir):
             setup_error('install')
+        if not dir_perms_and_ownership(dir, None, 0755):
+            setup_error('install')
     else:
         print "Exists : " + install_dir
 
@@ -511,6 +513,10 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
 
     # Copy core videocache plugin code to /usr/share/videocache/ .
     if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir):
+        setup_error('install')
+
+    # Set permissions to 755. Very important.
+    if not dir_perms_and_ownership(install_dir, None, 0755):
         setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .

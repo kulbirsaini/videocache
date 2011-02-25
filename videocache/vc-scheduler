@@ -12,6 +12,7 @@ from common import *
 from error_codes import *
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
+from vcsysinfo import *
 
 from optparse import OptionParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -546,37 +547,60 @@ cache_bliptv_video = cache_generalized
 cache_break_video = cache_generalized
 
 def cache_thread_scheduler():
-    info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
-    connection()
-    while True:
-        try:
-            video_pool.load_queue()
-            info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
-            break
-        except Exception, e:
-            warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
-            trace({ 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() })
-            time.sleep(5)
-            connection()
+    if o.client_email != '':
+        info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
+        connection()
+        while True:
+            try:
+                video_pool.load_queue()
+                info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
+                break
+            except Exception, e:
+                warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
+                trace({ 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() })
+                time.sleep(5)
+                connection()
 
+        while True:
+            try:
+                if not o.offline_mode:
+                    num_tries = 0
+                    while num_tries < 5:
+                        try:
+                            video_pool.schedule()
+                            break
+                        except Exception, e:
+                            connection()
+                        num_tries += 1
+                        time.sleep(min(2 ** num_tries, 10))
+                    else:
+                        warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+            except Exception, e:
+                warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
+                trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
+            time.sleep(5)
+    else:
+        warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
+
+def submit_system_info():
     while True:
         try:
-            if not o.offline_mode:
-                num_tries = 0
-                while num_tries < 5:
-                    try:
-                        video_pool.schedule()
-                        break
-                    except Exception, e:
-                        connection()
-                    num_tries += 1
-                    time.sleep(min(2 ** num_tries, 10))
-                else:
-                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+            if o.client_email != '':
+                cookie_handler = urllib2.HTTPCookieProcessor()
+                redirect_handler = urllib2.HTTPRedirectHandler()
+                info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+                info = { 'email' : o.client_email, 'report_time' : time.strftime('%Y%m%d%H%M%S', time.gmtime()) }
+                info.update(get_all_info())
+                new_info = {}
+                for k,v in info.items():
+                    new_info['[server][' + k + ']'] = v
+
+                info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
+            time.sleep(86400)
         except Exception, e:
-            warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
-            trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
-        time.sleep(5)
+            time.sleep(1800)
+            pass
+
 
 class VideoPoolDaemon(VideocacheDaemon):
 
@@ -597,10 +621,16 @@ class VideoPoolDaemon(VideocacheDaemon):
 
             server_thread = threading.Thread(target = server.serve_forever)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
+            sysinfo_thread = threading.Thread(target = submit_system_info )
+
             server_thread.start()
             cache_thread.start()
+            sysinfo_thread.start()
+
             server_thread.join()
             cache_thread.join()
+            sysinfo_thread.join()
+            # Not needed because it's running in a thread
             #server.serve_forever()
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )

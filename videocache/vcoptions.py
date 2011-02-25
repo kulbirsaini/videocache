@@ -55,6 +55,7 @@ class VideocacheOptions:
             self.__class__.hit_threshold = int(mainconf.hit_threshold)
             self.__class__.max_video_size = int(mainconf.max_video_size) * 1024 * 1024
             self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
+            self.__class__.client_email = mainconf.client_email
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
