@@ -337,7 +337,7 @@ Videocache Global Configuration
 
 
     scheduler_pidfile
-           Tgfile  option  can  be  used to specify the location of a file which will be used to track process ID of the currently running
+           The  scheduler_logfile  option  can  be  used to specify the location of a file which will be used to track process ID of the currently running
            Videocache scheduler. Default: /var/run/videocache.pid.
 
 
@@ -395,4 +395,3 @@ Bugs, Suggestions, Comments
 
 Copyright
     Copyright (c) 2008-2011 Kulbir Saini.
-
