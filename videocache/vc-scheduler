@@ -613,7 +613,7 @@ class VideoPoolDaemon(VideocacheDaemon):
 
     def __init__(self, o = None, **kwargs):
         self.o = o
-        VideocacheDaemon.__init__(self, o.scheduler_pidfile, **kwargs)
+        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
 
     def run(self):
         global process_id
@@ -642,7 +642,6 @@ class VideoPoolDaemon(VideocacheDaemon):
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
             trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
-            sys.stdout.write(traceback.format_exc())
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -680,6 +679,8 @@ if __name__ == '__main__':
         video_pool = None
         exit = False
         process_id = '-'
+        stdout = sys.stdout
+        stderr = sys.stderr
 
         if options.sig == 'start':
             daemon.start()

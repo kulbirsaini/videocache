@@ -6,7 +6,7 @@
 </HEAD><BODY BGCOLOR="white" TEXT="black">
 <P ALIGN="center"><CENTER><H1>Videocache</H1>
 <FONT SIZE="4">
-February 25, 2011
+February 26, 2011
 </FONT></CENTER>
 
 <P></P>
@@ -16,19 +16,20 @@ February 25, 2011
     <LI><A HREF="#toc1">Name and Description</A>
     <LI><A HREF="#toc2">Dependencies</A>
     <LI><A HREF="#toc3">Installation &amp; Configuration</A>
-    <LI><A HREF="#toc4">Running or Updating Videocache</A>
+    <LI><A HREF="#toc4">Squid Configuration</A>
+    <LI><A HREF="#toc5">Running or Updating Videocache</A>
       <UL>
-      <LI><A HREF="#toc5">1. Update Script (vc-update)</A>
-      <LI><A HREF="#toc6">2. Videocache Scheduler</A>
-      <LI><A HREF="#toc7">3. Apache Web Server</A>
-      <LI><A HREF="#toc8">4. Squid Proxy Server</A>
+      <LI><A HREF="#toc6">1. Update Script (vc-update)</A>
+      <LI><A HREF="#toc7">2. Videocache Scheduler</A>
+      <LI><A HREF="#toc8">3. Apache Web Server</A>
+      <LI><A HREF="#toc9">4. Squid Proxy Server</A>
       </UL>
-    <LI><A HREF="#toc9">Videocache Global Configuration</A>
-    <LI><A HREF="#toc10">Videocache Files</A>
-    <LI><A HREF="#toc11">See Also</A>
-    <LI><A HREF="#toc12">Author</A>
-    <LI><A HREF="#toc13">Bugs, Suggestions, Comments</A>
-    <LI><A HREF="#toc14">Copyright</A>
+    <LI><A HREF="#toc10">Videocache Global Configuration</A>
+    <LI><A HREF="#toc11">Videocache Files</A>
+    <LI><A HREF="#toc12">See Also</A>
+    <LI><A HREF="#toc13">Author</A>
+    <LI><A HREF="#toc14">Bugs, Suggestions, Comments</A>
+    <LI><A HREF="#toc15">Copyright</A>
     </UL>
 
 <P></P>
@@ -60,11 +61,67 @@ Videocache is a Squid url rewriter plugin written in Python to facilitate cachin
 See INSTALL file in Videocache source or visit <A HREF="http://cachevideos.com/installation">http://cachevideos.com/installation</A> for installation instructions.
 </P>
 <A NAME="toc4"></A>
+<H2>Squid Configuration</H2>
+<P>
+Add the following lines to your squid.conf which is generally located at <I>/etc/squid/squid.conf</I>
+</P>
+<PRE>
+  # --BEGIN-- videocache config for squid
+  url_rewrite_program /usr/bin/python /usr/share/videocache/videocache.py
+  url_rewrite_children 15
+  
+  acl videocache_allow_url url_regex -i \.youtube\.com\/videoplay \.youtube\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.youtube\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.youtube\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.googlevideo\.com\/videoplay \.googlevideo\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.com\/videoplay \.google\.com\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.google\.[a-z][a-z]\.[a-z][a-z]\/videoplay \.google\.[a-z][a-z]\.[a-z][a-z]\/get_video\?
+  acl videocache_allow_url url_regex -i \.mccont\.com\/ItemFiles\/(.*)?\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i vid\.akm\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i cdn\.dailymotion\.com\/(.*)\.(flv|on2|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i redtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.xtube\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i \.xtube\.com\/(.*)(Thumb|videowall)
+  acl videocache_allow_url url_regex -i \.vimeo\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.amazonaws\.com\/(.*)\.vimeo\.com(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i c\.wrzuta\.pl\/wa[0-9][0-9]?[0-9]?[0-9]?[0-9]?
+  acl videocache_allow_url url_regex -i \.youporn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msn\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msn\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i msnbc\.(.*)\.(com|net)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.tube8\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_allow_url url_regex -i \.blip\.tv\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i \.blip\.tv\/(.*)filename
+  acl videocache_allow_url url_regex -i \.break\.com\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)
+  acl videocache_deny_url  url_regex -i crossdomain.xml
+  acl videocache_method method GET
+  acl videocache_other  src 0.0.0.0/0.0.0.0
+  url_rewrite_access deny  videocache_deny_url
+  url_rewrite_access allow videocache_method videocache_allow_url
+  url_rewrite_access deny videocache_other
+  # Use 'url_rewrite_bypass on' if you are using Squid 3.x
+  #url_rewrite_bypass on
+  # User 'redirector_bypass on' if you are using Squid 2.x
+  redirector_bypass on
+  # --END-- videocache config for squid
+</PRE>
+<P></P>
+<P>
+Save squid.conf and reload the squid service using the following command
+</P>
+<PRE>
+  [root@proxy root]# /etc/init.d/squid reload
+</PRE>
+<P></P>
+<A NAME="toc5"></A>
 <H2>Running or Updating Videocache</H2>
 <P>
 If you update your Videocache configuration file located at <I>/etc/videocache.conf</I> or you just finished installing Videocache, then you need to perform the following four steps. These steps are mandatory and Videocache will not work properly unless you perform these steps.
 </P>
-<A NAME="toc5"></A>
+<A NAME="toc6"></A>
 <H3>1. Update Script (vc-update)</H3>
 <P>
 <B>NOTE</B> : Please check <A HREF="http://cachevideos.com/vc-update">http://cachevideos.com/vc-update</A> for latest documentation.
@@ -82,7 +139,7 @@ To know the available options, please use the following command
   [root@proxy root]# vc-update -h
 </PRE>
 <P></P>
-<A NAME="toc6"></A>
+<A NAME="toc7"></A>
 <H3>2. Videocache Scheduler</H3>
 <P>
 <B>NOTE</B> : Please check <A HREF="http://cachevideos.com/vc-scheduler">http://cachevideos.com/vc-scheduler</A> for latest documenation.
@@ -100,7 +157,7 @@ To see the list of options availbale, please use the following command
   [root@proxy root]# vc-scheduler -h
 </PRE>
 <P></P>
-<A NAME="toc7"></A>
+<A NAME="toc8"></A>
 <H3>3. Apache Web Server</H3>
 <P>
 Restart the Apache web server using the following command
@@ -109,7 +166,7 @@ Restart the Apache web server using the following command
   [root@proxy root]# apachectl -k restart
 </PRE>
 <P></P>
-<A NAME="toc8"></A>
+<A NAME="toc9"></A>
 <H3>4. Squid Proxy Server</H3>
 <P>
 Once all the above steps have succeeded, you need to reload or restart your proxy server daemon which will run Videocache with the updating configuration.
@@ -127,7 +184,7 @@ Or to restart Squid proxy server, use the following command
   [root@proxy root]# /etc/init.d/squid restart
 </PRE>
 <P></P>
-<A NAME="toc9"></A>
+<A NAME="toc10"></A>
 <H2>Videocache Global Configuration</H2>
 <P>
 Below is a description of various options you can use to configure Videocache. A description of these options is also available at <A HREF="http://cachevideos.com/configure">http://cachevideos.com/configure</A>.
@@ -332,7 +389,7 @@ XMLRPCServer is used for memory sharing across different instances of Videocache
 Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in use by any other program. Default: 9100.
 </DL>
 
-<A NAME="toc10"></A>
+<A NAME="toc11"></A>
 <H2>Videocache Files</H2>
 <PRE>
   /etc/videocache.conf
@@ -346,7 +403,7 @@ Please make sure this port is not currently in use. If it is in use by some othe
   /var/spool/videocache/
   /var/run/videocache.pid
 </PRE>
-<A NAME="toc11"></A>
+<A NAME="toc12"></A>
 <H2>See Also</H2>
 <PRE>
   squid (8)
@@ -357,17 +414,17 @@ Please make sure this port is not currently in use. If it is in use by some othe
 <LI>How to configure Squid : <A HREF="http://gofedora.com/how-to-configure-squid-proxy-server/">http://gofedora.com/how-to-configure-squid-proxy-server/</A>
 </UL>
 
-<A NAME="toc12"></A>
+<A NAME="toc13"></A>
 <H2>Author</H2>
 <P>
 Kulbir Saini &lt;saini AT saini.co.in&gt;. Check <A HREF="http://saini.co.in/">http://saini.co.in/</A> for more information on author.
 </P>
-<A NAME="toc13"></A>
+<A NAME="toc14"></A>
 <H2>Bugs, Suggestions, Comments</H2>
 <P>
 Please visit <A HREF="http://cachevideos.com/forum/">http://cachevideos.com/forum/</A>.
 </P>
-<A NAME="toc14"></A>
+<A NAME="toc15"></A>
 <H2>Copyright</H2>
 <P>
 Copyright (c) 2008-2011 Kulbir Saini.

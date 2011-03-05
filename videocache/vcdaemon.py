@@ -26,6 +26,7 @@ class VideocacheDaemon:
         self.stdout = kwargs.get('stdout', open('/dev/null', 'a+'))
         self.stderr = kwargs.get('stderr', open('/dev/null', 'a+', 0))
         self.uid = kwargs.get('uid', 0)
+        self.name = kwargs.get('name', 'Process')
 
     def daemonize(self):
         pid = os.fork()
@@ -71,18 +72,18 @@ class VideocacheDaemon:
                 status = proc_test(pid)
 
             if status == True:
-                message = 'Pidfile exists and process is already running with process id: ' + str(pid) + '.'
+                message = 'Pidfile exists and ' + self.name + ' is already running with process id: ' + str(pid) + '.'
                 sys.stdout.write(message + '\n')
             elif status == False:
-                message = 'Pidfile exists but process is not running.'
+                message = 'Pidfile exists but ' + self.name + ' is not running.'
                 sys.stderr.write(message + '\n')
             else:
-                message = 'Pidfile exists but could not determine the status of the process with process id: ' + str(pid) + '.'
+                message = 'Pidfile exists but could not determine the status of ' + self.name + ' with process id: ' + str(pid) + '.'
                 sys.stderr.write(message + '\n')
 
             sys.exit(1)
 
-        sys.stdout.write('Process started.\n')
+        sys.stdout.write(self.name + ' started.\n')
         sys.stdout.flush()
         sys.stderr.flush()
         # Start the daemon
@@ -97,7 +98,7 @@ class VideocacheDaemon:
             pid = None
 
         if not pid:
-            message = 'Pidfile ' + self.pidfile + ' does not exist. Daemon may not be running.'
+            message = 'Pidfile ' + self.pidfile + ' does not exist. ' + self.name + ' may not be running.'
             sys.stderr.write(message + '\n')
             return # not an error in a restart
 
@@ -106,26 +107,26 @@ class VideocacheDaemon:
             os.kill(pid, signal.SIGTERM)
         except OSError, e:
             if e.errno == errno.ESRCH:
-                message = 'Process was not running.'
+                message = self.name + ' was not running.'
                 status = False
             elif e.errno == errno.EPERM:
-                message = 'Operation not permitted. Could not send a Terminate signal to process with process id: ' + str(pid) + '.'
+                message = 'Operation not permitted. Could not send a Terminate signal to ' + self.name + ' with process id: ' + str(pid) + '.'
                 status = None
         else:
-            message = 'Process stopped.'
+            message = self.name + ' stopped.'
             status = True
         if status == None:
             try:
                 os.kill(pid, signal.SIGKILL)
             except OSError, e:
                 if e.errno == errno.ESRCH:
-                    message = 'Process was not running.'
+                    message = self.name + ' was not running.'
                     status = False
                 elif e.errno == errno.EPERM:
-                    message = 'Operation not permitted. Could not send a KILL signal to process with process id: ' + str(pid) + '.'
+                    message = 'Operation not permitted. Could not send a KILL signal to ' + self.name + ' with process id: ' + str(pid) + '.'
                     status = None
             else:
-                message = 'Process stopped.'
+                message = self.name + ' stopped.'
                 status = True
 
         if status == True:
@@ -153,14 +154,14 @@ class VideocacheDaemon:
                 os.kill(pid, signal.SIGUSR1)
             except OSError, e:
                 if e.errno == errno.ESRCH:
-                    message = 'Process not running.'
+                    message = self.name + ' not running.'
                 elif e.errno == errno.EPERM:
-                    message = 'Could not signal process. Permission denied'
+                    message = 'Could not signal ' + self.name + '. Permission denied'
             else:
-                message = 'Reloading process.'
+                message = 'Reloading ' + self.name + '.'
                 status = True
         else:
-            message = 'Could not get process id from pidfile at ' + self.pidfile + '.'
+            message = 'Could not get ' + self.name + ' id from pidfile at ' + self.pidfile + '.'
 
         if status:
             sys.stdout.write(message + '\n')
