@@ -15,7 +15,7 @@ import subprocess
 def get_dist_details():
     try:
         dist = platform.dist('Unknown', 'Unknown', 'Unknown')
-        return { 'os_name' : dist[0], 'os_version' : dist[0], 'os_id' : dist[2] }
+        return { 'os_name' : dist[0], 'os_version' : dist[1], 'os_id' : dist[2] }
     except Exception, e:
         return { 'os_name' : 'Unknown', 'os_version' : 'Unknown', 'os_id' : 'Unknown' }
 
