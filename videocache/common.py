@@ -543,9 +543,9 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
         os.chmod(src_vc_cleaner, 0755)
         os.chmod(src_vc_scheduler, 0755)
 
-        if os.path.islink(dst_vc_update): os.unlink(dst_vc_update)
-        if os.path.islink(dst_vc_cleaner): os.unlink(dst_vc_cleaner)
-        if os.path.islink(dst_vc_scheduler): os.unlink(dst_vc_scheduler)
+        if os.path.islink(dst_vc_update) or os.path.isfile(dst_vc_update): os.unlink(dst_vc_update)
+        if os.path.islink(dst_vc_cleaner) or os.path.isfile(dst_vc_cleaner): os.unlink(dst_vc_cleaner)
+        if os.path.islink(dst_vc_scheduler) or os.path.isfile(dst_vc_scheduler): os.unlink(dst_vc_scheduler)
 
         os.symlink(src_vc_update, dst_vc_update)
         os.symlink(src_vc_cleaner, dst_vc_cleaner)
