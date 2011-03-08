@@ -467,7 +467,7 @@ def cache_youtube_video(params):
                 os.rename(tmp_path, video_path)
                 os.chmod(video_path, mode)
                 os.utime(video_path, None)
-                info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Video was cached successfully.' } )
+                info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
             else:
                 return
         else:
@@ -523,7 +523,7 @@ def cache_generalized(params):
                     os.rename(tmp_path, video_path)
                     os.chmod(video_path, mode)
                     os.utime(video_path, None)
-                    info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Video was cached successfully. ' + str(size) } )
+                    info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
                     return
             else:
                 info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })

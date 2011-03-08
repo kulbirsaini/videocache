@@ -126,6 +126,10 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
         for dir in o.base_dirs[website_id]:
             video_path = os.path.join(dir, video_id)
             if os.path.isfile(video_path):
+                try:
+                    size = os.path.getsize(video_path)
+                except:
+                    size = '-'
                 os.utime(video_path, None)
                 if len(o.base_dirs[website_id]) > 1:
                     index = o.base_dirs[website_id].index(dir)
@@ -135,7 +139,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
                 cached_url = os.path.join(o.cache_url, 'videocache', str(index), website_id)
                 url = os.path.join(cached_url, urllib.quote(video_id)) + '?' + query
                 new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
-                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Video was served from cache using the URL ' + new_url } )
+                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
                 return new_url
     except Exception, e:
         warn( { 'code' : VIDEO_SEARCH_WARN, 'message' : 'Could not search video in local cache.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
