@@ -49,8 +49,8 @@ def cleancache():
                     try:
                         if os.path.isfile(video_path):
                             if (cur_time - os.stat(video_path)[stat.ST_MTIME]) > o.video_lifetime * 86400:
-                                age = int((cur_time - os.stat(video)[stat.ST_ATIME]) / 86400)
-                                os.remove(video)
+                                age = int((cur_time - os.stat(video_path)[stat.ST_ATIME]) / 86400)
+                                os.remove(video_path)
                                 info( { 'code' : VIDEO_PURGED, 'message' : 'Video older than ' + str(age) + ' days was purged from cache.', 'website_id' : website_id, 'video_id' : video_id } )
                         else:
                             warn( { 'code' : VIDEO_PURGE_WARN, 'message' : 'Not a file or file does not exist.', 'website_id' : website_id, 'video_id' : video_id } )
