@@ -115,7 +115,7 @@ def add_video_to_local_pool(video_id, params):
         local_video_pool[video_id] = [params]
     thread_pool.release()
 
-def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
+def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, format = ''):
     """This function check whether a video is in cache or not. If not, it fetches
     it from the remote source and cache it and also streams it to the client."""
 
@@ -124,7 +124,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
     video_id = urllib.unquote(video_id)
     try:
         for dir in o.base_dirs[website_id]:
-            video_path = os.path.join(dir, video_id)
+            video_path = os.path.join(dir, video_id) + format
             if os.path.isfile(video_path):
                 try:
                     size = os.path.getsize(video_path)
@@ -137,7 +137,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
                     index = ''
                 query = urlparse.urlsplit(url)[3]
                 cached_url = os.path.join(o.cache_url, 'videocache', str(index), website_id)
-                url = os.path.join(cached_url, urllib.quote(video_id)) + '?' + query
+                url = os.path.join(cached_url, urllib.quote(video_id)) + format + '?' + query
                 new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
                 return new_url
@@ -147,7 +147,7 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False):
 
     info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
     if not cache_check_only:
-        add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time()})
+        add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
     return ''
 
 def squid_part():
@@ -191,7 +191,7 @@ def squid_part():
                 matched = False
                 # Youtube.com ang Google Video caching is handled here.
                 if not matched and o.enable_youtube_cache:
-                    if path.find('get_video') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
+                    if (path.find('get_video') > -1 or path.find('watch') > -1) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
                         website_id = 'youtube'
                         matched = True
                         dict = cgi.parse_qs(query)
@@ -201,17 +201,30 @@ def squid_part():
                             video_id = dict['docid'][0]
                         elif 'id' in dict:
                             video_id = dict['id'][0]
+                        elif 'v' in dict:
+                            video_id = dict['v'][0]
                         else:
                             video_id = None
 
+                        format = ''
+                        if 'itag' in dict:
+                            format = dict['itag'][0]
+                        elif 'fmt' in dict:
+                            format = dict['fmt'][0]
+                        elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
+                            format = '18'
+
+                        if str(format) == '18':
+                            format = '_18.mp4'
+
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id, False)
+                            new_url = cache_video(client_ip, website_id, url, video_id, False, format)
                         else:
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
 
                 # Youtube.com and Google Video caching is handled here. URLs to videoplayback.
                 if not matched and o.enable_youtube_cache:
-                    if path.find('videoplay') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
+                    if (path.find('videoplay') > -1 or path.find('watch') > -1) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
                         website_id = 'youtube'
                         matched = True
                         dict = cgi.parse_qs(query)
@@ -221,11 +234,24 @@ def squid_part():
                             video_id = dict['docid'][0]
                         elif 'id' in dict:
                             video_id = dict['id'][0]
+                        elif 'v' in dict:
+                            video_id = dict['v'][0]
                         else:
                             video_id = None
 
+                        format = ''
+                        if 'itag' in dict:
+                            format = dict['itag'][0]
+                        elif 'fmt' in dict:
+                            format = dict['fmt'][0]
+                        elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
+                            format = '18'
+
+                        if str(format) == '18':
+                            format = '_18.mp4'
+
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id, True)
+                            new_url = cache_video(client_ip, website_id, url, video_id, True, format)
                         else:
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
 

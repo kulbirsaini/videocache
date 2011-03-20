@@ -403,6 +403,7 @@ def cache_youtube_video(params):
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
+    format = params.get('format', '')
     urls = params.get('urls', [])
     dirs = params.get('dirs', [])
 
@@ -439,6 +440,10 @@ def cache_youtube_video(params):
         if 'fmt_url_map' in video_info:
             alternate_urls = [ u.split('|')[1] for u in video_info['fmt_url_map'][0].split(',') ]
             video_url = alternate_urls[0]
+            if format != '':
+                url_map = {}
+                [url_map.update({u.split('|')[0] : u.split('|')[1]}) for u in video_info['fmt_url_map'][0].split(',')]
+                video_url = url_map['18']
             for url in alternate_urls:
                 vid = get_youtube_video_id(url)
                 if vid and vid not in alternate_ids:
@@ -457,8 +462,8 @@ def cache_youtube_video(params):
     cache_dir = dir['cache_dir']
     tmp_dir = dir['tmp']
 
-    video_path = os.path.join(cache_dir, video_id)
-    tmp_path = os.path.join(tmp_dir, video_id)
+    video_path = os.path.join(cache_dir, video_id) + format
+    tmp_path = os.path.join(tmp_dir, video_id) + format
 
     try:
         if not os.path.exists(video_path):
@@ -475,7 +480,7 @@ def cache_youtube_video(params):
 
         for vid in alternate_ids:
             try:
-                new_video_path = os.path.join(cache_dir, vid)
+                new_video_path = os.path.join(cache_dir, vid) + format
                 if new_video_path is not None:
                     if not os.path.exists(new_video_path):
                         os.link(video_path, new_video_path)
