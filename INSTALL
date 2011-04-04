@@ -46,10 +46,10 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
 
   e) Identify your system
     1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
-    [root@proxy videocache-x.x.x]# python setup.py install
+    [root@proxy videocache-x.x.x]# python setup.py -u squid install
 
     2) If your system is Debian/Ubuntu/BSD, use setup-deb.py
-    [root@proxy videocache-x.x.x]# python setup-deb.py install
+    [root@proxy videocache-x.x.x]# python setup.py -u proxy install
 
   BINGO!! You are done with installation. In case you get any error while
   installing videocache, there will be proper logging in the console.

@@ -440,7 +440,7 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
     if not os.path.isdir(install_dir):
         if not create_dir(install_dir):
             setup_error('install')
-        if not dir_perms_and_ownership(dir, None, 0755):
+        if not dir_perms_and_ownership(install_dir, None, 0755):
             setup_error('install')
     else:
         print "Exists : " + install_dir
