@@ -45,35 +45,49 @@ def build_message(params):
     gmt_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.gmtime())
     return params.get('logformat', '') % { 'timestamp' : int(cur_time), 'timestamp_ms' : round(cur_time, 3), 'localtime' : local_time, 'gmt_time' : gmt_time, 'process_id' : params.get('process_id', '-'), 'levelname' : params.get('levelname', '-'), 'client_ip' : params.get('client_ip', '-'), 'website_id' : params.get('website_id', '-').upper(), 'code' : params.get('code', '-'), 'video_id' : params.get('video_id', '-'), 'size' : params.get('size', '-'), 'message' : params.get('message', '-'), 'debug' : params.get('debug', '-') }
 
+def get_youtube_video_id_from_query(query):
+    dict = cgi.parse_qs(query)
+    if 'video_id' in dict:
+        video_id = dict['video_id'][0]
+    elif 'docid' in dict:
+        video_id = dict['docid'][0]
+    elif 'id' in dict:
+        video_id = dict['id'][0]
+    elif 'v' in dict:
+        video_id = dict['v'][0]
+    else:
+        video_id = None
+    return video_id
+
 def get_youtube_video_id(url):
     """Youtube Specific"""
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
+    return get_youtube_video_id_from_query(query)
+
+def get_youtube_video_format_from_query(query):
     dict = cgi.parse_qs(query)
-    if dict.has_key('video_id'):
-        video_id = dict['video_id'][0]
-    elif dict.has_key('docid'):
-        video_id = dict['docid'][0]
-    elif dict.has_key('id'):
-        video_id = dict['id'][0]
+    if 'itag' in dict:
+        format = dict['itag'][0]
+    elif 'fmt' in dict:
+        format = dict['fmt'][0]
+    elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
+        format = '18'
     else:
-        video_id = None
-    return video_id
+        format = 34
+    try:
+        format = int(format)
+    except:
+        format = 34
+    return int(format)
 
 def get_youtube_video_format(url):
     """Youtube Specific"""
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    dict = cgi.parse_qs(query)
-    if dict.has_key('fmt'):
-        format_id = dict['fmt'][0]
-    elif dict.has_key('itag'):
-        format_id = dict['itag'][0]
-    else:
-        format_id = 34
-    return format_id
+    return get_youtube_video_format_from_query(query)
 
 def proc_test(pid):
     try:

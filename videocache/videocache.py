@@ -139,16 +139,14 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, 
                 cached_url = os.path.join(o.cache_url, 'videocache', str(index), website_id)
                 url = os.path.join(cached_url, urllib.quote(video_id)) + format + '?' + query
                 new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
-                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-                return new_url
+                return (new_url, size)
     except Exception, e:
         warn( { 'code' : VIDEO_SEARCH_WARN, 'message' : 'Could not search video in local cache.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
         trace( { 'code' : VIDEO_SEARCH_WARN, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
-    info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
     if not cache_check_only:
         add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
-    return ''
+    return ('', 0)
 
 def squid_part():
     """This function will tap requests from squid. If the request is for a
@@ -191,120 +189,79 @@ def squid_part():
                 matched = False
                 # Youtube.com ang Google Video caching is handled here.
                 if not matched and o.enable_youtube_cache:
-                    if path.find('get_video') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
+                    if (path.find('get_video') > -1 or path.find('watch') > -1 or path.find('watch_popup') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
                         website_id = 'youtube'
                         matched = True
-                        dict = cgi.parse_qs(query)
-                        if 'video_id' in dict:
-                            video_id = dict['video_id'][0]
-                        elif 'docid' in dict:
-                            video_id = dict['docid'][0]
-                        elif 'id' in dict:
-                            video_id = dict['id'][0]
-                        elif 'v' in dict:
-                            video_id = dict['v'][0]
-                        else:
-                            video_id = None
+                        video_id = get_youtube_video_id_from_query(query)
+                        format = get_youtube_video_format_from_query(query)
 
-                        #format = ''
-                        #if 'itag' in dict:
-                        #    format = dict['itag'][0]
-                        #elif 'fmt' in dict:
-                        #    format = dict['fmt'][0]
-                        #elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
-                        #    format = '18'
-
-                        #if str(format) == '18':
-                        #    format = '_18.mp4'
-
-                        if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id, False)
-                        else:
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
-
-                # Youtube.com and Google Video caching is handled here. URLs to videoplayback.
-                if not matched and o.enable_youtube_cache:
-                    if path.find('videoplay') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
-                        website_id = 'youtube'
-                        matched = True
-                        dict = cgi.parse_qs(query)
-                        if 'video_id' in dict:
-                            video_id = dict['video_id'][0]
-                        elif 'docid' in dict:
-                            video_id = dict['docid'][0]
-                        elif 'id' in dict:
-                            video_id = dict['id'][0]
-                        elif 'v' in dict:
-                            video_id = dict['v'][0]
-                        else:
-                            video_id = None
-
-                        format = ''
-                        if 'itag' in dict:
-                            format = dict['itag'][0]
-                        elif 'fmt' in dict:
-                            format = dict['fmt'][0]
-                        elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
-                            format = '18'
-
-                        if str(format) == '18':
+                        if format == 18:
                             format = '_18.mp4'
-
-                        if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id, True, format)
                         else:
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
-
-                # Youtube.com and Google Video for mobile
-                if not matched and o.enable_youtube_cache:
-                    if path.find('watch') > -1 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
-                        website_id = 'youtube'
-                        matched = True
-                        dict = cgi.parse_qs(query)
-                        if 'video_id' in dict:
-                            video_id = dict['video_id'][0]
-                        elif 'docid' in dict:
-                            video_id = dict['docid'][0]
-                        elif 'id' in dict:
-                            video_id = dict['id'][0]
-                        elif 'v' in dict:
-                            video_id = dict['v'][0]
-                        else:
-                            video_id = None
-
-                        format = ''
-                        if 'itag' in dict:
-                            format = dict['itag'][0]
-                        elif 'fmt' in dict:
-                            format = dict['fmt'][0]
-                        elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
-                            format = '18'
-
-                        if str(format) == '18':
-                            format = '_18.mp4'
+                            format = ''
 
                         if video_id is not None:
                             cache_video(client_ip, website_id, url, video_id, False, format)
-                            new_url = ''
                         else:
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
 
-                # Youtube.com and Google Video for mobile API requests
+                # Youtube.com ang Google Video caching is handled here. URLs with e/v/embed
                 if not matched and o.enable_youtube_cache:
-                    if path.find('feeds/api/videos/') > -1 and (host.find('.youtube.com') > -1 or host.find('.google.com') > -1 or host.find('.googlevideo.com') > -1 or re.compile('\.youtube\.[a-z][a-z]').search(host) or re.compile('\.youtube\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]').search(host) or re.compile('\.google\.[a-z][a-z]\.[a-z][a-z]').search(host) or re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host)):
+                    if re.compile('\/(v|e|embed)\/([0-9a-zA-Z_-]{11})').search(path) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
                         website_id = 'youtube'
                         matched = True
-                        format = '_18.mp4'
+                        format = get_youtube_video_format_from_query(query)
+
+                        if format == 18:
+                            format = '_18.mp4'
+                        else:
+                            format = ''
+
                         try:
-                            video_id = path.strip('/').split('/')[-2]
-                            if len(video_id) != 11:
-                                video_id = None
+                            video_id = re.compile('\/(v|e|embed)\/([0-9a-zA-Z_-]{11})').search(path).group(2)
                         except Exception, e:
                             video_id = None
 
                         if video_id is not None:
                             cache_video(client_ip, website_id, url, video_id, False, format)
-                            new_url = ''
+                        else:
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+
+                # Youtube.com and Google Video for mobile API requests
+                if not matched and o.enable_youtube_cache:
+                    if re.compile('\/feeds\/api\/videos\/[0-9a-zA-Z_-]{11}\/').search(path) and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
+                        website_id = 'youtube'
+                        matched = True
+                        format = '_18.mp4'
+                        try:
+                            video_id = re.compile('\/feeds\/api\/videos\/([0-9a-zA-Z_-]{11})\/').search(path).group(1)
+                        except Exception, e:
+                            video_id = None
+
+                        if video_id is not None:
+                            cache_video(client_ip, website_id, url, video_id, False, format)
+                        else:
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+
+                # Youtube.com and Google Video caching is handled here. URLs with videoplayback.
+                if not matched and o.enable_youtube_cache:
+                    if path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
+                        website_id = 'youtube'
+                        matched = True
+                        video_id = get_youtube_video_id_from_query(query)
+                        format = get_youtube_video_format_from_query(query)
+
+                        if format == 18:
+                            format = '_18.mp4'
+                        else:
+                            format = ''
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id, True, format)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
                         else:
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
 
@@ -321,7 +278,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Dailymotion.com caching is handled here.
                 if not matched and o.enable_dailymotion_cache:
@@ -336,7 +297,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Redtube.com caching is handled here.
                 if not matched and o.enable_redtube_cache:
@@ -351,7 +316,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Xtube.com caching is handled here.
                 if not matched and o.enable_xtube_cache:
@@ -366,7 +335,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Vimeo.com caching is handled here.
                 if not matched and o.enable_vimeo_cache:
@@ -381,7 +354,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Wrzuta.pl audio file caching is handled here.
                 if not matched and o.enable_wrzuta_cache:
@@ -406,7 +383,11 @@ def squid_part():
                                     warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
                                     trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
                             if video_id is not None:
-                                new_url = cache_video(client_ip, website_id, url, video_id)
+                                new_url, size = cache_video(client_ip, website_id, url, video_id)
+                                if new_url == '':
+                                    info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                                else:
+                                    info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
                     except Exception, e:
                         trace( { 'message' : traceback.format_exc() } )
 
@@ -423,7 +404,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Bing.com caching is handled here.
                 if not matched and o.enable_bing_cache:
@@ -438,7 +423,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Tube8.com Video file caching is handled here.
                 if not matched and o.enable_tube8_cache:
@@ -453,7 +442,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Blip.tv Video file caching is handled here.
                 if not matched and o.enable_bliptv_cache:
@@ -468,7 +461,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
                 # Break.com Video file caching is handled here.
                 if not matched and o.enable_break_cache:
@@ -483,7 +480,11 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
         else:
             warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and reload/restart Squid.' } )
 
