@@ -105,6 +105,10 @@ class VideocacheConf:
     enable_youtube_cache = Option(1)
     youtube_cache_dir = Option('youtube')
 
+    # Facebook.com Specific Options
+    enable_facebook_cache = Option(1)
+    facebook_cache_dir = Option('facebook')
+
     # Metacafe.com Specific Options
     enable_metacafe_cache = Option(1)
     metacafe_cache_dir = Option('metacafe')

@@ -519,7 +519,8 @@ def cache_generalized(params):
 
     for url in urls:
         original_url = url
-        if website_id not in ['redtube', 'xtube', 'tube8']:
+        if website_id not in ['facebook', 'redtube', 'xtube', 'tube8']:
+            #FIXME The function below changes the order of parameters
             url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
             if not os.path.exists(video_path):
@@ -538,6 +539,7 @@ def cache_generalized(params):
             trace( { 'code' : URL_CACHE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
     return
 
+cache_facebook_video = cache_generalized
 cache_metacafe_video = cache_generalized
 cache_dailymotion_video = cache_generalized
 cache_google_video = cache_generalized
