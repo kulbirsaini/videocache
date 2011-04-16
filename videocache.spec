@@ -3,7 +3,7 @@
 Name:       videocache
 Version:    1.9.8
 Release:    1
-Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Facebook, Metacafe, Dailymotion, Google, Vimeo, Xhamster, Xvideos, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, Blip TV, Break.com and Wrzuta.pl videos.
+Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Facebook, Metacafe, Dailymotion, Google, Vimeo, CNN, Xhamster, Xvideos, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, Blip TV, Break.com and Wrzuta.pl videos.
 License:    Videocache Commercial License
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -16,7 +16,7 @@ Requires:   squid
 Requires:   httpd
 
 %description
-Videocache is a squid url rewriter plugin written in Python to facilitate youtube, facebook, metacafe, dailymotion, google, vimeo, xhamster, xvideos, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
+Videocache is a squid url rewriter plugin written in Python to facilitate youtube, facebook, metacafe, dailymotion, google, vimeo, cnn, xhamster, xvideos, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
 
 %prep
 %setup -n %{name}-%{version}
@@ -42,6 +42,7 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/facebook/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/metacafe/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/dailymotion/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/cnn/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/vimeo/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xhamster/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xvideos/
