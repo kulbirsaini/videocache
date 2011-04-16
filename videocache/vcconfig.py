@@ -125,6 +125,10 @@ class VideocacheConf:
     enable_aol_cache = Option(1)
     aol_cache_dir = Option('aol')
 
+    # MySpace.com Specific Options
+    enable_myspace_cache = Option(1)
+    myspace_cache_dir = Option('myspace')
+
     # Xhamster.com Specific Options
     enable_xhamster_cache = Option(1)
     xhamster_cache_dir = Option('xhamster')

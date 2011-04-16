@@ -544,6 +544,7 @@ cache_metacafe_video = cache_generalized
 cache_dailymotion_video = cache_generalized
 cache_cnn_video = cache_generalized
 cache_aol_video = cache_generalized
+cache_myspace_video = cache_generalized
 cache_google_video = cache_generalized
 cache_xhamster_video = cache_generalized
 cache_xvideos_video = cache_generalized
