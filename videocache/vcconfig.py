@@ -121,6 +121,10 @@ class VideocacheConf:
     enable_cnn_cache = Option(1)
     cnn_cache_dir = Option('cnn')
 
+    # AOL.com Specific Options
+    enable_aol_cache = Option(1)
+    aol_cache_dir = Option('aol')
+
     # Xhamster.com Specific Options
     enable_xhamster_cache = Option(1)
     xhamster_cache_dir = Option('xhamster')
