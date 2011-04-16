@@ -547,6 +547,7 @@ cache_aol_video = cache_generalized
 cache_google_video = cache_generalized
 cache_xhamster_video = cache_generalized
 cache_xvideos_video = cache_generalized
+cache_pornhub_video = cache_generalized
 cache_redtube_video = cache_generalized
 cache_xtube_video = cache_generalized
 cache_vimeo_video = cache_generalized
