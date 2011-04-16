@@ -141,6 +141,10 @@ class VideocacheConf:
     enable_pornhub_cache = Option(1)
     pornhub_cache_dir = Option('pornhub')
 
+    # Spankwire.com Specific Options
+    enable_spankwire_cache = Option(1)
+    spankwire_cache_dir = Option('spankwire')
+
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')

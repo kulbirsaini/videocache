@@ -3,12 +3,13 @@ Name and Description
 
 
     Videocache  is  a Squid url rewriter plugin written in Python to facilitate caching youtube, facebook, metacafe, dailymotion, google, vimeo, cnn, aol,
-    myspace, xhamster, xvideos, pornhub, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl videos. It can  cache  videos  from
-    various  websites  in  a  separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It
-    helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
+    myspace, xhamster, xvideos, pornhub, spankwire, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl  videos.  It  can  cache
+    videos  from  various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the
+    cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in  various  parts  of  the
+    world.
 
 
-    NOTE : If you are new to Squid or you are willing to explore Squid in details, please check my new book Squid Proxy Server 3.1:  Beginner’s  Guide  at
+    NOTE  :  If  you are new to Squid or you are willing to explore Squid in details, please check my new book Squid Proxy Server 3.1: Beginner’s Guide at
     http://tinyurl.com/squidbook.
 
 
@@ -42,7 +43,7 @@ Squid Configuration
 
 
 Running or Updating Videocache
-    If  you update your Videocache configuration file located at /etc/videocache.conf or you just finished installing Videocache, then you need to perform
+    If you update your Videocache configuration file located at /etc/videocache.conf or you just finished installing Videocache, then you need to  perform
     the following four steps. These steps are mandatory and Videocache will not work properly unless you perform these steps.
 
 
@@ -50,7 +51,7 @@ Running or Updating Videocache
     NOTE : Please check http://cachevideos.com/vc-update for latest documentation.
 
 
-    Once you are done updating the Videocache configuration file and ready to deploy the new options, you should, first of  all,  run  the  update  script
+    Once  you  are  done  updating  the Videocache configuration file and ready to deploy the new options, you should, first of all, run the update script
     (vc-update) which will update your cache directories, Apache configuration file and other system file accordingly. You can run this command as follows
 
       [root@proxy root]# vc-update
@@ -101,7 +102,7 @@ Running or Updating Videocache
 
 
 Videocache Global Configuration
-    Below  is  a  description  of  various options you can use to configure Videocache. A description of these options is also available at http://cachev-
+    Below is a description of various options you can use to configure Videocache. A description of these options  is  also  available  at  http://cachev-
     ideos.com/configure.
 
 
@@ -109,7 +110,7 @@ Videocache Global Configuration
 
 
     enable_videocache
-           This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching  or  serving  anything.  This  option’s
+           This  option  controls  the  global  behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option’s
            value can be either 0 or 1. Default: 1.
 
 
@@ -121,12 +122,12 @@ Videocache Global Configuration
 
     offline_mode
            When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache
-           will cache new video and when set to 1, Videocache will serve the already cached videos and will  not  cache  the  new  videos  is  encounters.
+           will  cache  new  video  and  when  set  to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters.
            Default: 0.
 
 
     videocache_user
-           Use  this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On RedHat/CentOS/SuSE,
+           Use this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On  RedHat/CentOS/SuSE,
            it’s generally squid and on Debian/Ubuntu/BSDs, it generally proxy. Default: squid.
 
            IMPORTANT : This must be set appropriately otherwise Videocache will not work.
@@ -135,7 +136,7 @@ Videocache Global Configuration
     cache_host
            The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
 
-           IMPORTANT : Please don’t use http:// or slashes (/). Just specify the domain name or IP address.  Additionally you can select  an  alternative
+           IMPORTANT  :  Please don’t use http:// or slashes (/). Just specify the domain name or IP address.  Additionally you can select an alternative
            port to use.
              Example : proxy.example.com
              or 192.168.36.204
@@ -190,14 +191,14 @@ Videocache Global Configuration
 
 
     disk_avail_threshold
-           This option sets the minimum available free space in Mega Bytes that is left in a partition containing  a  cache  directory  before  Videocache
+           This  option  sets  the  minimum  available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache
            treats that partition as FULL. Default: 1000.
              EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
 
 
     enable_videocache_cleaner
-           Enables  the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be
+           Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can  be
            0 or 1. Default: 1.
 
 
@@ -286,9 +287,9 @@ Videocache Global Configuration
 
 
     max_logfile_backups, max_scheduler_logfile_backups, max_cleaner_logfile_backups, max_tracefile_backups
-           The logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the number of backup files  you
-           want to keep.
-            Example: max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles.
+           The  logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the number of backup files you
+           wan to keep.
+             Example: max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles.
 
            Default logfile backups:
              max_logfile_backups : 10
@@ -299,7 +300,7 @@ Videocache Global Configuration
 
 
     scheduler_pidfile
-           The  scheduler_logfile  option  can  be  used to specify the location of a file which will be used to track process ID of the currently running
+           The scheduler_logfile option can be used to specify the location of a file which will be used to track process  ID  of  the  currently  running
            Videocache scheduler. Default: /var/run/videocache.pid.
 
 
@@ -314,12 +315,12 @@ Videocache Global Configuration
 
 
     rpc_host
-           XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair  idea
+           XMLRPCServer  is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea
            of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 
     rpc_port
-           Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in
+           Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not  in
            use by any other program. Default: 9100.
 
 
