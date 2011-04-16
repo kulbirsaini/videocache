@@ -117,6 +117,10 @@ class VideocacheConf:
     enable_dailymotion_cache = Option(1)
     dailymotion_cache_dir = Option('dailymotion')
 
+    # Xhamster.com Specific Options
+    enable_xhamster_cache = Option(1)
+    xhamster_cache_dir = Option('xhamster')
+
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')
