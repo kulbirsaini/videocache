@@ -149,6 +149,10 @@ class VideocacheConf:
     enable_hardsextube_cache = Option(1)
     hardsextube_cache_dir = Option('hardsextube')
 
+    # Keezmovies.com Specific Options
+    enable_keezmovies_cache = Option(1)
+    keezmovies_cache_dir = Option('keezmovies')
+
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')
