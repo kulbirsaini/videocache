@@ -379,6 +379,113 @@ def squid_part():
                             else:
                                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
+                # Vimeo.com caching is handled here.
+                if not matched and o.enable_vimeo_cache:
+                    if (host.find('.vimeo.com') > -1 or (host.find('.amazonaws.com') > -1 and path.find('.vimeo.com') > -1)) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+                        website_id = 'vimeo'
+                        matched = True
+                        try:
+                            video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
+                # Wrzuta.pl audio file caching is handled here.
+                if not matched and o.enable_wrzuta_cache:
+                    try:
+                        if host.find('c.wrzuta.pl') > -1:
+                            video_id = None
+                            website_id = 'wrzuta'
+                            if re.compile('[a-z]a[0-9][0-9]?[0-9]?[0-9]?[0-9]?').search(path):
+                                matched = True
+                                try:
+                                    video_id = path.strip('/').split('/')[-1]
+                                except Exception, e:
+                                    video_id = None
+                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                                    trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+                            elif (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+                                matched = True
+                                try:
+                                    video_id = path.strip('/').split('/')[-1]
+                                except Exception, e:
+                                    video_id = None
+                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                                    trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+                            if video_id is not None:
+                                new_url, size = cache_video(client_ip, website_id, url, video_id)
+                                if new_url == '':
+                                    info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                                else:
+                                    info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+                    except Exception, e:
+                        trace( { 'message' : traceback.format_exc() } )
+
+                # Bing.com caching is handled here.
+                if not matched and o.enable_bing_cache:
+                    if (host.find('msn.com') > -1 or re.compile('msnbc\.(.*)\.(com|net)').search(host) or re.compile('msn\.(.*)\.(com|net)').search(host)) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+                        website_id = 'bing'
+                        matched = True
+                        try:
+                            video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
+                # Blip.tv Video file caching is handled here.
+                if not matched and o.enable_bliptv_cache:
+                    if path.find('filename=') < 0 and re.compile('\.video[a-z0-9]?[a-z0-9]?[a-z0-9]?\.blip\.tv').search(host) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+                        website_id = 'bliptv'
+                        matched = True
+                        try:
+                            video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
+                # Break.com Video file caching is handled here.
+                if not matched and o.enable_break_cache:
+                    if host.find('.break.com') > -1 and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+                        website_id = 'break'
+                        matched = True
+                        try:
+                            video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
                 # Xhamster.com caching is handled here.
                 if not matched and o.enable_xhamster_cache:
                     if re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host) and re.compile('\/flv2\/[0-9]+:(.*)\/(.*)\.flv').search(path) and path.find('.flv') > -1:
@@ -569,56 +676,6 @@ def squid_part():
                             else:
                                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
-                # Vimeo.com caching is handled here.
-                if not matched and o.enable_vimeo_cache:
-                    if (host.find('.vimeo.com') > -1 or (host.find('.amazonaws.com') > -1 and path.find('.vimeo.com') > -1)) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-                        website_id = 'vimeo'
-                        matched = True
-                        try:
-                            video_id = path.strip('/').split('/')[-1]
-                        except Exception, e:
-                            video_id = None
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-
-                        if video_id is not None:
-                            new_url, size = cache_video(client_ip, website_id, url, video_id)
-                            if new_url == '':
-                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-                            else:
-                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-
-                # Wrzuta.pl audio file caching is handled here.
-                if not matched and o.enable_wrzuta_cache:
-                    try:
-                        if host.find('c.wrzuta.pl') > -1:
-                            video_id = None
-                            website_id = 'wrzuta'
-                            if re.compile('[a-z]a[0-9][0-9]?[0-9]?[0-9]?[0-9]?').search(path):
-                                matched = True
-                                try:
-                                    video_id = path.strip('/').split('/')[-1]
-                                except Exception, e:
-                                    video_id = None
-                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                                    trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-                            elif (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-                                matched = True
-                                try:
-                                    video_id = path.strip('/').split('/')[-1]
-                                except Exception, e:
-                                    video_id = None
-                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                                    trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-                            if video_id is not None:
-                                new_url, size = cache_video(client_ip, website_id, url, video_id)
-                                if new_url == '':
-                                    info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-                                else:
-                                    info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-                    except Exception, e:
-                        trace( { 'message' : traceback.format_exc() } )
-
                 # Youporn.com caching is handled here.
                 if not matched and o.enable_youporn_cache:
                     if host.find('.youporn.com') > -1 and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
@@ -638,67 +695,10 @@ def squid_part():
                             else:
                                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
 
-                # Bing.com caching is handled here.
-                if not matched and o.enable_bing_cache:
-                    if (host.find('msn.com') > -1 or re.compile('msnbc\.(.*)\.(com|net)').search(host) or re.compile('msn\.(.*)\.(com|net)').search(host)) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-                        website_id = 'bing'
-                        matched = True
-                        try:
-                            video_id = path.strip('/').split('/')[-1]
-                        except Exception, e:
-                            video_id = None
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-
-                        if video_id is not None:
-                            new_url, size = cache_video(client_ip, website_id, url, video_id)
-                            if new_url == '':
-                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-                            else:
-                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-
                 # Tube8.com Video file caching is handled here.
                 if not matched and o.enable_tube8_cache:
                     if host.find('.tube8.com') > -1 and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
                         website_id = 'tube8'
-                        matched = True
-                        try:
-                            video_id = path.strip('/').split('/')[-1]
-                        except Exception, e:
-                            video_id = None
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-
-                        if video_id is not None:
-                            new_url, size = cache_video(client_ip, website_id, url, video_id)
-                            if new_url == '':
-                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-                            else:
-                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-
-                # Blip.tv Video file caching is handled here.
-                if not matched and o.enable_bliptv_cache:
-                    if path.find('filename=') < 0 and re.compile('\.video[a-z0-9]?[a-z0-9]?[a-z0-9]?\.blip\.tv').search(host) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-                        website_id = 'bliptv'
-                        matched = True
-                        try:
-                            video_id = path.strip('/').split('/')[-1]
-                        except Exception, e:
-                            video_id = None
-                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
-                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-
-                        if video_id is not None:
-                            new_url, size = cache_video(client_ip, website_id, url, video_id)
-                            if new_url == '':
-                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-                            else:
-                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-
-                # Break.com Video file caching is handled here.
-                if not matched and o.enable_break_cache:
-                    if host.find('.break.com') > -1 and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
-                        website_id = 'break'
                         matched = True
                         try:
                             video_id = path.strip('/').split('/')[-1]

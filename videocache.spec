@@ -3,7 +3,7 @@
 Name:       videocache
 Version:    1.9.8
 Release:    1
-Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Facebook, Metacafe, Dailymotion, Google, Vimeo, CNN, AOL, MySpace, Xhamster, Xvideos, Pornhub, Spankwire, Hardsextube, Keezmovies, Slutload, Extremetube, Redtube, Xtube, Youporn, MSN Soapbox, Tube8, Blip TV, Break.com and Wrzuta.pl videos.
+Summary:    Videocache is a squid url rewriter plugin to cache Youtube, Facebook, Metacafe, Dailymotion, Vimeo, CNN, AOL, MySpace, Blip TV, Break, Bing, Wrzuta.pl, Xhamster, Xvideos, Pornhub, Spankwire, Hardsextube, Keezmovies, Slutload, Extremetube, Redtube, Xtube, Youporn and Tube8 videos.
 License:    Videocache Commercial License
 Group:      Applications/Internet
 URL:        http://cachevideos.com/
@@ -16,7 +16,7 @@ Requires:   squid
 Requires:   httpd
 
 %description
-Videocache is a squid url rewriter plugin written in Python to facilitate youtube, facebook, metacafe, dailymotion, google, vimeo, cnn, aol, myspace, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube, xtube, youporn, msn soapbox, tube8, blip.tv, break.com and wrzuta.pl video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
+Videocache is a squid url rewriter plugin to facilitate youtube, facebook, metacafe, dailymotion, vimeo, cnn, aol, myspace, bing, blip.tv, break, wrzuta.pl, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube, xtube, youporn and tube8 video caching. It can cache videos from various websites in a separate directory (other than squid cache directory) in a browsable fashion and can serve the subsequentrequests from the cache. It helps in saving bandwidth and reducing loading time.
 
 %prep
 %setup -n %{name}-%{version}
@@ -46,6 +46,10 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/aol/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/myspace/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/vimeo/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bing/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/break/
+install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/wrzuta/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xhamster/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xvideos/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/pornhub/
@@ -56,12 +60,8 @@ install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videoc
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/extremetube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/redtube/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/xtube/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/wrzuta/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/youporn/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bing/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tube8/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/bliptv/
-install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/break/
 install -m 755 -o squid -g squid -d  ${RPM_BUILD_ROOT}%{prefix}/var/spool/videocache/tmp/
 install -m 744 videocache/* -t ${RPM_BUILD_ROOT}%{prefix}/usr/share/videocache/
 install -m 644 videocache-sysconfig.conf -T ${RPM_BUILD_ROOT}%{prefix}/etc/videocache.conf

@@ -2,11 +2,11 @@ Name and Description
     Videocache (http://cachevideos.com/) - A Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
 
-    Videocache  is  a Squid url rewriter plugin written in Python to facilitate caching youtube, facebook, metacafe, dailymotion, google, vimeo, cnn, aol,
-    myspace, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube, xtube, youporn, msn soapbox, tube8,  blip.tv,
-    break.com and wrzuta.pl videos. It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and
-    can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a
-    number of ISPs in various parts of the world.
+    Videocache  is a Squid url rewriter plugin written in Python to facilitate caching youtube, facebook, metacafe, dailymotion, vimeo, cnn, aol, myspace,
+    bing, blip.tv, break, wrzuta.pl, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube,  xtube,  youporn  and
+    tube8  videos.  It  can  cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the
+    subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used  by  a  number  of
+    ISPs in various parts of the world.
 
 
     NOTE  :  If  you are new to Squid or you are willing to explore Squid in details, please check my new book Squid Proxy Server 3.1: Beginner’s Guide at
@@ -220,7 +220,7 @@ Videocache Global Configuration
              p  - Process ID of the process logging the message
              s  - Severity level of the log message
              i  - Client’s IP address
-             w  - Website ID (eg. YOUTUBE/GOOGLE/VIMEO etc.)
+             w  - Website ID (eg. YOUTUBE/FACEBOOK/VIMEO etc.)
              c  - Status Code (CACHE_HIT/CACHE_MISS etc.)
              v  - Video ID of current video
              m  - Additional Message (for verbose logs)
@@ -287,7 +287,7 @@ Videocache Global Configuration
 
 
     max_logfile_backups, max_scheduler_logfile_backups, max_cleaner_logfile_backups, max_tracefile_backups
-           The  logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the numbebackup files you
+           The  logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the number of backup files you
            want to keep.
              Example: max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles.
 
