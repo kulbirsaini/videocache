@@ -157,6 +157,10 @@ class VideocacheConf:
     enable_slutload_cache = Option(1)
     slutload_cache_dir = Option('slutload')
 
+    # Extremetube.com Specific Options
+    enable_extremetube_cache = Option(1)
+    extremetube_cache_dir = Option('extremetube')
+
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')
