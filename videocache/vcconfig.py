@@ -153,6 +153,10 @@ class VideocacheConf:
     enable_keezmovies_cache = Option(1)
     keezmovies_cache_dir = Option('keezmovies')
 
+    # Slutload.com Specific Options
+    enable_slutload_cache = Option(1)
+    slutload_cache_dir = Option('slutload')
+
     # Redtube.com Specific Options
     enable_redtube_cache = Option(1)
     redtube_cache_dir = Option('redtube')

@@ -343,7 +343,7 @@ def squid_part():
 
                 # AOL.com caching is handled here.
                 if not matched and o.enable_aol_cache:
-                    if host.find('stream.aol.com') > -1 and re.compile('(.*)/[a-z0-9]+\/(.*)\.(flv)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
+                    if host.find('stream.aol.com') > -1 and re.compile('(.*)/[a-zA-Z0-9]+\/(.*)\.(flv)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
                         website_id = 'aol'
                         matched = True
                         try:
@@ -362,7 +362,7 @@ def squid_part():
 
                 # MySpace.com caching is handled here.
                 if not matched and o.enable_myspace_cache:
-                    if (re.compile('(.*)\.myspacecdn\.com').search(host) or re.compile('(.*)\.myspacecdn\.(.*)\.footprint\.net').search(host)) and re.compile('(.*)\/[a-z0-9]+\/vid\.mp4').search(path) and path.find('.mp4') > -1:
+                    if (re.compile('(.*)\.myspacecdn\.com').search(host) or re.compile('(.*)\.myspacecdn\.(.*)\.footprint\.net').search(host)) and re.compile('(.*)\/[a-zA-Z0-9]+\/vid\.mp4').search(path) and path.find('.mp4') > -1:
                         website_id = 'myspace'
                         matched = True
                         try:
@@ -478,6 +478,25 @@ def squid_part():
                 if not matched and o.enable_keezmovies_cache:
                     if re.compile('cdn[a-z0-9]?[a-z0-9]?[a-z0-9]?\.public\.keezmovies\.com').search(host) and re.compile('(.*)\/[0-9]+\.flv').search(path) and path.find('.flv') > -1:
                         website_id = 'keezmovies'
+                        matched = True
+                        try:
+                            video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
+                # Slutload.com caching is handled here.
+                if not matched and o.enable_slutload_cache:
+                    if re.compile('\.slutload-media\.com').search(host) and re.compile('(.*)/[a-zA-ZA-Z0-9]+\.flv').search(path) and path.find('.flv') > -1:
+                        website_id = 'slutload'
                         matched = True
                         try:
                             video_id = path.strip('/').split('/')[-1]

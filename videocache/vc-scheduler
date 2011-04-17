@@ -519,7 +519,7 @@ def cache_generalized(params):
 
     for url in urls:
         original_url = url
-        if website_id not in ['facebook', 'xhamster', 'xvideos','redtube', 'spankwire', 'keezmovies', 'xtube', 'tube8']:
+        if website_id not in ['facebook', 'xhamster', 'xvideos','redtube', 'spankwire', 'keezmovies', 'slutload', 'xtube', 'tube8']:
             #FIXME The function below changes the order of parameters
             url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
@@ -552,6 +552,7 @@ cache_pornhub_video = cache_generalized
 cache_spankwire_video = cache_generalized
 cache_hardsextube_video = cache_generalized
 cache_keezmovies_video = cache_generalized
+cache_slutload_video = cache_generalized
 cache_redtube_video = cache_generalized
 cache_xtube_video = cache_generalized
 cache_vimeo_video = cache_generalized
