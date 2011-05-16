@@ -125,7 +125,14 @@ Base directories for caching the videos. You can specify multiple caching direct
 Default: ///var/spool/videocache///.
 
 : **max_cache_processes**
-The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 20.
+The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 10.
+
+: **max_cache_speed**
+The maximum bandwidth allocated to a cache process. For example, when //max_cache_speed// is set to 100, a cache process can cache a video at a maximum speed of 100 kilobytes per second. Set this to zero (0) if you want a cache process to use unlimited bandwidth.
+``` Example: max_cache_speed = 100 (Please don't append KB or MB).
+Default: 0
+
+**IMPORTANT** : The maximum bandwidth used by Videocache at any time can not exceed //max_cache_processes// x //max_cache_speed// kilobytes per second. So, you can configure these options depending on bandwidth availability.
 
 : **proxy**
 **Warning** : __**USE THIS ONLY IF**__ Videocache Server should go via anohter proxy.
@@ -143,7 +150,7 @@ If the above proxy requires authentication, please specify the username. Default
 If the above proxy requires authentication, please specify the password. Default: <blank>.
 
 : **hit_threshold**
-No of times a video should be requested before we start caching it. Default: 2
+No of times a video should be requested before we start caching it. Default: 1
 
 : **max_video_size**
 The video of size more than //max_video_size// (MegaBytes) will not be cached. Default: 0.

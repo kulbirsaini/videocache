@@ -6,7 +6,7 @@
 </HEAD><BODY BGCOLOR="white" TEXT="black">
 <P ALIGN="center"><CENTER><H1>Videocache</H1>
 <FONT SIZE="4">
-April 17, 2011
+May 17, 2011
 </FONT></CENTER>
 
 <P></P>
@@ -192,7 +192,16 @@ Base directories for caching the videos. You can specify multiple caching direct
 Default: <I>/var/spool/videocache/</I>.
 <P></P>
 <DT><B>max_cache_processes</B></DT><DD>
-The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 20.
+The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 10.
+<P></P>
+<DT><B>max_cache_speed</B></DT><DD>
+The maximum bandwidth allocated to a cache process. For example, when <I>max_cache_speed</I> is set to 100, a cache process can cache a video at a maximum speed of 100 kilobytes per second. Set this to zero (0) if you want a cache process to use unlimited bandwidth.
+<PRE>
+  Example: max_cache_speed = 100 (Please don't append KB or MB).
+</PRE>
+Default: 0
+<P></P>
+<B>IMPORTANT</B> : The maximum bandwidth used by Videocache at any time can not exceed <I>max_cache_processes</I> x <I>max_cache_speed</I> kilobytes per second. So, you can configure these options depending on bandwidth availability.
 <P></P>
 <DT><B>proxy</B></DT><DD>
 <B>Warning</B> : <U><B>USE THIS ONLY IF</B></U> Videocache Server should go via anohter proxy.
@@ -210,7 +219,7 @@ If the above proxy requires authentication, please specify the username. Default
 If the above proxy requires authentication, please specify the password. Default: &lt;blank&gt;.
 <P></P>
 <DT><B>hit_threshold</B></DT><DD>
-No of times a video should be requested before we start caching it. Default: 2
+No of times a video should be requested before we start caching it. Default: 1
 <P></P>
 <DT><B>max_video_size</B></DT><DD>
 The video of size more than <I>max_video_size</I> (MegaBytes) will not be cached. Default: 0.

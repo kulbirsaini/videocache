@@ -58,8 +58,8 @@ class VideocacheConf:
     videocache_user = Option('squid')
     enable_videocache_cleaner = Option(1)
     video_lifetime = Option(30)
-    max_cache_processes = Option(30)
-    hit_threshold = Option(2)
+    max_cache_processes = Option(10)
+    hit_threshold = Option(1)
     max_video_size = Option(0)
     min_video_size = Option(0)
     client_email = Option('')
@@ -100,6 +100,7 @@ class VideocacheConf:
     proxy = Option()
     proxy_username = Option()
     proxy_password = Option()
+    max_cache_speed = Option(0)
 
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)

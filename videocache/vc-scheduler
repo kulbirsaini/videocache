@@ -374,13 +374,19 @@ def cache_remote_url(remote_url, target_file, params = {}):
             trace( { 'code' : CONNECTION_INFO_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
 
         file = None
+        start_time = time.time()
+        downloaded = 0
         while True:
-            block = connection.read(32768)
+            block = connection.read(16384)
             if len(block) == 0:
                 break
             if not file:
                 file = open(target_file, 'wb')
             file.write(block)
+
+            downloaded += len(block)
+            while o.max_cache_speed > 0 and downloaded / (time.time() - start_time) > o.max_cache_speed:
+                time.sleep(0.2)
         if file:
             file.close()
     except urllib2.HTTPError, e:
