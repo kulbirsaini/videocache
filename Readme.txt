@@ -319,7 +319,7 @@ Videocache Global Configuration
            This option enables the caching of Youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
 
-    default_youtube_video_quality
+    max_youtube_video_quality
            This  option  forces  the maximum video quality from Youtube. If a user browses a video in higher quality mode, videocache will still cache the
            video in the format specified below or a lower quality format depending on the availability.
              Valid values : 240p, 360p, 480p, 720p, 1080p, 3072p (Please don’t use quotes)

@@ -106,7 +106,7 @@ class VideocacheOptions:
         # Website specific options
         try:
             [ (setattr(self.__class__, 'enable_' + website_id + '_cache', int(eval('mainconf.enable_' + website_id + '_cache'))), setattr(self.__class__, website_id + '_cache_dir', eval('mainconf.' + website_id + '_cache_dir'))) for website_id in self.websites ]
-            valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.default_youtube_video_quality) + 1]
+            valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.max_youtube_video_quality) + 1]
             self.__class__.youtube_video_formats = []
             [self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
             self.__class__.youtube_video_formats.reverse()
