@@ -155,7 +155,18 @@ Videocache Global Configuration
 
 
     max_cache_processes
-           The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 20.
+           The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 10.
+
+
+    max_cache_speed
+           The  maximum  bandwidth  allocated  to a cache process. For example, when max_cache_speed is set to 100, a cache process can cache a video at a
+           maximum speed of 100 kilobytes per second. Set this to zero (0) if you want a cache process to use unlimited bandwidth.
+             Example: max_cache_speed = 100 (Please don’t append KB or MB).
+
+           Default: 0
+
+           IMPORTANT : The maximum bandwidth used by Videocache at any time can not exceed max_cache_processes x max_cache_speed kilobytes per second. So,
+           you can configure these options depending on bandwidth availability.
 
 
     proxy  Warning : USE THIS ONLY IF Videocache Server should go via anohter proxy.
@@ -175,7 +186,7 @@ Videocache Global Configuration
 
 
     hit_threshold
-           No of times a video should be requested before we start caching it. Default: 2
+           No of times a video should be requested before we start caching it. Default: 1
 
 
     max_video_size
@@ -308,6 +319,14 @@ Videocache Global Configuration
            This option enables the caching of Youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
 
+    default_youtube_video_quality
+           This  option  forces  the maximum video quality from Youtube. If a user browses a video in higher quality mode, videocache will still cache the
+           video in the format specified below or a lower quality format depending on the availability.
+             Valid values : 240p, 360p, 480p, 720p, 1080p, 3072p (Please don’t use quotes)
+
+           Default: 480p
+
+
     temp_dir
            Directory to store partially downloaded videos. Directory name is relative to base_dir. Default: tmp.
              Example: If temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/.
@@ -315,12 +334,12 @@ Videocache Global Configuration
 
 
     rpc_host
-           XMLRPCServer  is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea
+           XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair  idea
            of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 
     rpc_port
-           Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not  in
+           Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in
            use by any other program. Default: 9100.
 
 

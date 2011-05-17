@@ -444,12 +444,21 @@ def cache_youtube_video(params):
     video_url = None
     try:
         if 'fmt_url_map' in video_info:
-            alternate_urls = [ u.split('|')[1] for u in video_info['fmt_url_map'][0].split(',') ]
-            video_url = alternate_urls[0]
+            url_map = {}
+            [url_map.update({u.split('|')[0] : u.split('|')[1]}) for u in video_info['fmt_url_map'][0].split(',')]
+            alternate_urls = url_map.values()
+
             if format != '':
-                url_map = {}
-                [url_map.update({u.split('|')[0] : u.split('|')[1]}) for u in video_info['fmt_url_map'][0].split(',')]
                 video_url = url_map['18']
+            else:
+                for fmt in o.youtube_video_formats:
+                    if fmt != 18 and url_map.has_key(str(fmt)):
+                        video_url = url_map[str(fmt)]
+                        break
+
+            if not video_url:
+                video_url = alternate_urls[0]
+
             for url in alternate_urls:
                 vid = get_youtube_video_id(url)
                 if vid and vid not in alternate_ids:

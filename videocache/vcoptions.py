@@ -26,6 +26,8 @@ class VideocacheOptions:
     def __init__(self, config_file = '/etc/videocache.conf', root = '/'):
         self.config_file = config_file
         self.root = root
+        self.youtube_format = { '240p' : [5], '360p' : [34, 18, 43], '480p' : [35], '720p' : [22, 45], '1080p' : [37], '3072p' : [38] }
+        self.youtube_format_order = [ '240p', '360p', '480p', '720p', '1080p', '3072p' ]
         self.websites = ['youtube', 'facebook', 'metacafe', 'dailymotion', 'cnn', 'aol', 'myspace', 'xhamster', 'xvideos', 'pornhub', 'spankwire', 'hardsextube', 'keezmovies', 'slutload', 'extremetube', 'redtube', 'xtube', 'vimeo', 'wrzuta', 'youporn', 'bing', 'tube8', 'bliptv', 'break']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
@@ -104,6 +106,10 @@ class VideocacheOptions:
         # Website specific options
         try:
             [ (setattr(self.__class__, 'enable_' + website_id + '_cache', int(eval('mainconf.enable_' + website_id + '_cache'))), setattr(self.__class__, website_id + '_cache_dir', eval('mainconf.' + website_id + '_cache_dir'))) for website_id in self.websites ]
+            valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.default_youtube_video_quality) + 1]
+            self.__class__.youtube_video_formats = []
+            [self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
+            self.__class__.youtube_video_formats.reverse()
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
