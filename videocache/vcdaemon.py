@@ -174,6 +174,33 @@ class VideocacheDaemon:
         self.stop()
         self.start()
 
+    def status(self):
+        # Check for a pidfile to see if the daemon already running
+        try:
+            pid = int(file(self.pidfile,'r').read().strip())
+        except Exception, e:
+            pid = None
+
+        if pid:
+            status = is_running(pid)
+            if status == None:
+                status = proc_test(pid)
+
+            if status == True:
+                message = self.name + ' is running with process id: ' + str(pid) + '.'
+                sys.stdout.write(message + '\n')
+            elif status == False:
+                message = self.name + ' is not running.'
+                sys.stderr.write(message + '\n')
+            else:
+                message = 'Could not determine the status of ' + self.name + ' with process id: ' + str(pid) + '.'
+                sys.stderr.write(message + '\n')
+        else:
+            message = 'Could not determine the status of ' + self.name + '. Pidfile does not exist.'
+            sys.stderr.write(message + '\n')
+
+
+
     def run(self):
         pass
 

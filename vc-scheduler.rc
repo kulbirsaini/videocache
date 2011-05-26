@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# vc-scheduler        Startup script for the Videocache Scheduler (http://cachevideos.com/)
+#
+# chkconfig: - 76 24
+# description: The Videocache Scheduler is responsible for receiving requests from \
+#	       videocache plugin for caching new videos (http://cachevideos.com/).
+# processname: vc-scheduler
+# config: /etc/videocache.conf
+# pidfile: /var/run/videocache.pid
+#
+### BEGIN INIT INFO
+# Provides: vc-scheduler
+# Required-Start: $local_fs $remote_fs $network
+# Required-Stop: $local_fs $remote_fs $network
+# Short-Description: start and stop Videocache Scheduler
+# Description: The Videocache Scheduler is responsible for receiving requests from \
+#	       videocache plugin for caching new videos (http://cachevideos.com/).
+### END INIT INFO
+
+if [ -f /etc/rc.d/init.d/functions ]; then
+  . /etc/rc.d/init.d/functions
+fi
+
+PATH=$PATH:/sbin/:/usr/sbin/:/bin/:/usr/bin/
+
+# Files
+pidfile=/var/run/videocache.pid
+vc_scheduler=/usr/sbin/vc-scheduler
+prog=vc-scheduler
+RETVAL=0
+
+start() {
+  $vc_scheduler -s start
+  RETVAL=$?
+  return $RETVAL
+}
+
+stop() {
+  $vc_scheduler -s stop
+  RETVAL=$?
+  [ $RETVAL = 0 ] && rm -f ${pidfile}
+}
+
+restart() {
+  $vc_scheduler -s restart
+  RETVAL=$?
+  return $RETVAL
+}
+
+status() {
+  $vc_scheduler -s status
+  RETVAL=$?
+  return $RETVAL
+}
+
+case "$1" in
+  start)
+  start
+  ;;
+  stop)
+  stop
+  ;;
+  status)
+  status
+  ;;
+  restart)
+  restart
+  ;;
+  *)
+  echo $"Usage: $prog {start|stop|restart|status}"
+  RETVAL=3
+esac
+
+exit $RETVAL

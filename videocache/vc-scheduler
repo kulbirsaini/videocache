@@ -722,6 +722,8 @@ if __name__ == '__main__':
             daemon.restart()
         elif options.sig == 'kill':
             daemon.kill()
+        elif options.sig == 'status':
+            daemon.status()
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:
