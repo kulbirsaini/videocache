@@ -24,6 +24,12 @@ import urlparse
 def syslog_msg(msg):
     syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)
 
+def build_message(params):
+    cur_time = time.time()
+    local_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.localtime())
+    gmt_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.gmtime())
+    return params.get('logformat', '') % { 'timestamp' : int(cur_time), 'timestamp_ms' : round(cur_time, 3), 'localtime' : local_time, 'gmt_time' : gmt_time, 'process_id' : params.get('process_id', '-'), 'levelname' : params.get('levelname', '-'), 'client_ip' : params.get('client_ip', '-'), 'website_id' : params.get('website_id', '-').upper(), 'code' : params.get('code', '-'), 'video_id' : params.get('video_id', '-'), 'size' : params.get('size', '-'), 'message' : params.get('message', '-'), 'debug' : params.get('debug', '-') }
+
 def refine_url(url, arg_drop_list = []):
     """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
     query = urlparse.urlsplit(url)[3]
@@ -39,12 +45,7 @@ def refine_url(url, arg_drop_list = []):
     #new_query = '&'.join([k + '=' + str(v[0]) for (k,v) in args.items()])
     return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
 
-def build_message(params):
-    cur_time = time.time()
-    local_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.localtime())
-    gmt_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.gmtime())
-    return params.get('logformat', '') % { 'timestamp' : int(cur_time), 'timestamp_ms' : round(cur_time, 3), 'localtime' : local_time, 'gmt_time' : gmt_time, 'process_id' : params.get('process_id', '-'), 'levelname' : params.get('levelname', '-'), 'client_ip' : params.get('client_ip', '-'), 'website_id' : params.get('website_id', '-').upper(), 'code' : params.get('code', '-'), 'video_id' : params.get('video_id', '-'), 'size' : params.get('size', '-'), 'message' : params.get('message', '-'), 'debug' : params.get('debug', '-') }
-
+# Functions related to Youtube video ID and video format
 def get_youtube_video_id_from_query(query):
     dict = cgi.parse_qs(query)
     if 'video_id' in dict:
@@ -89,6 +90,7 @@ def get_youtube_video_format(url):
 
     return get_youtube_video_format_from_query(query)
 
+# Test if a process is running or not.
 def proc_test(pid):
     try:
         return os.path.exists("/proc/" + str(pid))
@@ -119,109 +121,109 @@ def log_traceback():
     print traceback.format_exc(),
     print '-' * 25 + 'Traceback End' + '-' * 27 + '\n'
 
-def create_dir(dir, user=None, mode=0755):
+def create_dir(dir, user=None, mode=0755, quiet = False):
     """Create a directory in the filesystem with user:group ownership and mode as permissions."""
     try:
         os.makedirs(dir, mode)
-        print "Created : " + dir
+        if not quiet: print "Created : " + dir
     except:
-        print "Failed to create : " + dir
+        if not quiet: print "Failed to create : " + dir
         log_traceback()
         return False
-    return dir_perms_and_ownership(dir, user, mode)
+    return dir_perms_and_ownership(dir, user, mode, quiet)
 
-def dir_perms_and_ownership(dir, user=None, mode=0755):
+def dir_perms_and_ownership(dir, user=None, mode=0755, quiet = False):
     """Change the permissions and ownership of a directory."""
     try:
         os.chmod(dir, mode)
     except:
-        print "Failed to change permission : " + dir
+        if not quiet: print "Failed to change permission : " + dir
         log_traceback()
 
     if user == None:
         return True
 
-    user = pwd.getpwnam(user)[2]
+    user = pwd.getpwnam(user)
 
     try:
         stats = os.stat(dir)
     except:
         stats = None
-    if stats is not None and stats[stat.ST_UID] == user and stats[stat.ST_GID] == user:
+    if stats is not None and stats[stat.ST_UID] == user.pw_uid and stats[stat.ST_GID] == user.pw_gid:
         return True
     try:
-        os.chown(dir, user, user)
-        print "Ownership changed : " + dir
+        os.chown(dir, user.pw_uid, user.pw_gid)
+        if not quiet: print "Ownership changed : " + dir
     except:
-        print "Failed to change ownership : " + dir
+        if not quiet: print "Failed to change ownership : " + dir
         log_traceback()
         return False
 
     return True
 
-def create_file(filename, user=None, mode=0755):
+def create_file(filename, user=None, mode=0755, quiet = False):
     """Create a file in the filesystem with user:group ownership and mode as permissions."""
     try:
         file(filename, 'a').close()
-        print "Created : " + filename
+        if not quiet: print "Created : " + filename
     except:
-        print "Failed to create : " + filename
+        if not quiet: print "Failed to create : " + filename
         log_traceback()
         return False
     
     try:
         os.chmod(filename, mode)
-        print "Mode changed : " + filename
+        if not quiet: print "Mode changed : " + filename
     except:
-        print "Failed to change mode : " + filename
+        if not quiet: print "Failed to change mode : " + filename
         log_traceback()
         return False
 
     if user == None:
         return True
 
-    user = pwd.getpwnam(user)[2]
+    user = pwd.getpwnam(user)
 
     try:
-        os.chown(filename, user, user)
-        print "Ownership changed : " + filename
+        os.chown(filename, user.pw_uid, user.pw_gid)
+        if not quiet: print "Ownership changed : " + filename
     except:
-        print "Failed to change ownership : " + filename
+        if not quiet: print "Failed to change ownership : " + filename
         log_traceback()
         return False
     return True
 
-def copy_file(source, dest):
+def copy_file(source, dest, quiet = False):
     """Copies the source file to dest file."""
     try:
         shutil.copy2(source, dest)
-        print "Copied : " + source + " > " + dest
+        if not quiet: print "Copied : " + source + " > " + dest
     except:
-        print "Failed to copy : " + source + " > " + dest
+        if not quiet: print "Failed to copy : " + source + " > " + dest
         log_traceback()
         return False
     return True
 
-def copy_dir(source, dest):
+def copy_dir(source, dest, quiet = False):
     """Copies the source directory recursively to dest dir."""
     try:
         if os.path.isdir(dest):
             shutil.rmtree(dest)
-            print "Removed existing : " + dest
+            if not quiet: print "Removed existing : " + dest
     except:
-        print "Failed to remove existing : " + dest
+        if not quiet: print "Failed to remove existing : " + dest
         log_traceback()
         return False
     try:
         shutil.copytree(source, dest)
-        print "Copied : " + source + " > " + dest
+        if not quiet: print "Copied : " + source + " > " + dest
     except:
-        print "Failed to copy : " + source + " > " + dest
+        if not quiet: print "Failed to copy : " + source + " > " + dest
         log_traceback()
         return False
     return True
 
-def generate_httpd_conf(conf_file, base_dir_list):
+def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
     videocache_conf = """##############################################################################
 #                                                                            #
@@ -255,9 +257,9 @@ def generate_httpd_conf(conf_file, base_dir_list):
         file = open(conf_file, 'w')
         file.write(videocache_conf)
         file.close()
-        print "Generated config file : " + conf_file
+        if not quiet: print "Generated config file : " + conf_file
     except:
-        print "Failed to generate config file : " + conf_file
+        if not quiet: print "Failed to generate config file : " + conf_file
         log_traceback()
         return False
     return True
@@ -301,7 +303,7 @@ def apply_install_root(root, dir):
     """Apply --prefix option to all the directories."""
     return os.path.join(root, dir.strip('/'))
 
-def update_vc(o, root, squid_user, install_dir, apache_conf_dir):
+def update_vc(o, root, squid_user, install_dir, apache_conf_dir, quiet):
     """Perform the update."""
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
@@ -313,72 +315,72 @@ def update_vc(o, root, squid_user, install_dir, apache_conf_dir):
 
     # Create /etc/ directory.
     if not os.path.isdir(etc_dir):
-        if not create_dir(etc_dir):
+        if not create_dir(etc_dir, None, 0755, quiet):
             update_error('update')
     else:
-        print "Exists : " + etc_dir
+        if not quiet: print "Exists : " + etc_dir
 
     # Create /usr/sbin/ directory.
     if not os.path.isdir(usr_sbin_dir):
-        if not create_dir(usr_sbin_dir):
+        if not create_dir(usr_sbin_dir, None, 0755, quiet):
             update_error('update')
     else:
-        print "Exists : " + usr_sbin_dir
+        if not quiet: print "Exists : " + usr_sbin_dir
 
     # Create Apache configuration directory.
     if apache_conf_dir:
         if not os.path.isdir(apache_conf_dir):
-            if not create_dir(apache_conf_dir):
+            if not create_dir(apache_conf_dir, None, 0755, quiet):
                 update_error('update')
         else:
-            print "Exists : " + apache_conf_dir
+            if not quiet: print "Exists : " + apache_conf_dir
 
     # Create /var/run
     if not os.path.isdir(var_dir):
-        if not create_dir(var_dir):
+        if not create_dir(var_dir, None, 0755, quiet):
             update_error('update')
     else:
-        print "Exists : " + var_dir
+        if not quiet: print "Exists : " + var_dir
 
     # Create man directory.
     if not os.path.isdir(man_dir):
-        if not create_dir(man_dir):
+        if not create_dir(man_dir, None, 0755, quiet):
             update_error('update')
     else:
-        print "Exists : " + man_dir
+        if not quiet: print "Exists : " + man_dir
 
     # Create videocache log directory.
     if not os.path.isdir(o.logdir):
-        if not create_dir(o.logdir, squid_user):
+        if not create_dir(o.logdir, squid_user, 0755, quiet):
             update_error('update')
     else:
-        if not dir_perms_and_ownership(o.logdir, squid_user):
+        if not dir_perms_and_ownership(o.logdir, squid_user, 0755, quiet):
             update_error('update')
-        print "Exists : " + o.logdir
+        if not quiet: print "Exists : " + o.logdir
 
     # Create base directories
     for dir in o.base_dir_list:
         if not os.path.isdir(dir):
-            if not create_dir(dir, squid_user):
+            if not create_dir(dir, squid_user, 0755, quiet):
                 update_error('update')
         else:
-            if not dir_perms_and_ownership(dir, squid_user):
+            if not dir_perms_and_ownership(dir, squid_user, 0755, quiet):
                 update_error('update')
-            print "Exists : " + dir
+            if not quiet: print "Exists : " + dir
 
     # Create directories for video caching.
     for (website_id, dir_list) in o.base_dirs.items():
         for dir in dir_list:
             if not os.path.isdir(dir):
-                if not create_dir(dir, squid_user):
+                if not create_dir(dir, squid_user, 0755, quiet):
                     update_error('update')
             else:
-                if not dir_perms_and_ownership(dir, squid_user):
+                if not dir_perms_and_ownership(dir, squid_user, 0755, quiet):
                     update_error('update')
-                print "Exists : " + dir
+                if not quiet: print "Exists : " + dir
 
     # Generate Apache webserver configuration file for videocache.
-    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list):
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet):
         update_error('update')
 
     update_success()
@@ -442,7 +444,7 @@ In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
-def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
+def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     """Perform the setup."""
     install_dir = apply_install_root(root, '/usr/share/videocache/')
     etc_dir = apply_install_root(root, '/etc/')
@@ -455,97 +457,97 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir):
 
     # Create videocache installation directory.
     if not os.path.isdir(install_dir):
-        if not create_dir(install_dir):
+        if not create_dir(install_dir, None, 0755, quiet):
             setup_error('install')
-        if not dir_perms_and_ownership(install_dir, None, 0755):
+        if not dir_perms_and_ownership(install_dir, None, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + install_dir
+        if not quiet: print "Exists : " + install_dir
 
     # Create /etc/ directory.
     if not os.path.isdir(etc_dir):
-        if not create_dir(etc_dir):
+        if not create_dir(etc_dir, None, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + etc_dir
+        if not quiet: print "Exists : " + etc_dir
 
     # Create /usr/sbin/ directory.
     if not os.path.isdir(usr_sbin_dir):
-        if not create_dir(usr_sbin_dir):
+        if not create_dir(usr_sbin_dir, None, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + usr_sbin_dir
+        if not quiet: print "Exists : " + usr_sbin_dir
 
     # Create Apache configuration directory.
     if apache_conf_dir:
         if not os.path.isdir(apache_conf_dir):
-            if not create_dir(apache_conf_dir):
+            if not create_dir(apache_conf_dir, None, 0755, quiet):
                 setup_error('install')
         else:
-            print "Exists : " + apache_conf_dir
+            if not quiet: print "Exists : " + apache_conf_dir
 
     # Create /var/run
     if not os.path.isdir(var_dir):
-        if not create_dir(var_dir):
+        if not create_dir(var_dir, None, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + var_dir
+        if not quiet: print "Exists : " + var_dir
 
     # Create man directory.
     if not os.path.isdir(man_dir):
-        if not create_dir(man_dir):
+        if not create_dir(man_dir, None, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + man_dir
+        if not quiet: print "Exists : " + man_dir
 
     # Create videocache log directory.
     if not os.path.isdir(o.logdir):
-        if not create_dir(o.logdir, squid_user):
+        if not create_dir(o.logdir, squid_user, 0755, quiet):
             setup_error('install')
     else:
-        print "Exists : " + o.logdir
-        if not dir_perms_and_ownership(o.logdir, squid_user):
+        if not quiet: print "Exists : " + o.logdir
+        if not dir_perms_and_ownership(o.logdir, squid_user, 0755, quiet):
             setup_error('install')
 
     # Create base directories
     for dir in o.base_dir_list:
         if not os.path.isdir(dir):
-            if not create_dir(dir, squid_user):
+            if not create_dir(dir, squid_user, 0755, quiet):
                 setup_error('install')
         else:
-            if not dir_perms_and_ownership(dir, squid_user):
+            if not dir_perms_and_ownership(dir, squid_user, 0755, quiet):
                 setup_error('install')
-            print "Exists : " + dir
+            if not quiet: print "Exists : " + dir
 
     # Create directories for video caching.
     for (website_id, dir_list) in o.base_dirs.items():
         for dir in dir_list:
             if not os.path.isdir(dir):
-                if not create_dir(dir, squid_user):
+                if not create_dir(dir, squid_user, 0755, quiet):
                     setup_error('install')
             else:
-                if not dir_perms_and_ownership(dir, squid_user):
+                if not dir_perms_and_ownership(dir, squid_user, 0755, quiet):
                     setup_error('install')
-                print "Exists : " + dir
+                if not quiet: print "Exists : " + dir
 
     # Copy core videocache plugin code to /usr/share/videocache/ .
-    if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir):
+    if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir, quiet):
         setup_error('install')
 
     # Set permissions to 755. Very important.
-    if not dir_perms_and_ownership(install_dir, None, 0755):
+    if not dir_perms_and_ownership(install_dir, None, 0755, quiet):
         setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
-    if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), os.path.join(etc_dir, 'videocache.conf')):
+    if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), os.path.join(etc_dir, 'videocache.conf'), quiet):
         setup_error('install')
 
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
-    if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz')):
+    if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz'), quiet):
         setup_error('install')
 
     # Generate Apache webserver configuration file for videocache.
-    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list):
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet):
         setup_error('install')
 
     try:

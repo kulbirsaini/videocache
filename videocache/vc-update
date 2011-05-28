@@ -17,6 +17,7 @@ import traceback
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
+    parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
     parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     parser.add_option('-u', '--squid-user', dest = 'squid_user', type='string', help = 'User who runs Squid daemon.')
@@ -95,5 +96,5 @@ Please see http://cachevideos.com/vc-update for more information or getting help
         sys.exit(1)
 
     squid_user = options.squid_user or o.videocache_user
-    update_vc(o, root, squid_user, install_dir, apache_dir)
+    update_vc(o, root, squid_user, install_dir, apache_dir, not options.verbose)
 

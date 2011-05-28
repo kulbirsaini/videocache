@@ -11,12 +11,14 @@ __docformat__ = 'plaintext'
 from optparse import OptionParser
 
 import os
+import pwd
 import sys
 import traceback
 
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
+    parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
     parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-u', '--squid-user', dest = 'squid_user', type='string', help = 'User who runs Squid daemon.')
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. In most cases, it\'ll be /etc/httpd/conf.d/ or /etc/apache2/conf.d/.')
@@ -44,9 +46,21 @@ Please see http://cachevideos.com/installation for more information or getting h
         sys.exit(1)
 
     if options.squid_user == None or options.squid_user == '':
-        parser.print_help()
-        sys.stderr.write('\nPlease use -u (or --squid-user) option to specify the user who runs Squid daemon.\n')
-        sys.exit(1)
+        try:
+            pwd.getpwnam('proxy')
+            options.squid_user = 'proxy'
+        except Exception, e:
+            pass
+
+        try:
+            pwd.getpwnam('squid')
+            options.squid_user = 'squid'
+        except Exception, e:
+            pass
+        if options.squid_user == None or options.squid_user == '':
+            parser.print_help()
+            sys.stderr.write('\nPlease use -u (or --squid-user) option to specify the user who runs Squid daemon.\n')
+            sys.exit(1)
 
     if options.skip_apache_conf:
         apache_dir = None
@@ -97,5 +111,5 @@ Please see http://cachevideos.com/installation for more information or getting h
         sys.stderr.write('\nvc-setup: One or more errors occured in reading configure file. Please check syslog messages generally located at /var/log/messages.\n')
         sys.exit(1)
 
-    setup_vc(o, root, options.squid_user, apache_dir, working_dir)
+    setup_vc(o, root, options.squid_user, apache_dir, working_dir, not options.verbose)
 
