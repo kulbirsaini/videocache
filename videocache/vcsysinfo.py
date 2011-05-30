@@ -44,7 +44,7 @@ def is_valid_ip(ip):
         return False
     if parts[0] == '127' or parts[0] == '169' or parts[0] == '0' or int(parts[0]) > 223:
         return False
-    if parts[3] == '1' or parts[3] == '0' or parts[3] == '255':
+    if parts[3] == '0' or parts[3] == '255':
         return False
     return True
 
@@ -70,7 +70,7 @@ def get_interface_details():
                 link = iface_details[netifaces.AF_LINK]
                 macs.extend(map(lambda x: x['addr'], filter(lambda x: x.has_key('addr') and is_valid_mac(x['addr']), link)))
 
-        return { 'ip_addresses' : ','.join(ips), 'mac_addresses' : ','.join(macs) }
+        return { 'ip_addresses' : ', '.join(ips), 'mac_addresses' : ', '.join(macs) }
     except Exception, e:
         return { 'ip_addresses' : get_ip_addresses(), 'mac_addresses' : get_mac_addresses() }
 
@@ -83,7 +83,7 @@ def get_ip_addresses():
         try:
             co = subprocess.Popen([command], stdout = subprocess.PIPE)
             ifconfig = co.stdout.read()
-            ips = ','.join(filter(lambda x: is_valid_ip(x), [i[0] for i in ip_regex.findall(ifconfig, re.MULTILINE)]))
+            ips = ', '.join(filter(lambda x: is_valid_ip(x), [i[0] for i in ip_regex.findall(ifconfig, re.MULTILINE)]))
             if ips != '':
                 return ips
         except Exception, e:
@@ -99,7 +99,7 @@ def get_mac_addresses():
         try:
             co = subprocess.Popen([command], stdout = subprocess.PIPE, env = { 'LC_ALL' : 'C' })
             ifconfig = co.stdout.read()
-            macs = ','.join(filter(lambda x: is_valid_mac(x), [i[1] for i in mac_regex.findall(ifconfig, re.MULTILINE)]))
+            macs = ', '.join(filter(lambda x: is_valid_mac(x), [i[1] for i in mac_regex.findall(ifconfig, re.MULTILINE)]))
             if macs != '':
                 return macs
         except Exception, e:

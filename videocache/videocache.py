@@ -12,6 +12,7 @@ from common import *
 from error_codes import *
 from fork import *
 from vcoptions import VideocacheOptions
+from vcsysinfo import *
 
 from optparse import OptionParser
 from xmlrpclib import ServerProxy
@@ -86,6 +87,35 @@ def sync_video_info():
                 return
             time.sleep(0.1)
 
+def submit_system_info():
+    time.sleep(3)
+    sleep_time = 900
+    while True:
+        try:
+            num_tries = 0
+            while num_tries < 5:
+                try:
+                    video_pool.ping()
+                    info = { 'email' : o.client_email }
+                    info.update(get_all_info())
+                    video_pool.add_system(info)
+                    break
+                except Exception, e:
+                    connection()
+
+                for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
+                    if exit:
+                        return
+                    time.sleep(0.1)
+                num_tries += 1
+        except Exception, e:
+            pass
+
+        for i in range(1, int(sleep_time / 0.1)):
+            if exit:
+                return
+            time.sleep(0.1)
+
 def submit_videos(videos):
     try:
         video_pool.add_videos(videos)
@@ -99,12 +129,15 @@ def submit_videos(videos):
 def connection():
     global video_pool
     try:
-        video_pool = ServerProxy(o.rpc_url)
         video_pool.ping()
-        info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
     except Exception, e:
-        error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
-        trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
+        try:
+            video_pool = ServerProxy(o.rpc_url)
+            video_pool.ping()
+            info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
+        except Exception, e:
+            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
+            trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 def add_video_to_local_pool(video_id, params):
     global local_video_pool
@@ -727,7 +760,6 @@ def squid_part():
     else:
         info( { 'code' : VIDEOCACHE_EXIT, 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
         exit = True
-        # squid_part
 
 def reload():
     global o
@@ -771,11 +803,13 @@ if __name__ == '__main__':
     try:
         squid = threading.Thread(target = squid_part)
         video_info = threading.Thread(target = sync_video_info)
+        system_info = threading.Thread(target = submit_system_info)
         squid.start()
         video_info.start()
+        system_info.start()
         squid.join()
         video_info.join()
-        #squid_part()
+        system_info.join()
     except Exception, e:
         error( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
         trace( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : traceback.format_exc() } )

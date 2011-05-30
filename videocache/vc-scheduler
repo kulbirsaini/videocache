@@ -56,12 +56,15 @@ def trace(params = {}):
 def connection():
     global video_pool
     try:
-        video_pool = ServerProxy(o.rpc_url)
         video_pool.ping()
-        info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
     except Exception, e:
-        error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
-        trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
+        try:
+            video_pool = ServerProxy(o.rpc_url)
+            video_pool.ping()
+            info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
+        except Exception, e:
+            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
+            trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 class VideoPool:
     """
@@ -71,6 +74,7 @@ class VideoPool:
     scores = {}
     queue = {}
     active = {}
+    systems = []
     time_threshold = 15
     last_dump = 0
     dump_threshold = 120
@@ -109,6 +113,15 @@ class VideoPool:
                     warn( { 'code' : QUEUE_DUMP_WARN, 'message' : 'Unable to dump video queue to dump file at ' + queue_file + '.', 'debug' : str(e) } )
                     trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
         return True
+
+    def add_system(self, system = {}):
+        if system != {} and system not in self.systems:
+            self.systems.append(system)
+            return True
+        return False
+
+    def get_systems(self):
+        return self.systems
 
     def get_active_videos(self):
         return self.active.keys()
@@ -615,29 +628,44 @@ def cache_thread_scheduler():
         warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
 
 def submit_system_info():
-    submit_period = 86400
+    time.sleep(5)
+    submit_period = 1800
     while True:
-        try:
-            if o.client_email != '':
+        if o.client_email != '':
+            num_tries = 0
+            systems = []
+            while num_tries < 5:
+                try:
+                    video_pool.ping()
+                    systems = video_pool.get_systems()
+                    break
+                except Exception, e:
+                    connection()
+
+                time.sleep(min(2 ** num_tries, 10))
+                num_tries += 1
+
+            if len(systems) != 0:
                 cookie_handler = urllib2.HTTPCookieProcessor()
                 redirect_handler = urllib2.HTTPRedirectHandler()
                 info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-                info = { 'email' : o.client_email }
-                info.update(get_all_info())
-                new_info = {}
-                for k,v in info.items():
-                    new_info['[server][' + k + ']'] = v
+                okay = True
+                for system in systems:
+                    new_info = {}
+                    for k,v in system.items():
+                        new_info['[server][' + k + ']'] = v
 
-                status = info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
-                if status == 'OK':
-                    submit_period = 86400
+                    status = info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
+                    if status != 'OK':
+                        okay = False
+                if okay:
+                    submit_period = 1800
                 else:
-                    submit_period = 30
-            else:
-                warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
-                submit_period = 600
-        except Exception, e:
-            pass
+                    submit_period = 600
+        else:
+            warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
+            submit_period = 3600
+
         time.sleep(submit_period)
 
 
