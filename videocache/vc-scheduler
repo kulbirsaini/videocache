@@ -402,6 +402,10 @@ def cache_remote_url(remote_url, target_file, params = {}):
                 time.sleep(0.2)
         if file:
             file.close()
+
+        if video_size != -1 and downloaded < 0.95 * video_size:
+            error( { 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+            return False
     except urllib2.HTTPError, e:
         try:
             error( { 'code' : CACHE_HTTP_ERR, 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
@@ -453,13 +457,13 @@ def cache_youtube_video(params):
             trace( { 'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
             return
 
-    alternate_ids = []
+    alternate_vid = None
     video_url = None
     try:
         if 'fmt_url_map' in video_info:
             url_map = {}
             [url_map.update({u.split('|')[0] : u.split('|')[1]}) for u in video_info['fmt_url_map'][0].split(',')]
-            alternate_urls = url_map.values()
+            alternate_url = url_map.values()[0]
 
             if format != '':
                 video_url = url_map['18']
@@ -470,18 +474,15 @@ def cache_youtube_video(params):
                         break
 
             if not video_url:
-                video_url = alternate_urls[0]
+                video_url = alternate_url
 
-            for url in alternate_urls:
-                vid = get_youtube_video_id(url)
-                if vid and vid not in alternate_ids:
-                    alternate_ids.append(vid)
+            alternate_vid = get_youtube_video_id(video_url)
     except Exception, e:
         error( { 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Error while extracting alternate video id.', 'debug' : str(e) } )
         trace( { 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
 
-    if not video_url:
+    if not video_url or not alternate_vid:
         error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
         return
 
@@ -490,8 +491,8 @@ def cache_youtube_video(params):
     cache_dir = dir['cache_dir']
     tmp_dir = dir['tmp']
 
-    video_path = os.path.join(cache_dir, video_id) + format
-    tmp_path = os.path.join(tmp_dir, video_id) + format
+    video_path = os.path.join(cache_dir, alternate_vid) + format
+    tmp_path = os.path.join(tmp_dir, alternate_vid) + format
 
     try:
         if not os.path.exists(video_path):
@@ -506,17 +507,15 @@ def cache_youtube_video(params):
         else:
             info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
 
-        for vid in alternate_ids:
-            try:
-                new_video_path = os.path.join(cache_dir, vid) + format
-                if new_video_path is not None:
-                    if not os.path.exists(new_video_path):
-                        os.link(video_path, new_video_path)
-                    os.utime(new_video_path, None)
-            except Exception, e:
-                error( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not link video to alternate video id.', 'debug' : str(e) } )
-                trace( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
-                continue
+        try:
+            new_video_path = os.path.join(cache_dir, video_id) + format
+            if new_video_path is not None:
+                if not os.path.exists(new_video_path):
+                    os.link(video_path, new_video_path)
+                os.utime(new_video_path, None)
+        except Exception, e:
+            error( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not link video to alternate video id.', 'debug' : str(e) } )
+            trace( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
         return
     except Exception, e:
         error( { 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + video_url + '.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
