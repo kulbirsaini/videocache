@@ -450,6 +450,13 @@ def cache_youtube_video(params):
         try:
             info_page = urllib2.urlopen(request).read()
             video_info = cgi.parse_qs(info_page)
+            try:
+                view_count = int(video_info.get('view_count', [0])[0])
+            except Exception, e:
+                view_count = 0
+            if view_count < o.min_youtube_views:
+                info( { 'code' : VIEW_COUNT_LOW, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Video has not received enough views and will not be cached.' } )
+                return
             if 'fmt_url_map' in video_info:
                 break
         except Exception, e:

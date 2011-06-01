@@ -105,6 +105,7 @@ class VideocacheConf:
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)
     max_youtube_video_quality = Option('480p')
+    min_youtube_views = Option(10000)
     youtube_cache_dir = Option('youtube')
 
     # Facebook.com Specific Options

@@ -110,6 +110,7 @@ class VideocacheOptions:
             self.__class__.youtube_video_formats = []
             [self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
             self.__class__.youtube_video_formats.reverse()
+            self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
