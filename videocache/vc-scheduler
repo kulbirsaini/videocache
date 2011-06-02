@@ -403,7 +403,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         if file:
             file.close()
 
-        if video_size != -1 and downloaded < 0.95 * video_size:
+        if video_size != -1 and os.path.getsize(target_file) < 0.95 * video_size:
             error( { 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
             return False
     except urllib2.HTTPError, e:
@@ -445,7 +445,7 @@ def cache_youtube_video(params):
         return
 
     for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
-        info_url = 'http://www.youtube.com/get_video_info?&video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
+        info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
         request = urllib2.Request(info_url, None, o.std_headers)
         try:
             info_page = urllib2.urlopen(request).read()

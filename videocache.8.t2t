@@ -161,7 +161,7 @@ The video of size less than //min_video_size// (MegaBytes) will not be cached. D
 ``` EXAMPLE: If min_video_size = 2, Videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
 
 : **disk_avail_threshold**
-This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 1000.
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 10000.
 ``` EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
 : **enable_videocache_cleaner**
