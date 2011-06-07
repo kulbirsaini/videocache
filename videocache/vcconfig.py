@@ -75,27 +75,31 @@ class VideocacheConf:
     timeformat = Option('%d/%b/%Y:%H:%M:%S')
     scheduler_pidfile = Option('/var/run/videocache.pid')
     # Main Logfile
+    enable_videocache_log = Option(1)
     logformat = Option('%tl %p %s %i %w %c %v %m %d')
     logfile = Option('videocache.log')
     max_logfile_size = Option(10)
     max_logfile_backups = Option(10)
     # Scheduler Logfile
+    enable_scheduler_log = Option(1)
     scheduler_logformat = Option('%tl %p %s %i %w %c %v %m %d')
     scheduler_logfile = Option('scheduler.log')
     max_scheduler_logfile_size = Option(10)
     max_scheduler_logfile_backups = Option(10)
     # Videocache Cleaner Logfile
+    enable_cleaner_log = Option(1)
     cleaner_logformat = Option('%tl %p %s %w %c %v %m %d')
     cleaner_logfile = Option('cleaner.log')
     max_cleaner_logfile_size = Option(10)
     max_cleaner_logfile_backups = Option(5)
     # Trace file
+    enable_trace_log = Option(1)
     tracefile = Option('trace.log')
     max_tracefile_size = Option(10)
     max_tracefile_backups = Option(1)
 
     # Network
-    cache_host = Option('127.0.0.1')
+    cache_host = Option('')
     rpc_host = Option('127.0.0.1')
     rpc_port = Option(9100)
     proxy = Option()

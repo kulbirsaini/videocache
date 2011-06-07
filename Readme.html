@@ -6,7 +6,7 @@
 </HEAD><BODY BGCOLOR="white" TEXT="black">
 <P ALIGN="center"><CENTER><H1>Videocache</H1>
 <FONT SIZE="4">
-June 07, 2011
+June 08, 2011
 </FONT></CENTER>
 
 <P></P>
@@ -182,7 +182,7 @@ Additionally you can select an alternative port to use.
   or 192.168.36.204:81
   or &lt;Proxy_Server_IP_OR_Domain:HTTP_PORT&gt;
 </PRE>
-Default: 127.0.0.1.
+Default: &lt;blank&gt;
 <P></P>
 <DT><B>base_dir</B></DT><DD>
 Base directories for caching the videos. You can specify multiple caching directories here separated by '|' symbol. Please try to avoid special characters in directory names like spaces, $ etc.
@@ -314,6 +314,11 @@ Default: %d/%b/%Y:%H:%M:%S
 <DT><B>logdir</B></DT><DD>
 <P></P>
 Directory where Videocache logs will be stored. Default: <I>/var/log/videocache/</I>.
+<P></P>
+<DT><B>enable_videocache_log, enable_scheduler_log, enable_cleaner_log, enable_trace_log</B></DT><DD>
+Using these options, you can control the logging activity of the various components of videocache. When a particular option is set to 0, videocache will not log anything to the respective logfile.
+<P></P>
+Default: 1
 <P></P>
 <DT><B>logfile, scheduler_logfile, cleaner_logfile, tracefile</B></DT><DD>
 The name of log file can be specified using different logfile options. Please avoid any special characters in filename.

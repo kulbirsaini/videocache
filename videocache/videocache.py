@@ -32,20 +32,24 @@ import urllib2
 import urlparse
 
 def info(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
-    o.vc_logger.info(build_message(params))
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        o.vc_logger.info(build_message(params))
 
 def error(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
-    o.vc_logger.error(build_message(params))
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        o.vc_logger.error(build_message(params))
 
 def warn(params = {}):
-    params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
-    o.vc_logger.debug(build_message(params))
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        o.vc_logger.debug(build_message(params))
 
 def trace(params = {}):
-    params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
-    o.trace_logger.info(build_message(params))
+    if o.enable_trace_log:
+        params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
+        o.trace_logger.info(build_message(params))
 
 def sync_video_info():
     global local_video_pool
@@ -195,6 +199,9 @@ def squid_part():
         try:
             # Read url from stdin (this is provided by squid)
             fields = input.strip().split(' ')
+            if o.cache_host == '':
+                warn( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host is not set properly in /etc/videocache.conf. Please set it and restart/reload Squid daemon' } )
+                skip = True
             if len(fields) < 4:
                 warn( { 'code' : INPUT_WARN, 'message' : 'Input received from Squid is not parsable. Skipping this URL.' } )
                 skip = True
@@ -797,6 +804,9 @@ if __name__ == '__main__':
     thread_pool = threading.Semaphore(value = 1)
     process_id = os.getpid()
     exit = False
+
+    if o.cache_host == '':
+        warn( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host is not set properly in /etc/videocache.conf. Please set it and restart/reload Squid daemon' } )
 
     info( { 'code' : VIDEOCACHE_START, 'message' : 'Starting Videocache.' } )
 

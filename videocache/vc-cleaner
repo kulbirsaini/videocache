@@ -21,20 +21,24 @@ def syslog_msg(msg):
     syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)
 
 def info(params = {}):
-    params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
-    o.vcc_logger.info(build_message(params))
+    if o.enable_cleaner_log:
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        o.vcc_logger.info(build_message(params))
 
 def error(params = {}):
-    params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
-    o.vcc_logger.error(build_message(params))
+    if o.enable_cleaner_log:
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        o.vcc_logger.error(build_message(params))
 
 def warn(params = {}):
-    params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
-    o.vcc_logger.debug(build_message(params))
+    if o.enable_cleaner_log:
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        o.vcc_logger.debug(build_message(params))
 
 def trace(params = {}):
-    params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
-    o.trace_logger.info(build_message(params))
+    if o.enable_trace_log:
+        params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
+        o.trace_logger.info(build_message(params))
 
 def cleancache():
     """Perform the cleanup."""

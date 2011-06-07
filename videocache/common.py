@@ -540,8 +540,15 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
         setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
-    if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), os.path.join(etc_dir, 'videocache.conf'), quiet):
+    vcsysconfig_file = os.path.join(etc_dir, 'videocache.conf')
+    if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), vcsysconfig_file, quiet):
         setup_error('install')
+    file = open(vcsysconfig_file, 'r')
+    config_data = file.read()
+    file.close()
+    file = open(vcsysconfig_file, 'w')
+    file.write(config_data.replace('%VIDEOCACHE_USER%', squid_user))
+    file.close()
 
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
     if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz'), quiet):

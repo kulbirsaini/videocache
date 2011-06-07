@@ -70,20 +70,24 @@ class VideocacheOptions:
             self.__class__.timeformat = mainconf.timeformat
             self.__class__.scheduler_pidfile = mainconf.scheduler_pidfile
             # Mail Videocache Logfile
+            self.__class__.enable_videocache_log = int(mainconf.enable_videocache_log)
             self.__class__.logformat = mainconf.logformat
             self.__class__.logfile = os.path.join(mainconf.logdir, mainconf.logfile)
             self.__class__.max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
             self.__class__.max_logfile_backups = int(mainconf.max_logfile_backups)
             # Trace file
+            self.__class__.enable_trace_log = int(mainconf.enable_trace_log)
             self.__class__.tracefile = os.path.join(mainconf.logdir, mainconf.tracefile)
             self.__class__.max_tracefile_size = int(mainconf.max_tracefile_size) * 1024 * 1024
             self.__class__.max_tracefile_backups = int(mainconf.max_tracefile_backups)
             # Scheduler Logfile
+            self.__class__.enable_scheduler_log = int(mainconf.enable_scheduler_log)
             self.__class__.scheduler_logformat = mainconf.scheduler_logformat
             self.__class__.scheduler_logfile = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
             self.__class__.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
             self.__class__.max_scheduler_logfile_backups = int(mainconf.max_scheduler_logfile_backups)
             # Videocache Cleaner Logfile
+            self.__class__.enable_cleaner_log = int(mainconf.enable_cleaner_log)
             self.__class__.cleaner_logformat = mainconf.cleaner_logformat
             self.__class__.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
             self.__class__.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
@@ -171,28 +175,32 @@ class VideocacheOptions:
                 self.__class__.scheduler_logformat = self.__class__.scheduler_logformat.replace(key, self.format_map[key])
                 self.__class__.cleaner_logformat = self.__class__.cleaner_logformat.replace(key, self.format_map[key])
             # Main Videocache Logfile
-            self.__class__.vc_logger = logging.Logger('VideocacheLog')
-            self.__class__.vc_logger.setLevel(logging.DEBUG)
-            vc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.logfile, mode = 'a', maxBytes = self.__class__.max_logfile_size, backupCount = self.__class__.max_logfile_backups)
-            self.__class__.vc_logger.addHandler(vc_log_handler)
+            if self.__class__.enable_videocache_log:
+                self.__class__.vc_logger = logging.Logger('VideocacheLog')
+                self.__class__.vc_logger.setLevel(logging.DEBUG)
+                vc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.logfile, mode = 'a', maxBytes = self.__class__.max_logfile_size, backupCount = self.__class__.max_logfile_backups)
+                self.__class__.vc_logger.addHandler(vc_log_handler)
 
             # Scheduler Logfile
-            self.__class__.vcs_logger = logging.Logger('VideocacheSchedulerLog')
-            self.__class__.vcs_logger.setLevel(logging.DEBUG)
-            vcs_log_handler = logging.handlers.RotatingFileHandler(self.__class__.scheduler_logfile, mode = 'a', maxBytes = self.__class__.max_scheduler_logfile_size, backupCount = self.__class__.max_scheduler_logfile_backups)
-            self.__class__.vcs_logger.addHandler(vcs_log_handler)
+            if self.__class__.enable_scheduler_log:
+                self.__class__.vcs_logger = logging.Logger('VideocacheSchedulerLog')
+                self.__class__.vcs_logger.setLevel(logging.DEBUG)
+                vcs_log_handler = logging.handlers.RotatingFileHandler(self.__class__.scheduler_logfile, mode = 'a', maxBytes = self.__class__.max_scheduler_logfile_size, backupCount = self.__class__.max_scheduler_logfile_backups)
+                self.__class__.vcs_logger.addHandler(vcs_log_handler)
 
             # Trace log
-            self.__class__.trace_logger = logging.Logger('VideocacheTraceLog')
-            self.__class__.trace_logger.setLevel(logging.DEBUG)
-            trace_log_handler = logging.handlers.RotatingFileHandler(self.__class__.tracefile, mode = 'a', maxBytes = self.__class__.max_tracefile_size, backupCount = self.__class__.max_tracefile_backups)
-            self.__class__.trace_logger.addHandler(trace_log_handler)
+            if self.__class__.enable_trace_log:
+                self.__class__.trace_logger = logging.Logger('VideocacheTraceLog')
+                self.__class__.trace_logger.setLevel(logging.DEBUG)
+                trace_log_handler = logging.handlers.RotatingFileHandler(self.__class__.tracefile, mode = 'a', maxBytes = self.__class__.max_tracefile_size, backupCount = self.__class__.max_tracefile_backups)
+                self.__class__.trace_logger.addHandler(trace_log_handler)
 
             # Videocache Cleaner Logfile
-            self.__class__.vcc_logger = logging.Logger('VideocacheCleanerLog')
-            self.__class__.vcc_logger.setLevel(logging.DEBUG)
-            vcc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.cleaner_logfile, mode = 'a', maxBytes = self.__class__.max_cleaner_logfile_size, backupCount = self.__class__.max_cleaner_logfile_backups)
-            self.__class__.vcc_logger.addHandler(vcc_log_handler)
+            if self.__class__.enable_cleaner_log:
+                self.__class__.vcc_logger = logging.Logger('VideocacheCleanerLog')
+                self.__class__.vcc_logger.setLevel(logging.DEBUG)
+                vcc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.cleaner_logfile, mode = 'a', maxBytes = self.__class__.max_cleaner_logfile_size, backupCount = self.__class__.max_cleaner_logfile_backups)
+                self.__class__.vcc_logger.addHandler(vcc_log_handler)
 
         except Exception, e:
             syslog_msg('Could not set logging! Debug: '  + traceback.format_exc().replace('\n', ''))
