@@ -438,8 +438,9 @@ def setup_success():
 Videocache setup has completed successfully.
 Now you must restart Apache web server on your machine by using the following command
 [root@localhost ~]# apachectl -k restart [ENTER]
-Also, you need to configure squid so that it can use videocache as a url rewritor plugin.
-Check README file for further configurations of squid, httpd and videocache.
+
+Also, you need to configure squid so that it can use videocache as a url rewriter plugin.
+Check README file for further configurations of squid, apache and videocache.
 In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message

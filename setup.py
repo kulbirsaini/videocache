@@ -67,10 +67,13 @@ Please see http://cachevideos.com/installation for more information or getting h
     elif options.apache_dir == None or options.apache_dir == '':
         httpd_dir = os.path.join(options.vc_root, 'etc/httpd/conf.d/')
         apache2_dir = os.path.join(options.vc_root, 'etc/apache2/conf.d/')
+        apache1_dir = os.path.join(options.vc_root, 'etc/apache/conf.d/')
         if os.path.isdir(httpd_dir):
             apache_dir = httpd_dir
         elif os.path.isdir(apache2_dir):
             apache_dir = apache2_dir
+        elif os.path.isdir(apache1_dir):
+            apache_dir = apache1_dir
         else:
             parser.print_help()
             sys.stderr.write('\nPlease use -a (or --apache-dir) option to specify the path to Apache\'s conf.d directory.\n')
