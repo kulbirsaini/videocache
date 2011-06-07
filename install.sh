@@ -5,6 +5,9 @@
 # For more information check http://cachevideos.com/
 #
 
+MESSAGE_LENGTH=60
+MESSAGE_STR='...............................................................................................'
+
 SETUPTOOLS_URL='http://pypi.python.org/packages/source/s/setuptools/setuptools-0.6c11.tar.gz'
 SETUPTOOLS_FILENAME='setuptools.tar.gz'
 SETUPTOOLS_DIR='setuptools'
@@ -29,115 +32,89 @@ green() {
   echo -en "\033[0;32m${1}\033[0m"
 }
 
-install_setuptools() {
-  blue 'Checking python-setuptools...............'
-  python -c 'import setuptools' > /dev/null 2> /dev/null
-  if [[ $? != 0 ]]; then
-    red 'Missing'; echo
-    blue 'Fetching python-setuptools...............'
-    wget -q $SETUPTOOLS_URL -O /tmp/$SETUPTOOLS_FILENAME
-    green 'Done'; echo
-    mkdir -p /tmp/$SETUPTOOLS_DIR
-    blue 'Extracting python-setuptools.............'
-    tar -C /tmp/$SETUPTOOLS_DIR -xzf /tmp/$SETUPTOOLS_FILENAME
-    green 'Done'; echo
-    blue 'Installing python-setuptools.............'
-    cur_dir=`pwd`
-    cd /tmp/$SETUPTOOLS_DIR/*
-    python setup.py -q install > /dev/null
-    if [[ $? == 0 ]]; then
-      green 'Success'; echo
-    fi
-    cd $cur_dir
-    rm -rf /tmp/$SETUPTOOLS_DIR
-    rm -f /tmp/$SETUPTOOLS_FILENAME
-    blue 'Testing python-setuptools................'
-    python -c 'import setuptools' > /dev/null 2> /dev/null
-    if [[ $? == 0 ]]; then
-      green 'Verified'; echo
-    else
-      red 'Failed'; echo
-    fi
-    echo
-  else
-    green 'Installed'; echo
-  fi
+strlen() {
+  echo `expr length "${1}"`
 }
 
-install_iniparse() {
-  blue 'Checking python-iniparse.................'
-  python -c 'import iniparse' > /dev/null 2> /dev/null
-  if [[ $? != 0 ]]; then
-    red 'Missing'; echo
-    blue 'Fetching python-iniparse.................'
-    wget -q $INIPARSE_URL -O /tmp/$INIPARSE_FILENAME
-    green 'Done'; echo
-    mkdir -p /tmp/$INIPARSE_DIR
-    blue 'Extracting python-iniparse...............'
-    tar -C /tmp/$INIPARSE_DIR -xzf /tmp/$INIPARSE_FILENAME
-    green 'Done'; echo
-    blue 'Installing python-iniparse...............'
-    cur_dir=`pwd`
-    cd /tmp/$INIPARSE_DIR/*
-    python setup.py -q install > /dev/null
-    if [[ $? == 0 ]]; then
-      green 'Success'; echo
-    fi
-    cd $cur_dir
-    rm -rf /tmp/$INIPARSE_DIR
-    rm -f /tmp/$INIPARSE_FILENAME
-    blue 'Testing python-iniparse..................'
-    python -c 'import iniparse' > /dev/null 2> /dev/null
-    if [[ $? == 0 ]]; then
-      green 'Verified'; echo
-    else
-      red 'Failed'; echo
-    fi
-    echo
-  else
-    green 'Installed'; echo
-  fi
+message_with_padding() {
+  str_len=`strlen "${1}"`
+  dots=`expr ${MESSAGE_LENGTH} - ${str_len}`
+  blue "${1}${MESSAGE_STR:0:${dots}}"
 }
 
-install_netifaces() {
-  blue 'Checking python-netifaces................'
-  python -c 'import netifaces' > /dev/null 2> /dev/null
+# Options
+# $1 -> Name
+# $2 -> URL
+# $3 -> Archive Filename
+# $4 -> Archive Directory Name
+install_python_module() {
+  message_with_padding "Checking python-${1}"
+  output=`python -c "import ${1}" 2>&1`
   if [[ $? != 0 ]]; then
     red 'Missing'; echo
-    blue 'Fetching python-netifaces................'
-    wget -q $NETIFACES_URL -O /tmp/$NETIFACES_FILENAME
-    green 'Done'; echo
-    mkdir -p /tmp/$NETIFACES_DIR
-    blue 'Extracting python-netifaces..............'
-    tar -C /tmp/$NETIFACES_DIR -xzf /tmp/$NETIFACES_FILENAME
-    green 'Done'; echo
-    blue 'Installing python-netifaces..............'
+
+    message_with_padding "Fetching python-${1}"
+    output=`wget -q "${2}" -O /tmp/"${3}" 2>&1`
+    if [[ $? == 0 ]]; then
+      green 'Done'; echo
+    else
+      red 'Failed'; echo
+      echo; red 'Please check your network connection!'; echo; red "${output}"; echo
+      exit 1
+    fi
+
+    mkdir -p "/tmp/${4}"
+    message_with_padding "Extracting python-${1}"
+    output=`tar -C /tmp/"${4}" -xzf /tmp/"${3}" 2>&1`
+    if [[ $? == 0 ]]; then
+      green 'Done'; echo
+    else
+      red 'Failed'; echo
+      echo; red "${output}"; echo
+      exit 1
+    fi
+
+    message_with_padding "Installing python-${1}"
     cur_dir=`pwd`
-    cd /tmp/$NETIFACES_DIR/*
-    python setup.py -q install > /dev/null 2> /dev/null
+    cd /tmp/"${4}"/*
+    output=`python setup.py install 2>&1`
     if [[ $? == 0 ]]; then
       green 'Success'; echo
+    else
+      red 'Failed'; echo
+      echo; red "${output}"; echo
+      exit 1
     fi
     cd $cur_dir
-    rm -rf /tmp/$NETIFACES_DIR
-    rm -f /tmp/$NETIFACES_FILENAME
-    blue 'Testing python-netifaces.................'
-    python -c 'import netifaces' > /dev/null 2> /dev/null
+    rm -rf /tmp/"${4}"
+    rm -f /tmp/"${3}"
+
+    message_with_padding "Testing python-${1}"
+    output=`python -c "import ${1}" 2>&1`
     if [[ $? == 0 ]]; then
       green 'Verified'; echo
     else
       red 'Failed'; echo
+      echo; red "${output}"; echo
+      exit 1
     fi
+    echo
   else
     green 'Installed'; echo
   fi
 }
 
 check_python_dev() {
-  blue 'Checking Python.h........................'
-  pythonh=`python -c 'import setuptools; print setuptools.distutils.sysconfig.get_python_inc()'`
+  message_with_padding "Checking Python.h"
+  pythonh=`python -c 'import setuptools; print setuptools.distutils.sysconfig.get_python_inc()' 2>&1`
+  if [[ $? != 0 ]]; then
+    red 'Failed'; echo
+    echo; red "${pythonh}"; echo
+    exit 1
+  fi
+
   if [[ -f ${pythonh}/Python.h ]]; then
-    green 'Found'; echo
+    green 'Installed'; echo
     return 0
   else
     red 'Missing'; echo
@@ -147,7 +124,7 @@ check_python_dev() {
 }
 
 install_videocache() {
-  blue 'Installing Videocache....................'
+  message_with_padding "Installing Videocache"
   output=`python setup.py install 2>&1`
   if [[ $? == 0 ]]; then
     green 'Installed'; echo
@@ -155,6 +132,7 @@ install_videocache() {
   else
     red 'Failed'; echo
     red "${output}"; echo
+    exit 1
   fi
 }
 
@@ -176,7 +154,7 @@ check_apache_with_conf_dir() {
 }
 
 check_apache() {
-  blue 'Checking apache..........................'
+  message_with_padding "Checking apache"
   for command in apachectl apache2ctl httpd apache2 apache; do
     check_apache_with_conf_dir $command
     if [[ $? == 0 ]]; then
@@ -189,29 +167,39 @@ check_apache() {
 }
 
 check_command() {
-  blue "${2}"
+  message_with_padding "Checking ${1}"
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
     green 'Installed'; echo
   else
     red 'Missing'; echo
-    echo; red "${3}"; echo
+    echo; red "${2}"; echo
     exit 1
   fi
 }
 
 check_dependencies() {
-  check_command python 'Checking python..........................' 'Download and install python from http://www.python.org/ or check your operating system manual for installing the same.'
-  check_command wget 'Checking wget............................' 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
-  check_command tar 'Checking tar.............................' 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
-  check_command gcc 'Checking gcc.............................' 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
+  check_command which 'Download and install which from http://www.gnu.org/software/which/ or check your operating system manual for installing the same.'
+  check_command bash 'Download and install bash from http://www.gnu.org/software/bash/ or check your operating system manual for installing the same.'
+  check_command python 'Download and install python from http://www.python.org/ or check your operating system manual for installing the same.'
+  check_command wget 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
+  check_command tar 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
+  check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
   check_apache
 }
 
+check_root() {
+  if [[ $UID != 0 ]]; then
+    red 'You must be logged in as root to install videocache!'; echo
+    exit 1
+  fi
+}
+
+check_root
 check_dependencies
-install_setuptools
+install_python_module iniparse "${INIPARSE_URL}" "${INIPARSE_FILENAME}" "${INIPARSE_DIR}"
+install_python_module setuptools "${SETUPTOOLS_URL}" "${SETUPTOOLS_FILENAME}" "${SETUPTOOLS_DIR}"
 check_python_dev
-install_iniparse
-install_netifaces
+install_python_module netifaces "${NETIFACES_URL}" "${NETIFACES_FILENAME}" "${NETIFACES_DIR}"
 install_videocache
 
