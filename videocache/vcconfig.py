@@ -63,6 +63,7 @@ class VideocacheConf:
     max_video_size = Option(0)
     min_video_size = Option(0)
     client_email = Option('')
+    cache_period = Option('')
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')

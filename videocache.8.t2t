@@ -134,6 +134,15 @@ Default: 0
 
 **IMPORTANT** : The maximum bandwidth used by Videocache at any time can not exceed //max_cache_processes// x //max_cache_speed// kilobytes per second. So, you can configure these options depending on bandwidth availability.
 
+: **cache_period**
+The option //cache_period// specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use this option to configure videocache to cache videos in off-peak hours so that you can provide maximum possible bandwidth to your clients in peak hours. The format for specifying //cache_period// is HH1:MM1-HH2:MM2[, HH3:MM3-HH4:MM4, HH5:MM5-HH6-MM6, ...]. Time must be specified in 24 hour format. Also, **HH1:MM1 must be less than HH2:MM2**. Multiple time intervals can be specified by using comma (,) as a separator.
+``` Exmaple: cache_period = 00:20-06:30, 12:30-03:30
+The above //cache_period// option will force videocache to cache videos only from 00:20AM to 6:30AM and from 12:30PM to 3:30PM.
+
+Default: <blank>
+
+**IMPORTANT** : If you want videocache to cache videos only during night from 11PM to 7AM, then you'll have to specify two time intervals 23:00-23:59 and 00:00-07:00 to meet the condition that start time must be less than end time.
+
 : **proxy**
 **Warning** : __**USE THIS ONLY IF**__ Videocache Server should go via anohter proxy.
 

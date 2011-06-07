@@ -6,7 +6,7 @@
 </HEAD><BODY BGCOLOR="white" TEXT="black">
 <P ALIGN="center"><CENTER><H1>Videocache</H1>
 <FONT SIZE="4">
-May 17, 2011
+June 07, 2011
 </FONT></CENTER>
 
 <P></P>
@@ -203,6 +203,17 @@ Default: 0
 <P></P>
 <B>IMPORTANT</B> : The maximum bandwidth used by Videocache at any time can not exceed <I>max_cache_processes</I> x <I>max_cache_speed</I> kilobytes per second. So, you can configure these options depending on bandwidth availability.
 <P></P>
+<DT><B>cache_period</B></DT><DD>
+The option <I>cache_period</I> specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use this option to configure videocache to cache videos in off-peak hours so that you can provide maximum possible bandwidth to your clients in peak hours. The format for specifying <I>cache_period</I> is HH1:MM1-HH2:MM2<A HREF="...">, HH3:MM3-HH4:MM4, HH5:MM5-HH6-MM6,</A>. Time must be specified in 24 hour format. Also, <B>HH1:MM1 must be less than HH2:MM2</B>. Multiple time intervals can be specified by using comma (,) as a separator.
+<PRE>
+  Exmaple: cache_period = 00:20-06:30, 12:30-03:30
+</PRE>
+The above <I>cache_period</I> option will force videocache to cache videos only from 00:20AM to 6:30AM and from 12:30PM to 3:30PM.
+<P></P>
+Default: &lt;blank&gt;
+<P></P>
+<B>IMPORTANT</B> : If you want videocache to cache videos only during night from 11PM to 7AM, then you'll have to specify two time intervals 23:00-23:59 and 00:00-07:00 to meet the condition that start time must be less than end time.
+<P></P>
 <DT><B>proxy</B></DT><DD>
 <B>Warning</B> : <U><B>USE THIS ONLY IF</B></U> Videocache Server should go via anohter proxy.
 <P></P>
@@ -234,7 +245,7 @@ The video of size less than <I>min_video_size</I> (MegaBytes) will not be cached
 </PRE>
 <P></P>
 <DT><B>disk_avail_threshold</B></DT><DD>
-This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 1000.
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 10000.
 <PRE>
   EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 </PRE>
@@ -353,6 +364,10 @@ This option forces the maximum video quality from Youtube. If a user browses a v
   Valid values : 240p, 360p, 480p, 720p, 1080p, 3072p (Please don't use quotes)
 </PRE>
 Default: 480p
+<P></P>
+<DT><B>min_youtube_views</B></DT><DD>
+This option will help in enhancing the performance of videocache. If min_youtube_views is set to 10000, then videocache will cache a video only if it has received at least 10000 views on Youtube. Otherwise, it'll not be cached at all. Set this to 0 to disable this option.
+Default: 10000
 <P></P>
 <DT><B>temp_dir</B></DT><DD>
 Directory to store partially downloaded videos. Directory name is relative to <I>base_dir</I>. Default: <I>tmp</I>.

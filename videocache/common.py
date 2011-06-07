@@ -576,3 +576,18 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     setup_success()
     return
 
+# Functions related to cache_period option
+# Cache Period from Hash to String
+def cache_period_h2s(cache_period):
+    return '%02d:%02d-%02d:%02d' % (cache_period['start'][0], cache_period['start'][1], cache_period['end'][0], cache_period['end'][1])
+
+# Cache Period from String to List of Hashes
+def cache_period_s2lh(cache_period):
+    try:
+        if cache_period.strip() == '':
+            return None
+        else:
+            return map(lambda x: { 'start' : x[0], 'end' : x[1] }, map(lambda x: map(lambda y: [int(z) for z in y.split(':')], x.split('-')), [i.strip().replace(' ', '') for i in cache_period.strip().split(',')]))
+    except Exception, e:
+        return False
+

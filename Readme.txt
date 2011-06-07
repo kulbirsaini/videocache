@@ -169,6 +169,21 @@ Videocache Global Configuration
            you can configure these options depending on bandwidth availability.
 
 
+    cache_period
+           The  option  cache_period specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use this option
+           to configure videocache to cache videos in off-peak hours so that you can provide maximum possible bandwidth to your clients in peak hours. The
+           format for specifying cache_period is HH1:MM1-HH2:MM2, HH3:MM3-HH4:MM4, HH5:MM5-HH6-MM6, (...). Time must be specified in 24 hour format. Also,
+           HH1:MM1 must be less than HH2:MM2. Multiple time intervals can be specified by using comma (,) as a separator.
+             Exmaple: cache_period = 00:20-06:30, 12:30-03:30
+
+           The above cache_period option will force videocache to cache videos only from 00:20AM to 6:30AM and from 12:30PM to 3:30PM.
+
+           Default: <blank>
+
+           IMPORTANT : If you want videocache to cache videos only during night from 11PM  to  7AM,  then  you’ll  have  to  specify  two  time  intervals
+           23:00-23:59 and 00:00-07:00 to meet the condition that start time must be less than end time.
+
+
     proxy  Warning : USE THIS ONLY IF Videocache Server should go via anohter proxy.
 
            Proxy for http content. Default: <blank>.
@@ -203,7 +218,7 @@ Videocache Global Configuration
 
     disk_avail_threshold
            This  option  sets  the  minimum  available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache
-           treats that partition as FULL. Default: 1000.
+           treats that partition as FULL. Default: 10000.
              EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
 
@@ -325,6 +340,12 @@ Videocache Global Configuration
              Valid values : 240p, 360p, 480p, 720p, 1080p, 3072p (Please don’t use quotes)
 
            Default: 480p
+
+
+    min_youtube_views
+           This option will help in enhancing the performance of videocache. If min_youtube_views is set to 10000, then videocache will cache a video only
+           if  it  has  received  at  least 10000 views on Youtube. Otherwise, it’ll not be cached at all. Set this to 0 to disable this option.  Default:
+           10000
 
 
     temp_dir

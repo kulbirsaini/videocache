@@ -258,7 +258,7 @@ class VideoPool:
         try:
             self.clean_threads()
             self.dump_queue()
-            if o.offline_mode:
+            if o.offline_mode or not is_caching_time():
                 return False
             if self.get_conn_number() < o.max_cache_processes:
                 video_id = self.get_popular()
@@ -403,7 +403,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         if file:
             file.close()
 
-        if video_size != -1 and os.path.getsize(target_file) < 0.95 * video_size:
+        if video_size != -1 and os.path.getsize(target_file) / 1024 < 0.97 * video_size / 1024:
             error( { 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
             return False
     except urllib2.HTTPError, e:
@@ -597,9 +597,35 @@ cache_tube8_video = cache_generalized
 cache_bliptv_video = cache_generalized
 cache_break_video = cache_generalized
 
+def refine_cache_periods():
+    global cache_periods
+    cache_periods = []
+    if o.cache_periods == False:
+        warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'Error in parsing the value of the option cache_period. Ignoring. Please check documentation in /etc/videocache.conf and restart vc-scheduler.'})
+        cache_periods = []
+    elif o.cache_periods == None:
+        cache_periods = []
+    else:
+        for cp in o.cache_periods:
+            if cp['start'][0] > cp['end'][0]:
+                warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'A time period mentioned using cache_period option is not valid. Ignoring. Please check documentation in /etc/videocache.conf and restart vc-scheduler.', 'debug' : cache_period_h2s(cp)})
+            else:
+                cache_periods.append(cp)
+
+def is_caching_time():
+    t = time.localtime()
+    for cp in cache_periods:
+        start_time = int('%02d%02d' % (cp['start'][0], cp['start'][1]))
+        end_time = int('%02d%02d' % (cp['end'][0], cp['end'][1]))
+        cur_time = int('%02d%02d' % (t.tm_hour, t.tm_min))
+        if cur_time >= start_time and cur_time <= end_time:
+            return True
+    return False
+
 def cache_thread_scheduler():
     if o.client_email != '':
         info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
+        refine_cache_periods()
         connection()
         while True:
             try:
@@ -614,18 +640,17 @@ def cache_thread_scheduler():
 
         while True:
             try:
-                if not o.offline_mode:
-                    num_tries = 0
-                    while num_tries < 5:
-                        try:
-                            video_pool.schedule()
-                            break
-                        except Exception, e:
-                            connection()
-                        num_tries += 1
-                        time.sleep(min(2 ** num_tries, 10))
-                    else:
-                        warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+                num_tries = 0
+                while num_tries < 5:
+                    try:
+                        video_pool.schedule()
+                        break
+                    except Exception, e:
+                        connection()
+                    num_tries += 1
+                    time.sleep(min(2 ** num_tries, 10))
+                else:
+                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
             except Exception, e:
                 warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
                 trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })

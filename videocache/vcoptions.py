@@ -58,6 +58,7 @@ class VideocacheOptions:
             self.__class__.max_video_size = int(mainconf.max_video_size) * 1024 * 1024
             self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
             self.__class__.client_email = mainconf.client_email
+            self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
