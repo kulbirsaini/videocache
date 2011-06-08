@@ -547,7 +547,7 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     config_data = file.read()
     file.close()
     file = open(vcsysconfig_file, 'w')
-    file.write(config_data.replace('%VIDEOCACHE_USER%', squid_user))
+    file.write(config_data.replace('videocache_user = squid', 'videocache_user = ' + squid_user))
     file.close()
 
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz

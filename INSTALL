@@ -18,7 +18,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
 1. Requires
 ===========
   a. squid >= 2.6
-  b. python >= 2.4
+  b. python >= 2.4.3
   c. python-iniparse
   d. Apache (httpd) or any other Web Server
 
@@ -44,12 +44,14 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   d) Go to videocache-x.x.x directory
   [root@proxy videocache-bundle]# cd videocache-x.x.x
 
-  e) Identify your system
-    1) If your system is RedHat/CentOS/OpenSuse/Gentoo or RPM based, use setup.py
-    [root@proxy videocache-x.x.x]# python setup.py -u squid install
+  e) Use the install.sh install script to intsall videocache and required components.
+  [root@proxy videocache-x.x.x]# bash install.sh
 
-    2) If your system is Debian/Ubuntu/BSD, use setup-deb.py
-    [root@proxy videocache-x.x.x]# python setup.py -u proxy install
+                  OR
+
+    You can use the setup.py install script to explore advanced installation option.
+    [root@proxy videocache-x.x.x]# python setup.py install
+    Use the -h option to get a list of options available as shown.
 
   BINGO!! You are done with installation. In case you get any error while
   installing videocache, there will be proper logging in the console.
@@ -90,11 +92,12 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
     Use the following command to see available options
     [root@proxy root]# vc-scheduler -h
 
-  c) Add the following lines to your squid.conf which is generally located at /etc/squid/squid.conf
+  c) Depending on your version of Squid, open the file vc_squid_x.x.conf in shipped with
+     the software bundle and copy the contents to your Squid configuration file generally
+     located at /etc/squid/squid.conf.
 
-  # --BEGIN-- videocache config for squid
-  copy_to_squid.conf
-  # --END-- videocache config for squid
+     For Squid version 2.x, use the file vc_squid_2.x.conf and for Squid version 3.x, use
+     the file vc_squid_3.x.conf.
 
   Save squid.conf and reload the squid service using
   [root@proxy root]# /etc/init.d/squid reload

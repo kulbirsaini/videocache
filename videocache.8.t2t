@@ -13,21 +13,18 @@ Videocache is a Squid url rewriter plugin written in Python to facilitate cachin
 
 == Dependencies ==
 + Squid >= 2.6
-+ python >= 2.4
++ python >= 2.4.3
 + python-iniparse
 + Apache or any other Web Server
 
 
 == Installation & Configuration ==
-See INSTALL file in Videocache source or visit http://cachevideos.com/installation for installation instructions.
+See **INSTALL** file in Videocache source or visit http://cachevideos.com/installation for installation instructions.
 
 == Squid Configuration ==
-Add the following lines to your squid.conf which is generally located at ///etc/squid/squid.conf//
-```
-# --BEGIN-- videocache config for squid
-copy_to_squid.conf
-# --END-- videocache config for squid
-```
+Depending on your version of Squid, open the file vc_squid_x.x.conf in shipped with the software bundle and copy the contents to your Squid configuration file generally located at ///etc/squid/squid.conf//.
+
+For Squid version 2.x, use the file //vc_squid_2.x.conf// and for Squid version 3.x, use the file //vc_squid_3.x.conf//.
 
 Save squid.conf and reload the squid service using the following command
 ```
@@ -170,8 +167,9 @@ The video of size less than //min_video_size// (MegaBytes) will not be cached. D
 ``` EXAMPLE: If min_video_size = 2, Videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
 
 : **disk_avail_threshold**
-This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 10000.
-``` EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 20000.
+
+EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
 : **enable_videocache_cleaner**
 Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
