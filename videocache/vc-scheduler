@@ -617,6 +617,9 @@ def refine_cache_periods():
                 cache_periods.append(cp)
 
 def is_caching_time():
+    if len(cache_periods) == 0:
+        return True
+
     t = time.localtime()
     for cp in cache_periods:
         start_time = int('%02d%02d' % (cp['start'][0], cp['start'][1]))
@@ -703,6 +706,26 @@ def submit_system_info():
 
         time.sleep(submit_period)
 
+def scheduler_server():
+    while True:
+        num_tries = 0
+        while num_tries < 5:
+            try:
+                server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
+                server.register_function(server.shutdown)
+                server.register_introspection_functions()
+                server.register_instance(VideoPool())
+                info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' } )
+                server.serve_forever()
+            except Exception, e:
+                time.sleep(min(2 ** num_tries, 5))
+                trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
+
+            num_tries += 1
+        else:
+            error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler.' } )
+
+        time.sleep(10)
 
 class VideoPoolDaemon(VideocacheDaemon):
 
@@ -715,13 +738,8 @@ class VideoPoolDaemon(VideocacheDaemon):
         try:
             self.o.set_loggers()
             process_id = os.getpid()
-            server = VideoPoolRPCServer((self.o.rpc_host, int(self.o.rpc_port)), logRequests=0)
-            server.register_function(server.shutdown)
-            server.register_introspection_functions()
-            server.register_instance(VideoPool())
-            info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(self.o.rpc_port) + '.' } )
 
-            server_thread = threading.Thread(target = server.serve_forever)
+            server_thread = threading.Thread(target = scheduler_server)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info )
 
@@ -732,8 +750,6 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
-            # Not needed because it's running in a thread
-            #server.serve_forever()
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
             trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
