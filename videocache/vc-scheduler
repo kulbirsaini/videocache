@@ -408,7 +408,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
             file.close()
 
         if video_size != -1 and os.path.getsize(target_file) / 1024 < 0.97 * video_size / 1024:
-            error( { 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+            error( { 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(os.path.getsize(target_file)), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
             return False
     except urllib2.HTTPError, e:
         try:
@@ -533,6 +533,130 @@ def cache_youtube_video(params):
         trace( { 'code' : URL_CACHE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
     return
 
+def cache_dailymotion_video(params):
+    mode = 0644
+    client_ip = params.get('client_ip', '-')
+    video_id = params.get('video_id', '-')
+    website_id = params.get('website_id', '-')
+    format = params.get('format', '')
+    urls = params.get('urls', [])
+    dirs = params.get('dirs', [])
+
+    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+        error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
+        return
+
+    video_url = None
+    alternate_vid = None
+
+    if o.proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
+    request = urllib2.Request(urls[0], None, o.std_headers)
+
+    try:
+        page_data = urllib2.urlopen(request).read()
+        if page_data:
+            page_data = urllib2.unquote(page_data).replace('\\/', '/')
+            search_sdurl = re.compile('"sdURL":"([^"]*)"').search(page_data)
+            if search_sdurl:
+                video_url = search_sdurl.group(1)
+            else:
+                search_hqurl = re.compile('"hqURL":"([^"]*)"').search(page_data)
+                if search_hqurl:
+                    video_url = search_hqurl.group(1)
+
+        if video_url:
+            request = urllib2.Request(video_url, None, o.std_headers)
+            webpage = urllib2.urlopen(request)
+            if webpage and webpage.url != '':
+                path = urlparse.urlsplit(webpage.url)[2]
+                alternate_vid = path.strip('/').split('/')[-1]
+    except Exception, e:
+        error( { 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Error while fetching video webpage.', 'debug' : str(e) } )
+        trace( { 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+        return
+
+    if not video_url:
+        error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
+        return
+
+    dir = dirs[0]
+
+    cache_dir = dir['cache_dir']
+    tmp_dir = dir['tmp']
+
+    video_path = os.path.join(cache_dir, video_id)
+    tmp_path = os.path.join(tmp_dir, video_id)
+
+    try:
+        if not os.path.exists(video_path):
+            if cache_remote_url(video_url, tmp_path, params):
+                size = os.path.getsize(tmp_path)
+                os.rename(tmp_path, video_path)
+                os.chmod(video_path, mode)
+                os.utime(video_path, None)
+                info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
+            else:
+                return
+        else:
+            info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
+
+        try:
+            new_video_path = os.path.join(cache_dir, alternate_vid)
+            if new_video_path is not None:
+                if not os.path.exists(new_video_path):
+                    os.link(video_path, new_video_path)
+                os.utime(new_video_path, None)
+        except Exception, e:
+            error( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not link video to alternate video id.', 'debug' : str(e) } )
+            trace( { 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+        return
+    except Exception, e:
+        error( { 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + video_url + '.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+        trace( { 'code' : URL_CACHE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+    return
+
+def cache_megavideo_video(params):
+    # The expected mode of the cached file, so that it is readable by apache
+    # to stream it to the client.
+    mode = 0644
+    client_ip = params.get('client_ip', '-')
+    video_id = params.get('video_id', '-')
+    website_id = params.get('website_id', '-')
+    urls = params.get('urls', [])
+    dirs = params.get('dirs', [])
+
+    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+        error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
+        return
+
+    dir = dirs[0]
+
+    cache_dir = dir['cache_dir']
+    tmp_dir = dir['tmp']
+
+    video_path = os.path.join(cache_dir, video_id)
+    tmp_path = os.path.join(tmp_dir, video_id)
+
+    for url in urls:
+        original_url = url
+        try:
+            if not os.path.exists(video_path):
+                if cache_remote_url(url, tmp_path, params):
+                    size = os.path.getsize(tmp_path)
+                    os.rename(tmp_path, video_path)
+                    os.chmod(video_path, mode)
+                    os.utime(video_path, None)
+                    info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
+                    return
+            else:
+                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
+            return
+        except Exception, e:
+            error( { 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+            trace( { 'code' : URL_CACHE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
+    return
+
 def cache_generalized(params):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
@@ -579,7 +703,6 @@ def cache_generalized(params):
 
 cache_facebook_video = cache_generalized
 cache_metacafe_video = cache_generalized
-cache_dailymotion_video = cache_generalized
 cache_cnn_video = cache_generalized
 cache_aol_video = cache_generalized
 cache_myspace_video = cache_generalized

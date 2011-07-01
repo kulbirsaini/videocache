@@ -345,6 +345,23 @@ def squid_part():
 
                 # Dailymotion.com caching is handled here.
                 if not matched and o.enable_dailymotion_cache:
+                    if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_.*').search(path)):
+                        website_id = 'dailymotion'
+                        matched = True
+                        try:
+                            video_id = re.compile('/video/([a-zA-Z0-9]{5,9})_.*').search(path).group(1) + '.mp4'
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            cache_video(client_ip, website_id, url, video_id, False)
+                        else:
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+
+                # Dailymotion.com caching is handled here.
+                if not matched and o.enable_dailymotion_cache:
                     if (host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and (path.find('.mp4') > -1 or path.find('.on2') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
                         website_id = 'dailymotion'
                         matched = True
@@ -356,7 +373,7 @@ def squid_part():
                             trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
 
                         if video_id is not None:
-                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            new_url, size = cache_video(client_ip, website_id, url, video_id, True)
                             if new_url == '':
                                 info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
                             else:
@@ -426,6 +443,26 @@ def squid_part():
                         matched = True
                         try:
                             video_id = path.strip('/').split('/')[-1]
+                        except Exception, e:
+                            video_id = None
+                            warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
+                            trace( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
+                        if video_id is not None:
+                            new_url, size = cache_video(client_ip, website_id, url, video_id)
+                            if new_url == '':
+                                info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
+                            else:
+                                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
+
+                # Megavideo.com caching is handled here.
+                if not matched and o.enable_megavideo_cache:
+                    if host.find('megavideo.com') > -1:
+                        website_id = 'megavideo'
+                        matched = True
+                        try:
+                            dict = cgi.parse_qs(query)
+                            video_id = dict.get('v', None)
                         except Exception, e:
                             video_id = None
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )

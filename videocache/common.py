@@ -599,3 +599,61 @@ def cache_period_s2lh(cache_period):
     except Exception, e:
         return False
 
+# Megavideo
+def hex2bin(hex):
+    convert = {'0': '0000', '1': '0001', '2': '0010', '3': '0011',
+               '4': '0100', '5': '0101', '6': '0110', '7': '0111',
+               '8': '1000', '9': '1001', 'A': '1010', 'B': '1011',
+               'C': '1100', 'D': '1101', 'E': '1110', 'F': '1111',
+               'a': '1010', 'b': '1011', 'c': '1100', 'd': '1101',
+               'e': '1110', 'f': '1111'}
+    return ''.join([convert[char] for char in hex])
+
+def bin2hex(binary):
+    if len(binary) % 4 != 0:
+        return None
+
+    convert = {'0000': '0', '0001': '1', '0010': '2', '0011': '3',
+               '0100': '4', '0101': '5', '0110': '6', '0111': '7',
+               '1000': '8', '1001': '9', '1010': 'a', '1011': 'b',
+               '1100': 'c', '1101': 'd', '1110': 'e', '1111': 'f'}
+
+    str_hex = ''
+    for i in range(0, len(binary), 4):
+        str_hex += convert[binary[i:i+4]]
+
+    return str_hex
+
+def decrypt_key(string, key1, key2):
+    key1 = int(key1)
+    key2 = int(key2)
+    list_bin = list(hex2bin(string))
+
+    key = []
+    for i in range(0, 384):
+        key1 = (key1 * 11 + 77213) % 81371
+        key2 = (key2 * 17 + 92717) % 192811
+        key.append((key1 + key2) % 128)
+
+    for i in range(256, -1, -1):
+        temp                = list_bin[ key[i] ]
+        list_bin[ key[i] ]  = list_bin[ i % 128 ]
+        list_bin[ i % 128 ] = temp
+
+    for i in range(0, 128):
+        list_bin[i] = int(list_bin[i]) ^ (key[i + 256] & 1)
+
+    str_hex = bin2hex(''.join(map(lambda x: str(x), list_bin)))
+    return str_hex
+
+def get_megavideo_url(video_id):
+    from vcoptions import VideocacheOptions
+    from xml.dom.minidom import parse, parseString
+    import cookielib, urllib2, cgi
+
+    cj = cookielib.CookieJar()
+    urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
+
+    o = VideocacheOptions()
+
+    r = urllib2.Request('http://www.megavideo.com/?v=' + video_id, None, o.std_headers)
