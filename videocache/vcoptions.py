@@ -59,6 +59,8 @@ class VideocacheOptions:
             self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
             self.__class__.client_email = mainconf.client_email
             self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
+            self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
+            self.__class__.info_server = mainconf.info_server
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
@@ -94,7 +96,7 @@ class VideocacheOptions:
             self.__class__.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
 
             # Network
-            self.__class__.cache_host = mainconf.cache_host
+            self.__class__.cache_host = str(mainconf.cache_host).strip()
             self.__class__.rpc_host = mainconf.rpc_host
             self.__class__.rpc_port = int(mainconf.rpc_port)
             proxy = mainconf.proxy
@@ -132,7 +134,17 @@ class VideocacheOptions:
             return None
 
         try:
-            self.__class__.cache_url = 'http://' + str(self.__class__.cache_host) + '/'
+            self.__class__.cache_url = 'http://' + self.__class__.cache_host + '/'
+            cache_host_parts = self.__class__.cache_host.split(':')
+            if len(cache_host_parts) == 1:
+                self.__class__.cache_host_ip = cache_host_parts[0]
+                self.__class__.cache_host_port = 80
+            elif len(cache_host_parts) == 2:
+                self.__class__.cache_host_ip = cache_host_parts[0]
+                self.__class__.cache_host_port = int(cache_host_parts[1])
+            else:
+                self.__class__.cache_host_ip = None
+                self.__class__.cache_host_port = None
         except Exception, e:
             syslog_msg('Could not generate Cache URL for serving videos from cache. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

@@ -12,12 +12,14 @@ import cgi
 import os
 import pwd
 import shutil
+import socket
 import stat
 import sys
 import syslog
 import time
 import traceback
 import urllib
+import urllib2
 import urlparse
 
 
@@ -657,3 +659,26 @@ def get_megavideo_url(video_id):
     o = VideocacheOptions()
 
     r = urllib2.Request('http://www.megavideo.com/?v=' + video_id, None, o.std_headers)
+
+
+# Networking Related
+def is_port_open(ip, port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect((ip, int(port)))
+        s.shutdown(2)
+        return True
+    except:
+        return False
+
+def test_url(url):
+    try:
+        request = urllib2.urlopen(url)
+        request.close()
+        return True
+    except Exception, e:
+        if 'code' in dir(e):
+            return e.code
+        else:
+            return False
+

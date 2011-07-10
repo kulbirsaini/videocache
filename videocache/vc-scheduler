@@ -67,7 +67,7 @@ def connection():
             video_pool.ping()
             info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
         except Exception, e:
-            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
+            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
             trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 class VideoPool:
@@ -98,8 +98,7 @@ class VideoPool:
                     self.scores = scores
                     self.queue = queue
                     for (video_id, score) in self.scores.items():
-                        if score == 0:
-                            self.scores[video_id] = 5
+                        self.scores[video_id] = self.scores[video_id] + 1
                     return True
                 except Exception, e:
                     warn( { 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file + '.', 'debug' : str(e) } )
@@ -109,10 +108,11 @@ class VideoPool:
     def dump_queue(self, now = False):
         if now or int(time.time() - self.last_dump) > self.dump_threshold:
             self.last_dump = time.time()
+            queue_dump_string = pickle.dumps([self.scores, self.queue])
             for dir in o.base_dir_list:
                 queue_file = os.path.join(dir, o.queue_dump_file)
                 try:
-                    pickle.dump([self.scores, self.queue], file(queue_file, 'w'))
+                    file(queue_file, 'w').write(queue_dump_string)
                 except Exception, e:
                     warn( { 'code' : QUEUE_DUMP_WARN, 'message' : 'Unable to dump video queue to dump file at ' + queue_file + '.', 'debug' : str(e) } )
                     trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
@@ -142,6 +142,11 @@ class VideoPool:
         If a video is already queued, its score is incremented by 1.
         """
         info( { 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' } )
+
+        videos_in_queue = len(self.scores)
+        if videos_in_queue - o.max_cache_queue_size >= 0:
+            self.remove_least_popular(videos_in_queue - o.max_cache_queue_size + 1)
+
         for video_id in videos:
             for params in videos[video_id]:
                 self.add_video(video_id, params)
@@ -189,6 +194,7 @@ class VideoPool:
         """Decrease the priority score of video represented by video_id."""
         if video_id in self.scores:
             self.scores[video_id] -= decr
+
     def get_popular(self):
         """Return the video_id of the most frequently access video."""
         vk = [(v,k) for k,v in self.scores.items()]
@@ -196,6 +202,18 @@ class VideoPool:
             video_id = sorted(vk, reverse=True)[0][1]
             return video_id
         return False
+
+    def get_least_popular(self, count = 1):
+        """Get `count` number of least popular videos"""
+        vk = [(v, k) for k, v in self.scores.items()]
+        if len(vk) != 0:
+            return [k for v, k in sorted(vk)[:count]]
+        return []
+
+    def remove_least_popular(self, count = 1):
+        """Remove `count` number of least popular videos fromt the queue."""
+        for video_id in self.get_least_popular(count):
+            self.remove(video_id)
 
     def get_details(self, video_id):
         """Return the details of a particular video represented by video_id."""
@@ -728,14 +746,14 @@ def refine_cache_periods():
     global cache_periods
     cache_periods = []
     if o.cache_periods == False:
-        warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'Error in parsing the value of the option cache_period. Ignoring. Please check documentation in /etc/videocache.conf and restart vc-scheduler.'})
+        warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'Error in parsing the value of the option cache_period. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.'})
         cache_periods = []
     elif o.cache_periods == None:
         cache_periods = []
     else:
         for cp in o.cache_periods:
             if cp['start'][0] > cp['end'][0]:
-                warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'A time period mentioned using cache_period option is not valid. Ignoring. Please check documentation in /etc/videocache.conf and restart vc-scheduler.', 'debug' : cache_period_h2s(cp)})
+                warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'A time period mentioned using cache_period option is not valid. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.', 'debug' : cache_period_h2s(cp)})
             else:
                 cache_periods.append(cp)
 
@@ -780,13 +798,13 @@ def cache_thread_scheduler():
                     num_tries += 1
                     time.sleep(min(2 ** num_tries, 10))
                 else:
-                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status using vc-scheduler command.' })
             except Exception, e:
                 warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
                 trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
             time.sleep(5)
     else:
-        warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
+        warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
 
 def submit_system_info():
     time.sleep(5)
@@ -816,7 +834,7 @@ def submit_system_info():
                     for k,v in system.items():
                         new_info['[server][' + k + ']'] = v
 
-                    status = info_opener.open('http://vcsinfo.heroku.com/servers', urllib.urlencode(new_info)).read()
+                    status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
                     if status != 'OK':
                         okay = False
                 if okay:
@@ -824,7 +842,7 @@ def submit_system_info():
                 else:
                     submit_period = 600
         else:
-            warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and restart videocache scheduler using vc-scheduler command.' } )
+            warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
             submit_period = 3600
 
         time.sleep(submit_period)
@@ -846,9 +864,9 @@ def scheduler_server():
 
             num_tries += 1
         else:
-            error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler.' } )
+            error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler or set rpc_port option in /etc/videocache.conf to a different value.' } )
 
-        time.sleep(10)
+        time.sleep(30)
 
 class VideoPoolDaemon(VideocacheDaemon):
 
@@ -898,10 +916,7 @@ if __name__ == '__main__':
         try:
             uid = pwd.getpwnam( o.videocache_user ).pw_uid
         except Exception, e:
-            try:
-                uid = pwd.getpwnam( 'nobody' ).pw_uid
-            except Exception, e:
-                pass
+            pass
         if uid == None:
             message = 'Could not determine User ID for videocache user ' + o.videocache_user + '. \nDebugging output: \n' + traceback.format_exc()
             syslog_msg(message.replace('\n', ''))
@@ -930,6 +945,6 @@ if __name__ == '__main__':
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:
         parser.print_help()
-        sys.stderr.write('\nNothing to do. Exiting.\n')
+        sys.stderr.write('\nNothing to do. Exit.\n')
         sys.exit(0)
 

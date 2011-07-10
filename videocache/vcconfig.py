@@ -64,11 +64,13 @@ class VideocacheConf:
     min_video_size = Option(0)
     client_email = Option('')
     cache_period = Option('')
+    max_cache_queue_size = Option(200000)
+    info_server = Option('http://vcsinfo.heroku.com/servers')
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')
-    disk_avail_threshold = Option(100)
+    disk_avail_threshold = Option(15000)
 
     # Logging
     logdir = Option('/var/log/videocache/')

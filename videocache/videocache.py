@@ -81,7 +81,7 @@ def sync_video_info():
                         time.sleep(0.1)
                     num_tries += 1
                 else:
-                    warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to RPC server in ' + str(num_tries) + ' tries. Please check RPC server status.' })
+                    warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
         except Exception, e:
             warn({ 'code' : VIDEO_SUBMIT_WARN, 'message' : 'Error in updating server with video inforation. Continuing.', 'debug' : str(e)})
             trace({ 'code' : VIDEO_SUBMIT_WARN, 'message' : traceback.format_exc() })
@@ -92,41 +92,70 @@ def sync_video_info():
             time.sleep(0.1)
 
 def submit_system_info():
-    time.sleep(3)
+    try:
+        num_tries = 0
+        while num_tries < 5:
+            try:
+                video_pool.ping()
+                info = { 'email' : o.client_email }
+                info.update(get_all_info())
+                video_pool.add_system(info)
+                return True
+            except Exception, e:
+                connection()
+
+            for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
+                if exit:
+                    return False
+                time.sleep(0.1)
+            num_tries += 1
+        else:
+            return False
+    except Exception, e:
+        return False
+
+def check_apache():
+    ret_val = True
+    try:
+        if o.cache_host_ip and o.cache_host_port and not is_port_open(o.cache_host_ip, o.cache_host_port):
+            error({ 'code' : APACHE_CONNECT_ERR, 'message' : 'Could not connect to Apache webserver on ' + o.cache_host_ip + ':' + str(o.cache_host_port) + '. Please check if Apache is running. Also, verify the value of cache_host option in /etc/videocache.conf.' })
+            return False
+        for dir in o.base_dir_list:
+            if len(o.base_dir_list) > 1:
+                index = o.base_dir_list.index(dir)
+            else:
+                index = ''
+            cached_url = os.path.join(o.cache_url, 'videocache', str(index))
+            result = test_url(cached_url)
+            if result == 404:
+                error({ 'code' : APACHE_404_ERR, 'message' : 'HTTP 404 or Not Found error occurred while navigating to ' + cached_url + '. If you changed base_dir option in /etc/videocache.conf, please run vc-update and restart Apache webserver. And finally reload/restart Squid daemon.', 'debug' : 'Videocache Directory: ' + dir })
+            elif result == 403:
+                error({ 'code' : APACHE_403_ERR, 'message' : 'HTTP 403 or Access Denied while navigating to ' + cached_url + '. Please verify that Apache has read access to the following directory ' + dir + '. If you changed base_dir option in /etc/videocache.conf, please run vc-update and restart Apache webserver. And finally reload/restart Squid daemon.' })
+            elif result == False:
+                ret_val = result
+    except Exception, e:
+        return False
+    return ret_val
+
+def check_heartbeat():
     sleep_time = 900
     while True:
-        try:
-            num_tries = 0
-            while num_tries < 5:
-                try:
-                    video_pool.ping()
-                    info = { 'email' : o.client_email }
-                    info.update(get_all_info())
-                    video_pool.add_system(info)
-                    break
-                except Exception, e:
-                    connection()
+        check_apache()
+        if not submit_system_info():
+            sleep_time = 1800
 
-                for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
-                    if exit:
-                        return
-                    time.sleep(0.1)
-                num_tries += 1
-        except Exception, e:
-            pass
-
-        for i in range(1, int(sleep_time / 0.1)):
+        for i in range(1, sleep_time):
             if exit:
                 return
-            time.sleep(0.1)
+            time.sleep(1)
 
 def submit_videos(videos):
     try:
         video_pool.add_videos(videos)
-        info({ 'code' : VIDEO_SUBMIT, 'message' : 'Submitted ' + str(len(videos)) + ' videos to RPC server.'})
+        info({ 'code' : VIDEO_SUBMIT, 'message' : 'Submitted ' + str(len(videos)) + ' videos to videocache scheduler.'})
         return True
     except Exception, e:
-        error({ 'code' : VIDEO_SUBMIT_ERR, 'message' : 'Could not submit video information to RPC server.', 'debug' : str(e)})
+        error({ 'code' : VIDEO_SUBMIT_ERR, 'message' : 'Could not submit video information to videocache scheduler.', 'debug' : str(e)})
         trace({ 'code' : VIDEO_SUBMIT_ERR, 'message' : traceback.format_exc() })
     return False
 
@@ -140,7 +169,7 @@ def connection():
             video_pool.ping()
             info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
         except Exception, e:
-            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server. Use vc-scheduler command to fix this.', 'debug' : str(e)})
+            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
             trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 def add_video_to_local_pool(video_id, params):
@@ -153,9 +182,6 @@ def add_video_to_local_pool(video_id, params):
     thread_pool.release()
 
 def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, format = ''):
-    """This function check whether a video is in cache or not. If not, it fetches
-    it from the remote source and cache it and also streams it to the client."""
-
     info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
 
     video_id = urllib.unquote(video_id)
@@ -186,21 +212,15 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, 
     return ('', 0)
 
 def squid_part():
-    """This function will tap requests from squid. If the request is for a
-    video, they will be forwarded to function cache_video() for further processing.
-    Finally this function will flush a cache_url if package found in cache or a
-    blank line in case on a miss to stdout. This is the only function where we deal
-    with squid, rest of the program/project doesn't interact with squid at all."""
     global exit
     input = sys.stdin.readline()
     while input:
         new_url = ''
         skip = False
         try:
-            # Read url from stdin (this is provided by squid)
             fields = input.strip().split(' ')
             if o.cache_host == '':
-                warn( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host is not set properly in /etc/videocache.conf. Please set it and restart/reload Squid daemon' } )
+                error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
                 skip = True
             if len(fields) < 4:
                 warn( { 'code' : INPUT_WARN, 'message' : 'Input received from Squid is not parsable. Skipping this URL.' } )
@@ -211,7 +231,6 @@ def squid_part():
             else:
                 url = fields[0]
                 client_ip = fields[1].split('/')[0]
-                # Retrieve the basename from the request url
                 fragments = urlparse.urlsplit(fields[0])
                 if (fragments[0] != 'http' and fragments[0] != 'https') or fragments[1] == '' or fragments[2] == '':
                     warn( { 'code' : URL_WARN, 'client_ip' : client_ip, 'message' : 'Can\'t process. Skipping this URL ' + url } )
@@ -224,7 +243,6 @@ def squid_part():
             skip = True
 
         if o.client_email != '':
-            # Check if videocache plugin is on.
             if not skip and o.enable_videocache:
                 matched = False
                 # Youtube.com ang Google Video caching is handled here.
@@ -791,9 +809,8 @@ def squid_part():
                             else:
                                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
         else:
-            warn( { 'code' : CLIENT_EMAIL_ERR, 'message' : 'Client email not specified in /etc/videocache.conf. Set client_email option and reload/restart Squid.' } )
+            warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
 
-        # Flush the new url to stdout for squid to process
         try:
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
@@ -805,20 +822,7 @@ def squid_part():
         info( { 'code' : VIDEOCACHE_EXIT, 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
         exit = True
 
-def reload():
-    global o
-    try:
-        o = VideocacheOptions('/etc/videocache.conf', root)
-    except Exception, e:
-        syslog_msg( halt_message + ' Debug: '  + traceback.format_exc().replace('\n', ''))
-        sys.exit(1)
-
-    if o.halt:
-        syslog_msg(halt_message)
-        sys.exit(1)
-
 if __name__ == '__main__':
-    # Parse command line options.
     parser = OptionParser()
     parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
@@ -843,14 +847,17 @@ if __name__ == '__main__':
     exit = False
 
     if o.cache_host == '':
-        warn( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host is not set properly in /etc/videocache.conf. Please set it and restart/reload Squid daemon' } )
+        error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
+        o.enable_videocache = 0
+    elif re.compile('127.0.0.1').search(o.cache_host):
+        warn( { 'code' : CACHE_HOST_WARN, 'message' : 'The option cache_host is set to 127.0.0.1. Videocache will be able to serve videos only to localhost. Please set it to the private/public IP address of the server and restart/reload Squid daemon' } )
 
     info( { 'code' : VIDEOCACHE_START, 'message' : 'Starting Videocache.' } )
 
     try:
         squid = threading.Thread(target = squid_part)
         video_info = threading.Thread(target = sync_video_info)
-        system_info = threading.Thread(target = submit_system_info)
+        system_info = threading.Thread(target = check_heartbeat)
         squid.start()
         video_info.start()
         system_info.start()

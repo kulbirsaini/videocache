@@ -22,9 +22,9 @@ Videocache is a Squid url rewriter plugin written in Python to facilitate cachin
 See **INSTALL** file in Videocache source or visit http://cachevideos.com/installation for installation instructions.
 
 == Squid Configuration ==
-Depending on your version of Squid, open the file vc_squid_x.x.conf in shipped with the software bundle and copy the contents to your Squid configuration file generally located at ///etc/squid/squid.conf//.
+Depending on your version of Squid, open the file vc_squid_x.conf shipped with the software bundle and copy the contents to your Squid configuration file generally located at ///etc/squid/squid.conf//.
 
-For Squid version 2.x, use the file //vc_squid_2.x.conf// and for Squid version 3.x, use the file //vc_squid_3.x.conf//.
+For Squid versions 2.x, use the file //vc_squid_2.conf// and for Squid version 3.x, use the file //vc_squid_3.conf//.
 
 Save squid.conf and reload the squid service using the following command
 ```
@@ -87,19 +87,8 @@ Below is a description of various options you can use to configure Videocache. A
 
 Config file : /etc/videocache.conf
 
-: **enable_videocache**
-This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
-
 : **client_email**
 Please set this option to the email address using which you purchased Videocache license.
-
-**IMPORTANT** : This must be set appropriately otherwise Videocache will not work.
-
-: **offline_mode**
-When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache will cache new video and when set to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters. Default: 0.
-
-: **videocache_user**
-Use this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On RedHat/CentOS/SuSE, it's generally //squid// and on Debian/Ubuntu/BSDs, it generally //proxy//. Default: //squid//.
 
 **IMPORTANT** : This must be set appropriately otherwise Videocache will not work.
 
@@ -108,18 +97,32 @@ The hostname or IP address of the system on which caching is being done. This is
 
 **IMPORTANT** : Please don’t use http:// or slashes (/). Just specify the domain name or IP address.
 Additionally you can select an alternative port to use.
-```
-Example : proxy.example.com
-or 192.168.36.204
-or 192.168.36.204:81
-or <Proxy_Server_IP_OR_Domain:HTTP_PORT>
-```
+``` Example : proxy.example.com or 192.168.36.204 or 192.168.36.204:81
 Default: <blank>
+
+: **videocache_user**
+Use this option to set the user which should be running Videocache scheduler. This user must be same as the Squid user. On RedHat/CentOS/SuSE, it's generally //squid// and on Debian/Ubuntu/BSDs, it generally //proxy//. Default: //squid//.
+
+**IMPORTANT** : This must be set appropriately otherwise Videocache will not work.
 
 : **base_dir**
 Base directories for caching the videos. You can specify multiple caching directories here separated by '|' symbol. Please try to avoid special characters in directory names like spaces, $ etc.
 ``` Example : base_dir = /var/spool/videocache/ | /videocache2/stuff-new/|/new_videocache.
 Default: ///var/spool/videocache///.
+
+: **disk_avail_threshold**
+This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 15000.
+
+EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
+
+: **enable_videocache**
+This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
+
+: **offline_mode**
+When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache will cache new video and when set to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters. Default: 0.
+
+: **hit_threshold**
+No of times a video should be requested before we start caching it. Default: 1
 
 : **max_cache_processes**
 The maximum number of parallel cache processes allowed. If all connections are consumed, videos will be queued for caching. Default: 10.
@@ -130,6 +133,9 @@ The maximum bandwidth allocated to a cache process. For example, when //max_cach
 Default: 0
 
 **IMPORTANT** : The maximum bandwidth used by Videocache at any time can not exceed //max_cache_processes// x //max_cache_speed// kilobytes per second. So, you can configure these options depending on bandwidth availability.
+
+: **max_cache_queue_size**
+The maximum number of videos the videocache scheduler can keep in queue for caching. Videocache scheduler consumes some main memory (~256bytes per video) for storing video metadata information. Please don't set max_cache_queue_size too high otherwise vc-scheduler can consume significant amount of main memory. Default: 200000.
 
 : **cache_period**
 The option //cache_period// specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use this option to configure videocache to cache videos in off-peak hours so that you can provide maximum possible bandwidth to your clients in peak hours. The format for specifying //cache_period// is HH1:MM1-HH2:MM2[, HH3:MM3-HH4:MM4, HH5:MM5-HH6-MM6, ...]. Time must be specified in 24 hour format. Also, **HH1:MM1 must be less than HH2:MM2**. Multiple time intervals can be specified by using comma (,) as a separator.
@@ -155,9 +161,6 @@ If the above proxy requires authentication, please specify the username. Default
 : **proxy_password**
 If the above proxy requires authentication, please specify the password. Default: <blank>.
 
-: **hit_threshold**
-No of times a video should be requested before we start caching it. Default: 1
-
 : **max_video_size**
 The video of size more than //max_video_size// (MegaBytes) will not be cached. Default: 0.
 ``` EXAMPLE: If max_video_size = 50, Videocache will not cache videos of size more than 50MB.  Set this to 0 to disable this check. Don't append MB.
@@ -166,10 +169,8 @@ The video of size more than //max_video_size// (MegaBytes) will not be cached. D
 The video of size less than //min_video_size// (MegaBytes) will not be cached. Default: 0.
 ``` EXAMPLE: If min_video_size = 2, Videocache will not cache videos of size less than 2MB.  Set this to 0 to disable this check. Don't append MB.
 
-: **disk_avail_threshold**
-This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 15000.
-
-EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
+: **scheduler_pidfile**
+The //scheduler_logfile// option can be used to specify the location of a file which will be used to track process ID of the currently running Videocache scheduler. Default: ///var/run/videocache.pid//.
 
 : **enable_videocache_cleaner**
 Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
@@ -227,7 +228,6 @@ You can use a custom format for displaying time in log messages. Use the format 
 Default: %d/%b/%Y:%H:%M:%S
 
 : **logdir**
-
 Directory where Videocache logs will be stored. Default: ///var/log/videocache///.
 
 : **enable_videocache_log, enable_scheduler_log, enable_cleaner_log, enable_trace_log**
@@ -270,9 +270,6 @@ max_cleaner_logfile_backups : 5
 max_tracefile_backups : 1
 ```
 
-: **scheduler_pidfile**
-The //scheduler_logfile// option can be used to specify the location of a file which will be used to track process ID of the currently running Videocache scheduler. Default: ///var/run/videocache.pid//.
-
 : **enable_youtube_cache**
 This option enables the caching of Youtube videos. This option’s value can be either 0 or 1. Default: 1.
 
@@ -284,10 +281,6 @@ Default: 480p
 : **min_youtube_views**
 This option will help in enhancing the performance of videocache. If min_youtube_views is set to 10000, then videocache will cache a video only if it has received at least 10000 views on Youtube. Otherwise, it'll not be cached at all. Set this to 0 to disable this option.
 Default: 10000
-
-: **temp_dir**
-Directory to store partially downloaded videos. Directory name is relative to //base_dir//. Default: //tmp//.
-``` Example: If temp_dir = tmp, actual path for storing partially downloaded videos would be /var/spool/videocache/tmp/.
 
 : **rpc_host**
 XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
