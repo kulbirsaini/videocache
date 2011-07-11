@@ -54,6 +54,12 @@ status() {
   return $RETVAL
 }
 
+flush() {
+  $vc_scheduler -s flush
+  RETVAL=$?
+  return $RETVAL
+}
+
 case "$1" in
   start)
   start
@@ -67,8 +73,11 @@ case "$1" in
   restart)
   restart
   ;;
+  flush)
+  flush
+  ;;
   *)
-  echo $"Usage: $prog {start|stop|restart|status}"
+  echo $"Usage: $prog {start|stop|restart|status|flush}"
   RETVAL=3
 esac
 

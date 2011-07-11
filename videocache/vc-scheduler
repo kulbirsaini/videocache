@@ -846,17 +846,20 @@ def submit_system_info():
 
         time.sleep(submit_period)
 
-def scheduler_server():
+def start_scheduler_server():
+    server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
+    server.register_function(server.shutdown)
+    server.register_introspection_functions()
+    server.register_instance(VideoPool())
+    info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' } )
+    server.serve_forever()
+
+def scheduler_server_heartbeat():
     while True:
         num_tries = 0
         while num_tries < 5:
             try:
-                server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
-                server.register_function(server.shutdown)
-                server.register_introspection_functions()
-                server.register_instance(VideoPool())
-                info( { 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' } )
-                server.serve_forever()
+                start_scheduler_server()
             except Exception, e:
                 time.sleep(min(2 ** num_tries, 5))
                 trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
@@ -879,7 +882,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             self.o.set_loggers()
             process_id = os.getpid()
 
-            server_thread = threading.Thread(target = scheduler_server)
+            server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info )
 
@@ -893,6 +896,50 @@ class VideoPoolDaemon(VideocacheDaemon):
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
             trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )
+
+def flush_scheduler_queue():
+    running = True
+    o.set_loggers()
+    connection()
+    try:
+        video_pool.ping()
+    except Exception, e:
+        running = False
+
+    if running:
+        try:
+            video_pool.ping()
+            video_pool.flush()
+            video_pool.dump_queue(True)
+            info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
+            sys.stdout.write('Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.\n')
+            sys.exit(0)
+        except Exception, e:
+            error( { 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while flushing videocache scheduler queue.', 'debug' : str(e) } )
+            trace( { 'code' : QUEUE_FLUSH_ERR, 'message' : traceback.format_exc() } )
+            sys.stderr.write('Error while flushing videocache scheduler queue.\n')
+            sys.exit(1)
+    else:
+        removed = True
+        for dir in o.base_dir_list:
+            queue_file = os.path.join(dir, o.queue_dump_file)
+            if os.path.isfile(queue_file):
+                try:
+                    os.unlink(queue_file)
+                except Exception, e:
+                    error( { 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while remove videocache scheduler queue dump file at ' + queue_file + '.', 'debug' : str(e) } )
+                    trace( { 'code' : QUEUE_FLUSH_ERR, 'message' : traceback.format_exc() } )
+                    sys.stderr.write('Error while remove videocache scheduler queue dump file at ' + queue_file + '.\n')
+                    removed = False
+
+        if removed:
+            info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed.'})
+            sys.stdout.write('Videocache scheduler queue has been flushed.\n')
+            sys.exit(0)
+        else:
+            error( { 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while flushing videocache scheduler queue. There might have been a file permission issue.' } )
+            sys.stderr.write('Error while flushing videocache scheduler queue. There might have been a file permission issue.\n')
+            sys.exit(1)
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -940,6 +987,10 @@ if __name__ == '__main__':
             daemon.kill()
         elif options.sig == 'status':
             daemon.status()
+        elif options.sig == 'flush':
+            os.setgid(uid)
+            os.setuid(uid)
+            flush_scheduler_queue()
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:
