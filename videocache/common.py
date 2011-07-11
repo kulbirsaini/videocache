@@ -35,16 +35,7 @@ def build_message(params):
 def refine_url(url, arg_drop_list = []):
     """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
     query = urlparse.urlsplit(url)[3]
-    args = cgi.parse_qs(query, True)
-    [args.has_key(arg) and args.pop(arg) for arg in arg_drop_list]
-    new_args = []
-    for (k,v) in args.items():
-        if len(v) > 0 and v[0] != '':
-            new_args.append(k + '=' + str(v[0]))
-        else:
-            new_args.append(k)
-    new_query = '&'.join(new_args)
-    #new_query = '&'.join([k + '=' + str(v[0]) for (k,v) in args.items()])
+    new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
     return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
 
 # Functions related to Youtube video ID and video format

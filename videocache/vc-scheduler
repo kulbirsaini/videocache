@@ -71,10 +71,6 @@ def connection():
             trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 class VideoPool:
-    """
-    This class is for sharing the current packages being downloading
-    across various instances of Videocache via RPC.
-    """
     scores = {}
     queue = {}
     active = {}
@@ -82,6 +78,10 @@ class VideoPool:
     time_threshold = 15
     last_dump = 0
     dump_threshold = 120
+    disk_space = {}
+    disk_space_last_update = 0
+    disk_space_update_threshold = 300
+    last_used_dir = 0
 
     def __init__(self):
         pass
@@ -137,10 +137,6 @@ class VideoPool:
         return self.queue
 
     def add_videos(self, videos = {}):
-        """
-        New videos are added to the queue and there scores are set to 0.
-        If a video is already queued, its score is incremented by 1.
-        """
         info( { 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' } )
 
         videos_in_queue = len(self.scores)
@@ -164,11 +160,6 @@ class VideoPool:
                     self.queue[video_id].update( { 'access_time' : params['access_time'] } )
             except Exception, e:
                 self.inc_score(video_id)
-
-            #try:
-            #    self.queue[video_id].update( { 'urls' : list(set(old_data['urls'] + params['urls'])) } )
-            #except Exception, e:
-            #    pass
         return True
 
     def get_score(self, video_id):
@@ -254,6 +245,37 @@ class VideoPool:
         self.active = {}
         return True
 
+    def update_disk_space(self, now = False):
+        if now or int(time.time() - self.disk_space_last_update) > self.disk_space_update_threshold:
+            self.disk_space_last_update = time.time()
+            for dir in o.base_dir_list:
+                disk_stat = os.statvfs(dir)
+                space_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
+                self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
+                if space_available < o.disk_avail_threshold:
+                    self.disk_space[dir].update( { 'use' : False } )
+
+    def get_next_cache_dir(self):
+        self.update_disk_space()
+        if o.base_dir_selection == 1:
+            for dir in o.base_dir_list:
+                if self.disk_space[dir]['use']:
+                    return dir
+        elif o.base_dir_selection == 2:
+            for dir in o.base_dir_list[(self.last_used_dir + 1):] + o.base_dir_list[:(self.last_used_dir + 1)]:
+                if self.disk_space[dir]['use']:
+                    self.last_used_dir = o.base_dir_list.index(dir)
+                    return dir
+        elif o.base_dir_selection == 3:
+            vk = [(v['free_space'], k) for k, v in self.disk_space.items()]
+            for v, dir in sorted(vk, reverse = True):
+                if self.disk_space[dir]['use']:
+                    self.last_used_dir = o.base_dir_list.index(dir)
+                    return dir
+
+        warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold. Please check if you have a crontab for vc-cleaner program. Check http://cachevideos.com/#vc-cleaner for more details.'})
+        return False
+
     def start_cache_thread(self, video_id, params):
         """Start a new thread which will cache the vdieo"""
         new_thread = threading.Thread(target = cache, name = str(video_id), kwargs = { 'params' : params })
@@ -276,7 +298,6 @@ class VideoPool:
         return True
 
     def schedule(self):
-        """Returns the parameters for a video to be downloaded from remote."""
         try:
             self.clean_threads()
             self.dump_queue()
@@ -287,6 +308,11 @@ class VideoPool:
                 if video_id != False and self.is_active(video_id) == False and self.get_score(video_id) >= o.hit_threshold:
                     params = self.get_details(video_id)
                     if params != False:
+                        next_cache_dir = self.get_next_cache_dir()
+                        if next_cache_dir is False:
+                            return False
+                        else:
+                            params.update({ 'cur_cache_dir' : next_cache_dir })
                         self.start_cache_thread(video_id, params)
                         return True
                 elif self.is_active(video_id) == True:
@@ -351,30 +377,10 @@ def cache(params):
             error( { 'code' : VIDEO_INFO_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
             return
 
-        available_dirs = []
-        for (dir, tmp_dir) in zip(o.base_dirs[website_id], o.base_dirs['tmp']):
+        for dir in o.base_dirs[website_id]:
             if os.path.isfile(os.path.join(dir, video_id)):
                 info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists in one of the cache directories.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
                 return
-
-            cache_dir = dir.replace(eval('o.' + website_id + '_cache_dir'), '')
-
-            # Check the disk space left in the partition with cache directory.
-            disk_stat = os.statvfs(dir)
-            disk_available = disk_stat[statvfs.F_BSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
-
-            # If disk availability reached disk_avail_threshold, then we can't use this cache dir anymore.
-            if disk_available < o.disk_avail_threshold:
-                warn({'code' : CACHE_DIR_FULL, 'message' : 'Cache directory \'' + cache_dir  + '\' has reached the disk availability threshold. Please check.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip})
-                continue
-            else:
-                available_dirs.append( { 'cache_dir' : dir, 'tmp' : tmp_dir, 'space' : disk_available } )
-
-        if len(available_dirs) == 0:
-            error({'code' : CACHE_DIR_ERR, 'message' : 'Could not determine a cache directory to cache the video. Please check.', 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip})
-            return
-
-        params.update( { 'dirs' : available_dirs } )
         eval('cache_' + website_id + '_video(params)')
         return
     except Exception, e:
@@ -450,15 +456,16 @@ def cache_youtube_video(params):
     website_id = params.get('website_id', '-')
     format = params.get('format', '')
     urls = params.get('urls', [])
-    dirs = params.get('dirs', [])
+    cur_cache_dir = params.get('cur_cache_dir', None)
 
-    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
     if o.proxy:
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
     request = urllib2.Request('http://www.youtube.com/watch?v=%s&gl=US&hl=en' % video_id, None, o.std_headers)
+
     try:
         webpage = urllib2.urlopen(request).read()
     except Exception, e:
@@ -515,10 +522,8 @@ def cache_youtube_video(params):
         error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
         return
 
-    dir = dirs[0]
-
-    cache_dir = dir['cache_dir']
-    tmp_dir = dir['tmp']
+    cache_dir = os.path.join(cur_cache_dir, website_id)
+    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, alternate_vid) + format
     tmp_path = os.path.join(tmp_dir, alternate_vid) + format
@@ -558,9 +563,9 @@ def cache_dailymotion_video(params):
     website_id = params.get('website_id', '-')
     format = params.get('format', '')
     urls = params.get('urls', [])
-    dirs = params.get('dirs', [])
+    cur_cache_dir = params.get('cur_cache_dir', None)
 
-    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
@@ -598,10 +603,8 @@ def cache_dailymotion_video(params):
         error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
         return
 
-    dir = dirs[0]
-
-    cache_dir = dir['cache_dir']
-    tmp_dir = dir['tmp']
+    cache_dir = os.path.join(cur_cache_dir, website_id)
+    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
     tmp_path = os.path.join(tmp_dir, video_id)
@@ -642,16 +645,14 @@ def cache_megavideo_video(params):
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
     urls = params.get('urls', [])
-    dirs = params.get('dirs', [])
+    cur_cache_dir = params.get('cur_cache_dir', None)
 
-    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
-    dir = dirs[0]
-
-    cache_dir = dir['cache_dir']
-    tmp_dir = dir['tmp']
+    cache_dir = os.path.join(cur_cache_dir, website_id)
+    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
     tmp_path = os.path.join(tmp_dir, video_id)
@@ -683,25 +684,23 @@ def cache_generalized(params):
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
     urls = params.get('urls', [])
-    dirs = params.get('dirs', [])
+    cur_cache_dir = params.get('cur_cache_dir', None)
 
-    if video_id == '-' or website_id == '-' or len(dirs) == 0 or len(urls) == 0:
+    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
-    dir = dirs[0]
-
-    cache_dir = dir['cache_dir']
-    tmp_dir = dir['tmp']
+    cache_dir = os.path.join(cur_cache_dir, website_id)
+    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
     tmp_path = os.path.join(tmp_dir, video_id)
 
     for url in urls:
         original_url = url
-        if website_id not in ['facebook', 'xhamster', 'xvideos','redtube', 'spankwire', 'keezmovies', 'slutload', 'extremetube', 'xtube', 'tube8']:
-            #FIXME The function below changes the order of parameters
-            url = refine_url(url, ['begin', 'start', 'noflv'])
+        #if website_id not in ['facebook', 'xhamster', 'xvideos', 'redtube', 'spankwire', 'keezmovies', 'slutload', 'extremetube', 'xtube', 'tube8']:
+        #TODO Test IT
+        url = refine_url(url, ['begin', 'start', 'noflv'])
         try:
             if not os.path.exists(video_path):
                 if cache_remote_url(url, tmp_path, params):

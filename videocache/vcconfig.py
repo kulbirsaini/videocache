@@ -70,6 +70,7 @@ class VideocacheConf:
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')
+    base_dir_selection = Option(2)
     disk_avail_threshold = Option(15000)
 
     # Logging
@@ -206,6 +207,10 @@ class VideocacheConf:
     # Break.tv Specific Options
     enable_break_cache = Option(1)
     break_cache_dir = Option('break')
+
+    # Megavideos.com Specific Options
+    enable_megavideo_cache = Option(1)
+    megavideo_cache_dir = Option('megavideo')
 
     def __init__(self):
         pass

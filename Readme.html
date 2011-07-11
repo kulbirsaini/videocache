@@ -179,6 +179,19 @@ Base directories for caching the videos. You can specify multiple caching direct
 </PRE>
 Default: <I>/var/spool/videocache/</I>.
 <P></P>
+<DT><B>base_dir_selection</B></DT><DD>
+The option base_dir_selection can be used to specify the algorithm which videocache will use to store cached videos in cache directories in case you are using more than one cache directory. Please select one of the values as described below. Default: 2.
+<P></P>
+</DL>
+
+<UL>
+<LI>1 : Sequential. Videocache will fill the first cache dir, then second and so on.
+<LI>2 : Round Robin (default). Videocache will round robin among cache directories to save videos.
+<LI>3 : Disk Space (Highest first). Videocache will save a video to a cache directory with max free space at that time.
+<P></P>
+</UL>
+
+<DL>
 <DT><B>disk_avail_threshold</B></DT><DD>
 This option sets the minimum available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache treats that partition as FULL. Default: 15000.
 <P></P>
