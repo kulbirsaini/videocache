@@ -126,7 +126,6 @@ def check_apache():
             else:
                 index = ''
             cache_url = os.path.join(o.cache_url, 'videocache', str(index))
-            info({ 'code' : 'PATH', 'message' : cache_url })
             result = test_url(cache_url)
             if result == 404:
                 error({ 'code' : APACHE_404_ERR, 'message' : 'HTTP 404 or Not Found error occurred while navigating to ' + cache_url + '. If you changed base_dir option in /etc/videocache.conf, please run vc-update and restart Apache webserver. And finally reload/restart Squid daemon.', 'debug' : 'Videocache Directory: ' + dir })

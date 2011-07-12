@@ -34,6 +34,8 @@ def build_message(params):
 
 def refine_url(url, arg_drop_list = []):
     """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
+    if len(arg_drop_list) == 0:
+        return url
     query = urlparse.urlsplit(url)[3]
     new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
     return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')

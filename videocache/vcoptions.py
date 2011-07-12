@@ -31,6 +31,7 @@ class VideocacheOptions:
         self.websites = ['youtube', 'facebook', 'metacafe', 'dailymotion', 'cnn', 'aol', 'myspace', 'xhamster', 'xvideos', 'pornhub', 'spankwire', 'hardsextube', 'keezmovies', 'slutload', 'extremetube', 'redtube', 'xtube', 'vimeo', 'wrzuta', 'youporn', 'bing', 'tube8', 'bliptv', 'break', 'megavideo']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
+        self.arg_drop_list = {'dailymotion': ['start'], 'aol': [], 'extremetube': ['start'], 'keezmovies': ['start'], 'bliptv': ['start'], 'xtube': ['start'], 'facebook': [], 'megavideo': [], 'redtube': [], 'break': ['ec_seek'], 'wrzuta': [], 'hardsextube': ['start'], 'pornhub': ['start'], 'vimeo': [], 'bing': [], 'myspace': [], 'youtube': [], 'xhamster': ['start'], 'metacafe': [], 'youporn': ['fs'], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'cnn': [], 'xvideos': ['fs']}
         return self.initialize()
 
     def initialize(self):
