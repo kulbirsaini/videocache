@@ -116,89 +116,13 @@ class VideocacheConf:
     min_youtube_views = Option(10000)
     youtube_cache_dir = Option('youtube')
 
-    # Facebook.com Specific Options
-    enable_facebook_cache = Option(1)
-    facebook_cache_dir = Option('facebook')
-
-    # Metacafe.com Specific Options
-    enable_metacafe_cache = Option(1)
-    metacafe_cache_dir = Option('metacafe')
-
-    # Dailymotion.com Specific Options
-    enable_dailymotion_cache = Option(1)
-    dailymotion_cache_dir = Option('dailymotion')
-
-    # CNN.com Specific Options
-    enable_cnn_cache = Option(1)
-    cnn_cache_dir = Option('cnn')
-
     # AOL.com Specific Options
     enable_aol_cache = Option(1)
     aol_cache_dir = Option('aol')
 
-    # MySpace.com Specific Options
-    enable_myspace_cache = Option(1)
-    myspace_cache_dir = Option('myspace')
-
-    # Xhamster.com Specific Options
-    enable_xhamster_cache = Option(1)
-    xhamster_cache_dir = Option('xhamster')
-
-    # Xvideos.com Specific Options
-    enable_xvideos_cache = Option(1)
-    xvideos_cache_dir = Option('xvideos')
-
-    # Pornhub.com Specific Options
-    enable_pornhub_cache = Option(1)
-    pornhub_cache_dir = Option('pornhub')
-
-    # Spankwire.com Specific Options
-    enable_spankwire_cache = Option(1)
-    spankwire_cache_dir = Option('spankwire')
-
-    # Hardsextube.com Specific Options
-    enable_hardsextube_cache = Option(1)
-    hardsextube_cache_dir = Option('hardsextube')
-
-    # Keezmovies.com Specific Options
-    enable_keezmovies_cache = Option(1)
-    keezmovies_cache_dir = Option('keezmovies')
-
-    # Slutload.com Specific Options
-    enable_slutload_cache = Option(1)
-    slutload_cache_dir = Option('slutload')
-
-    # Extremetube.com Specific Options
-    enable_extremetube_cache = Option(1)
-    extremetube_cache_dir = Option('extremetube')
-
-    # Redtube.com Specific Options
-    enable_redtube_cache = Option(1)
-    redtube_cache_dir = Option('redtube')
-
-    # Xtube.com Specific Options
-    enable_xtube_cache = Option(1)
-    xtube_cache_dir = Option('xtube')
-
-    # Vimeo.com Specific Options
-    enable_vimeo_cache = Option(1)
-    vimeo_cache_dir = Option('vimeo')
-
-    # Wrzuta.pl Specific Options
-    enable_wrzuta_cache = Option(1)
-    wrzuta_cache_dir = Option('wrzuta')
-
-    # Youporn.com Specific Options
-    enable_youporn_cache = Option(1)
-    youporn_cache_dir = Option('youporn')
-
     # Bing.com Specific Options
     enable_bing_cache = Option(1)
     bing_cache_dir = Option('bing')
-
-    # Tube8.com Specific Options
-    enable_tube8_cache = Option(1)
-    tube8_cache_dir = Option('tube8')
 
     # Blip.tv Specific Options
     enable_bliptv_cache = Option(1)
@@ -208,9 +132,86 @@ class VideocacheConf:
     enable_break_cache = Option(1)
     break_cache_dir = Option('break')
 
+    # CNN.com Specific Options
+    enable_cnn_cache = Option(1)
+    cnn_cache_dir = Option('cnn')
+
+    # Dailymotion.com Specific Options
+    enable_dailymotion_cache = Option(1)
+    dailymotion_cache_dir = Option('dailymotion')
+
+    # Facebook.com Specific Options
+    enable_facebook_cache = Option(1)
+    facebook_cache_dir = Option('facebook')
+
     # Megavideos.com Specific Options
     enable_megavideo_cache = Option(1)
     megavideo_cache_dir = Option('megavideo')
+
+    # Metacafe.com Specific Options
+    enable_metacafe_cache = Option(1)
+    metacafe_cache_dir = Option('metacafe')
+
+    # MySpace.com Specific Options
+    enable_myspace_cache = Option(1)
+    myspace_cache_dir = Option('myspace')
+
+    # Vimeo.com Specific Options
+    enable_vimeo_cache = Option(1)
+    vimeo_cache_dir = Option('vimeo')
+
+    # Wrzuta.pl Specific Options
+    enable_wrzuta_cache = Option(1)
+    wrzuta_cache_dir = Option('wrzuta')
+
+    # Pr0n sites
+    # Extremetube.com Specific Options
+    enable_extremetube_cache = Option(1)
+    extremetube_cache_dir = Option('extremetube')
+
+    # Hardsextube.com Specific Options
+    enable_hardsextube_cache = Option(1)
+    hardsextube_cache_dir = Option('hardsextube')
+
+    # Keezmovies.com Specific Options
+    enable_keezmovies_cache = Option(1)
+    keezmovies_cache_dir = Option('keezmovies')
+
+    # Pornhub.com Specific Options
+    enable_pornhub_cache = Option(1)
+    pornhub_cache_dir = Option('pornhub')
+
+    # Redtube.com Specific Options
+    enable_redtube_cache = Option(1)
+    redtube_cache_dir = Option('redtube')
+
+    # Slutload.com Specific Options
+    enable_slutload_cache = Option(1)
+    slutload_cache_dir = Option('slutload')
+
+    # Spankwire.com Specific Options
+    enable_spankwire_cache = Option(1)
+    spankwire_cache_dir = Option('spankwire')
+
+    # Tube8.com Specific Options
+    enable_tube8_cache = Option(1)
+    tube8_cache_dir = Option('tube8')
+
+    # Xhamster.com Specific Options
+    enable_xhamster_cache = Option(1)
+    xhamster_cache_dir = Option('xhamster')
+
+    # Xtube.com Specific Options
+    enable_xtube_cache = Option(1)
+    xtube_cache_dir = Option('xtube')
+
+    # Xvideos.com Specific Options
+    enable_xvideos_cache = Option(1)
+    xvideos_cache_dir = Option('xvideos')
+
+    # Youporn.com Specific Options
+    enable_youporn_cache = Option(1)
+    youporn_cache_dir = Option('youporn')
 
     def __init__(self):
         pass

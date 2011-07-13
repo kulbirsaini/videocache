@@ -2,11 +2,11 @@ Name and Description
     Videocache (http://cachevideos.com/) - A Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
 
-    Videocache  is a Squid url rewriter plugin written in Python to facilitate caching youtube, facebook, metacafe, dailymotion, vimeo, cnn, aol, myspace,
-    bing, blip.tv, break, wrzuta.pl, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube,  xtube,  youporn  and
-    tube8  videos.  It  can  cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the
-    subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used  by  a  number  of
-    ISPs in various parts of the world.
+    Videocache  is  a  Squid  url  rewriter  plugin written in Python to facilitate caching youtube, aol, bing, bliptv, break, cnn, dailymotion, facebook,
+    megavideo, metacafe, myspace, vimeo, wrzuta, extremetube, hardsextube, keezmovies, pornhub, redtube,  slutload,  spankwire,  tube8,  xhamster,  xtube,
+    xvideos,  youporn  videos.  It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can
+    serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is  currently  used  by  a
+    number of ISPs in various parts of the world.
 
 
     NOTE  :  If  you are new to Squid or you are willing to explore Squid in details, please check my new book Squid Proxy Server 3.1: Beginner’s Guide at
@@ -28,11 +28,11 @@ Installation & Configuration
 
 
 Squid Configuration
-    Depending on your version of Squid, open the file vc_squid_x.x.conf in shipped with the software bundle and copy the contents to your Squid configura-
-    tion file generally located at /etc/squid/squid.conf.
+    Depending on your version of Squid, open the file vc_squid_x.conf shipped with the software bundle and copy the contents to your  Squid  configuration
+    file generally located at /etc/squid/squid.conf.
 
 
-    For Squid version 2.x, use the file vc_squid_2.x.conf and for Squid version 3.x, use the file vc_squid_3.x.conf.
+    For Squid versions 2.x, use the file vc_squid_2.conf and for Squid version 3.x, use the file vc_squid_3.conf.
 
 
     Save squid.conf and reload the squid service using the following command
@@ -139,22 +139,36 @@ Videocache Global Configuration
            Default: /var/spool/videocache/.
 
 
+    base_dir_selection
+           The  option  base_dir_selection  can  be used to specify the algorithm which videocache will use to store cached videos in cache directories in
+           case you are using more than one cache directory. Please select one of the values as described below. Default: 2.
+
+
+
+           ·  1 : Sequential. Videocache will fill the first cache dir, then second and so on.
+
+           ·  2 : Round Robin (default). Videocache will round robin among cache directories to save videos.
+
+           ·  3 : Disk Space (Highest first). Videocache will save a video to a cache directory with max free space at that time.
+
+
+
     disk_avail_threshold
-           This  option  sets  the  minimum  available free space in Mega Bytes that is left in a partition containing a cache directory before Videocache
+           This option sets the minimum available free space in Mega Bytes that is left in a partition containing  a  cache  directory  before  Videocache
            treats that partition as FULL. Default: 15000.
 
-           EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free  space  available  in  that  cache
+           EXAMPLE:  If  disk_avail_threshold  =  200,  Videocache will stop caching videos in a cache directory if the free space available in that cache
            directory is less than 200 Mega Bytes.
 
 
     enable_videocache
-           This  option  controls  the  global  behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option’s
+           This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching  or  serving  anything.  This  option’s
            value can be either 0 or 1. Default: 1.
 
 
     offline_mode
            When Offline Mode is enabled, Videocache will serve the videos already in cache and will skip caching the new videos. When set to 0, Videocache
-           will  cache  new  video  and  when  set  to 1, Videocache will serve the already cached videos and will not cache the new videos is encounters.
+           will cache new video and when set to 1, Videocache will serve the already cached videos and will  not  cache  the  new  videos  is  encounters.
            Default: 0.
 
 
@@ -167,7 +181,7 @@ Videocache Global Configuration
 
 
     max_cache_speed
-           The maximum bandwidth allocated to a cache process. For example, when max_cache_speed is set to 100, a cache process can cache  a  video  at  a
+           The  maximum  bandwidth  allocated  to a cache process. For example, when max_cache_speed is set to 100, a cache process can cache a video at a
            maximum speed of 100 kilobytes per second. Set this to zero (0) if you want a cache process to use unlimited bandwidth.
              Example: max_cache_speed = 100 (Please don’t append KB or MB).
 
@@ -178,13 +192,13 @@ Videocache Global Configuration
 
 
     max_cache_queue_size
-           The maximum number of videos the videocache scheduler can keep in queue for caching. Videocache scheduler consumes some main memory  (~256bytes
-           per  video)  for storing video metadata information. Please don’t set max_cache_queue_size too high otherwise vc-scheduler can consume signifi-
+           The  maximum number of videos the videocache scheduler can keep in queue for caching. Videocache scheduler consumes some main memory (~256bytes
+           per video) for storing video metadata information. Please don’t set max_cache_queue_size too high otherwise vc-scheduler can  consume  signifi-
            cant amount of main memory. Default: 200000.
 
 
     cache_period
-           The option cache_period specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use  this  option
+           The  option  cache_period specifies the time interval when the scheduler part of videocache is allowed to cache videos. You can use this option
            to configure videocache to cache videos in off-peak hours so that you can provide maximum possible bandwidth to your clients in peak hours. The
            format for specifying cache_period is HH1:MM1-HH2:MM2, HH3:MM3-HH4:MM4, HH5:MM5-HH6-MM6, (...). Time must be specified in 24 hour format. Also,
            HH1:MM1 must be less than HH2:MM2. Multiple time intervals can be specified by using comma (,) as a separator.
@@ -194,7 +208,7 @@ Videocache Global Configuration
 
            Default: <blank>
 
-           IMPORTANT  :  If  you  want  videocache  to  cache  videos  only  during night from 11PM to 7AM, then you’ll have to specify two time intervals
+           IMPORTANT : If you want videocache to cache videos only during night from 11PM  to  7AM,  then  you’ll  have  to  specify  two  time  intervals
            23:00-23:59 and 00:00-07:00 to meet the condition that start time must be less than end time.
 
 
@@ -227,12 +241,12 @@ Videocache Global Configuration
 
 
     scheduler_pidfile
-           The scheduler_logfile option can be used to specify the location of a file which will be used to track process  ID  of  the  currently  running
+           The  scheduler_logfile  option  can  be  used to specify the location of a file which will be used to track process ID of the currently running
            Videocache scheduler. Default: /var/run/videocache.pid.
 
 
     enable_videocache_cleaner
-           Enables  the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be
+           Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can  be
            0 or 1. Default: 1.
 
 
@@ -328,7 +342,7 @@ Videocache Global Configuration
 
 
     max_logfile_backups, max_scheduler_logfile_backups, max_cleaner_logfile_backups, max_tracefile_backups
-           The  logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the number of backup files you
+           The logfiles are automatically rotated once they have exceeded the max_logfile_size. The max_logfile_backups is the number of backup files  you
            want to keep.
              Example: max_logfile_backups = 2 will keep videocache.log and videocache.log.1 and videocache.log.2 as logfiles.
 
@@ -345,7 +359,7 @@ Videocache Global Configuration
 
 
     max_youtube_video_quality
-           This option forces the maximum video quality from Youtube. If a user browses a video in higher quality mode, videocache will  still  cache  the
+           This  option forces the maximum video quality from Youtube. If a user browses a video in higher quality mode, videocache will still cache the
            video in the format specified below or a lower quality format depending on the availability.
              Valid values : 240p, 360p, 480p, 720p, 1080p, 3072p (Please don’t use quotes)
 
@@ -354,17 +368,17 @@ Videocache Global Configuration
 
     min_youtube_views
            This option will help in enhancing the performance of videocache. If min_youtube_views is set to 10000, then videocache will cache a video only
-           if it has received at least 10000 views on Youtube. Otherwise, it’ll not be cached at all. Set this to 0  to  disable  this  option.   Default:
+           if  it  has  received  at  least 10000 views on Youtube. Otherwise, it’ll not be cached at all. Set this to 0 to disable this option.  Default:
            10000
 
 
     rpc_host
-           XMLRPCServer  is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair idea
+           XMLRPCServer is used for memory sharing across different instances of Videocache. Leave these settings as it is if you don’t have a fair  idea
            of XMLRPCServer. This will be same as cache_host in almost all the cases. Default: 127.0.0.1.
 
 
     rpc_port
-           Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not  in
+           Please  make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in
            use by any other program. Default: 9100.
 
 

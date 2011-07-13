@@ -7,7 +7,7 @@ Videocache
 
 Videocache (http://cachevideos.com/) - A Squid url rewriter plugin to cache dynamic audio/video content from different video portals/websites.
 
-Videocache is a Squid url rewriter plugin written in Python to facilitate caching youtube, facebook, metacafe, dailymotion, vimeo, cnn, aol, myspace, bing, blip.tv, break, wrzuta.pl, xhamster, xvideos, pornhub, spankwire, hardsextube, keezmovies, slutload, extremetube, redtube, xtube, youporn and tube8 videos. It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
+Videocache is a Squid url rewriter plugin written in Python to facilitate caching **youtube, aol, bing, bliptv, break, cnn, dailymotion, facebook, megavideo, metacafe, myspace, vimeo, wrzuta, extremetube, hardsextube, keezmovies, pornhub, redtube, slutload, spankwire, tube8, xhamster, xtube, xvideos, youporn videos**. It can cache videos from various websites in a separate directory (other than Squid cache), in a browsable fashion and can serve the subsequent requests from the cache. It helps in saving bandwidth and reducing load time of the videos. Videocache is currently used by a number of ISPs in various parts of the world.
 
 **NOTE** : If you are new to Squid or you are willing to explore Squid in details, please check my new book **Squid Proxy Server 3.1: Beginner's Guide** at http://tinyurl.com/squidbook.
 

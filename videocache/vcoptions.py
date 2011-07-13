@@ -28,10 +28,10 @@ class VideocacheOptions:
         self.root = root
         self.youtube_format = { '240p' : [5], '360p' : [34, 18, 43], '480p' : [35], '720p' : [22, 45], '1080p' : [37], '3072p' : [38] }
         self.youtube_format_order = [ '240p', '360p', '480p', '720p', '1080p', '3072p' ]
-        self.websites = ['youtube', 'facebook', 'metacafe', 'dailymotion', 'cnn', 'aol', 'myspace', 'xhamster', 'xvideos', 'pornhub', 'spankwire', 'hardsextube', 'keezmovies', 'slutload', 'extremetube', 'redtube', 'xtube', 'vimeo', 'wrzuta', 'youporn', 'bing', 'tube8', 'bliptv', 'break', 'megavideo']
+        self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'break', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'wrzuta', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        self.arg_drop_list = {'dailymotion': ['start'], 'aol': [], 'extremetube': ['start'], 'keezmovies': ['start'], 'bliptv': ['start'], 'xtube': ['start'], 'facebook': [], 'megavideo': [], 'redtube': [], 'break': ['ec_seek'], 'wrzuta': [], 'hardsextube': ['start'], 'pornhub': ['start'], 'vimeo': [], 'bing': [], 'myspace': [], 'youtube': [], 'xhamster': ['start'], 'metacafe': [], 'youporn': ['fs'], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'cnn': [], 'xvideos': ['fs']}
+        self.arg_drop_list = {'youtube': [], 'aol': [], 'bing': [], 'bliptv': ['start'], 'break': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'wrzuta': [], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
         return self.initialize()
 
     def initialize(self):

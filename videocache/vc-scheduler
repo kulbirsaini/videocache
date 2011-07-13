@@ -716,28 +716,30 @@ def cache_generalized(params):
             trace( { 'code' : URL_CACHE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip } )
     return
 
-cache_facebook_video = cache_generalized
-cache_metacafe_video = cache_generalized
-cache_cnn_video = cache_generalized
 cache_aol_video = cache_generalized
-cache_myspace_video = cache_generalized
-cache_xhamster_video = cache_generalized
-cache_xvideos_video = cache_generalized
-cache_pornhub_video = cache_generalized
-cache_spankwire_video = cache_generalized
-cache_hardsextube_video = cache_generalized
-cache_keezmovies_video = cache_generalized
-cache_slutload_video = cache_generalized
-cache_extremetube_video = cache_generalized
-cache_redtube_video = cache_generalized
-cache_xtube_video = cache_generalized
-cache_vimeo_video = cache_generalized
-cache_wrzuta_video = cache_generalized
-cache_youporn_video = cache_generalized
 cache_bing_video = cache_generalized
-cache_tube8_video = cache_generalized
 cache_bliptv_video = cache_generalized
 cache_break_video = cache_generalized
+cache_cnn_video = cache_generalized
+cache_facebook_video = cache_generalized
+cache_metacafe_video = cache_generalized
+cache_myspace_video = cache_generalized
+cache_vimeo_video = cache_generalized
+cache_wrzuta_video = cache_generalized
+
+# Pr0n sites
+cache_extremetube_video = cache_generalized
+cache_hardsextube_video = cache_generalized
+cache_keezmovies_video = cache_generalized
+cache_pornhub_video = cache_generalized
+cache_redtube_video = cache_generalized
+cache_slutload_video = cache_generalized
+cache_spankwire_video = cache_generalized
+cache_tube8_video = cache_generalized
+cache_xhamster_video = cache_generalized
+cache_xtube_video = cache_generalized
+cache_xvideos_video = cache_generalized
+cache_youporn_video = cache_generalized
 
 def refine_cache_periods():
     global cache_periods
