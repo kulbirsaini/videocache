@@ -166,6 +166,9 @@ def create_file(filename, user=None, mode=0755, quiet = False):
         log_traceback()
         return False
     
+    return file_perms_and_ownership(filename, user, mode, quiet)
+
+def file_perms_and_ownership(filename, user=None, mode=0755, quiet = False):
     try:
         os.chmod(filename, mode)
         if not quiet: print "Mode changed : " + filename
@@ -530,9 +533,12 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir, quiet):
         setup_error('install')
 
-    # Set permissions to 755. Very important.
-    if not dir_perms_and_ownership(install_dir, None, 0755, quiet):
+    if not dir_perms_and_ownership(install_dir, squid_user, 0755, quiet):
         setup_error('install')
+
+    for filename in os.listdir(install_dir):
+        if not file_perms_and_ownership(os.path.join(install_dir, filename), squid_user, 0755, quiet):
+            setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
     vcsysconfig_file = os.path.join(etc_dir, 'videocache.conf')
@@ -560,10 +566,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
         dst_vc_update = os.path.join(usr_sbin_dir, 'vc-update')
         dst_vc_cleaner = os.path.join(usr_sbin_dir, 'vc-cleaner')
         dst_vc_scheduler = os.path.join(usr_sbin_dir, 'vc-scheduler')
-
-        os.chmod(src_vc_update, 0755)
-        os.chmod(src_vc_cleaner, 0755)
-        os.chmod(src_vc_scheduler, 0755)
 
         if os.path.islink(dst_vc_update) or os.path.isfile(dst_vc_update): os.unlink(dst_vc_update)
         if os.path.islink(dst_vc_cleaner) or os.path.isfile(dst_vc_cleaner): os.unlink(dst_vc_cleaner)

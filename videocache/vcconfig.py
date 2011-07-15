@@ -62,7 +62,6 @@ class VideocacheConf:
     hit_threshold = Option(1)
     max_video_size = Option(0)
     min_video_size = Option(0)
-    client_email = Option('')
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
     info_server = Option('http://vcsinfo.heroku.com/servers')

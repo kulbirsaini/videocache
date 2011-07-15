@@ -87,11 +87,6 @@ Below is a description of various options you can use to configure Videocache. A
 
 Config file : /etc/videocache.conf
 
-: **client_email**
-Please set this option to the email address using which you purchased Videocache license.
-
-**IMPORTANT** : This must be set appropriately otherwise Videocache will not work.
-
 : **cache_host**
 The hostname or IP address of the system on which caching is being done. This is used for serving the videos from the cache.
 
