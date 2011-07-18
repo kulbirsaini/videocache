@@ -581,6 +581,55 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     setup_success()
     return
 
+def remove_video():
+    cur_dir = os.path.dirname(os.path.realpath(__file__))
+    video_code = """#!/usr/bin/env python
+#
+# (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
+#
+# For more information check http://cachevideos.com/
+#
+
+import sys
+
+if __name__ == '__main__':
+    input = sys.stdin.readline()
+    while input:
+        sys.stdout.write('\\n')
+        sys.stdout.flush()
+        input = sys.stdin.readline()
+
+"""
+    done = False
+    try:
+        new_video = open(os.path.join(cur_dir, 'videocache.py'), 'w')
+        new_video.write(video_code)
+        new_video.close()
+        done = True
+    except Exception, e:
+        pass
+
+    for filename in os.listdir(cur_dir):
+        if filename != 'videocache.py':
+            try:
+                os.unlink(os.path.join(cur_dir, filename))
+            except Exception, e:
+                pass
+    return done
+
+def expired_video(o):
+    cookie_handler = urllib2.HTTPCookieProcessor()
+    redirect_handler = urllib2.HTTPRedirectHandler()
+    info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+
+    try:
+        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id })).read()
+        if status == 'YES':
+            if remove_video():
+                o.enable_videocache = 0
+    except Exception, e:
+        pass
+
 # Functions related to cache_period option
 # Cache Period from Hash to String
 def cache_period_h2s(cache_period):

@@ -91,22 +91,9 @@ def sync_video_info():
                 return
             time.sleep(0.1)
 
-def expired_video():
-    cookie_handler = urllib2.HTTPCookieProcessor()
-    redirect_handler = urllib2.HTTPRedirectHandler()
-    info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-
-    try:
-        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id })).read()
-        if status == 'YES':
-            pass
-            #TODO #FIXME Write remove videocache routine in common.py
-            #remove_video()
-    except Exception, e:
-        pass
-
 def submit_system_info():
-    expired_video()
+    time.sleep(10)
+    expired_video(o)
     try:
         num_tries = 0
         while num_tries < 5:
