@@ -58,6 +58,7 @@ class VideocacheOptions:
             self.__class__.hit_threshold = int(mainconf.hit_threshold)
             self.__class__.max_video_size = int(mainconf.max_video_size) * 1024 * 1024
             self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
+            self.__class__.client_email = mainconf.client_email
             self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
             self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server

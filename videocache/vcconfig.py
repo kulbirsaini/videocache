@@ -53,6 +53,7 @@ class VideocacheConf:
     queue_dump_file = Option('videocache.queue')
     # Global Options
     # General
+    client_email = Option('')
     enable_videocache = Option(1)
     offline_mode = Option(0)
     videocache_user = Option('squid')

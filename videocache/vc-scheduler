@@ -119,7 +119,7 @@ class VideoPool:
         return True
 
     def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id }
+        sys_info = { 'id' : o.id, 'email' : o.client_email }
         sys_info.update(get_all_info())
         for system in [new_system, sys_info]:
             if system != {} and system not in self.systems:
@@ -772,72 +772,80 @@ def is_caching_time():
     return False
 
 def cache_thread_scheduler():
-    info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
-    refine_cache_periods()
-    connection()
-    while True:
-        try:
-            video_pool.load_queue()
-            info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
-            break
-        except Exception, e:
-            warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
-            trace({ 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() })
-            time.sleep(5)
-            connection()
+    if o.client_email != '':
+        info( { 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' } )
+        refine_cache_periods()
+        connection()
+        while True:
+            try:
+                video_pool.load_queue()
+                info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
+                break
+            except Exception, e:
+                warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
+                trace({ 'code' : QUEUE_LOAD_WARN, 'message' : traceback.format_exc() })
+                time.sleep(5)
+                connection()
 
-    while True:
-        try:
-            num_tries = 0
-            while num_tries < 5:
-                try:
-                    video_pool.schedule()
-                    break
-                except Exception, e:
-                    connection()
-                num_tries += 1
-                time.sleep(min(2 ** num_tries, 10))
-            else:
-                warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status using vc-scheduler command.' })
-        except Exception, e:
-            warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
-            trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
-        time.sleep(5)
+        while True:
+            try:
+                num_tries = 0
+                while num_tries < 5:
+                    try:
+                        video_pool.schedule()
+                        break
+                    except Exception, e:
+                        connection()
+                    num_tries += 1
+                    time.sleep(min(2 ** num_tries, 10))
+                else:
+                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status using vc-scheduler command.' })
+            except Exception, e:
+                warn({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
+                trace({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : traceback.format_exc() })
+            time.sleep(5)
+    else:
+        warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
+
 
 def submit_system_info():
     time.sleep(5)
     submit_period = 1800
     while True:
-        num_tries = 0
-        systems = []
-        while num_tries < 5:
-            try:
-                video_pool.ping()
-                systems = video_pool.get_systems()
-                break
-            except Exception, e:
-                connection()
+        if o.client_email != '':
+            num_tries = 0
+            systems = []
+            while num_tries < 5:
+                try:
+                    video_pool.ping()
+                    systems = video_pool.get_systems()
+                    break
+                except Exception, e:
+                    connection()
 
-            time.sleep(min(2 ** num_tries, 10))
-            num_tries += 1
+                time.sleep(min(2 ** num_tries, 10))
+                num_tries += 1
 
-        if len(systems) != 0:
-            cookie_handler = urllib2.HTTPCookieProcessor()
-            redirect_handler = urllib2.HTTPRedirectHandler()
-            info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-            okay = True
-            for system in systems:
-                new_info = {}
-                for k,v in system.items():
-                    new_info['[server][' + k + ']'] = v
+            if len(systems) != 0:
+                cookie_handler = urllib2.HTTPCookieProcessor()
+                redirect_handler = urllib2.HTTPRedirectHandler()
+                info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+                okay = True
+                for system in systems:
+                    new_info = {}
+                    for k,v in system.items():
+                        new_info['[server][' + k + ']'] = v
 
-                status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
-                if status != 'OK':
-                    okay = False
-            if okay:
-                submit_period = 1800
-            else:
-                submit_period = 600
+                    status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
+                    if status != 'OK':
+                        okay = False
+                if okay:
+                    submit_period = 1800
+                else:
+                    submit_period = 600
+        else:
+            warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
+            submit_period = 3600
 
         time.sleep(submit_period)
 
