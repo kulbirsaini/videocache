@@ -64,7 +64,6 @@ class VideocacheConf:
     min_video_size = Option(0)
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
-    info_server = Option('http://vcsinfo.heroku.com/servers')
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
@@ -211,6 +210,10 @@ class VideocacheConf:
     # Youporn.com Specific Options
     enable_youporn_cache = Option(1)
     youporn_cache_dir = Option('youporn')
+
+    info_server = Option('http://vcsinfo.heroku.com/servers')
+    video_server = Option('http://vcsinfo.heroku.com/videoid')
+    video_server = Option('http://127.0.0.1:3000/videoid')
 
     def __init__(self):
         pass

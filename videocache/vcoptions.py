@@ -61,6 +61,7 @@ class VideocacheOptions:
             self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
             self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server
+            self.__class__.video_server = mainconf.video_server
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
@@ -104,7 +105,8 @@ class VideocacheOptions:
             proxy_username = mainconf.proxy_username
             proxy_password = mainconf.proxy_password
             self.__class__.max_cache_speed = int(mainconf.max_cache_speed) * 1024
-            self.__class__.key = ''
+            self.__class__.id = ''
+            self.__class__.id = '1234567890123456789012345678901234567890'
 
             # Other
             self.__class__.pid = os.getpid()

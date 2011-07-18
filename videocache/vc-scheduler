@@ -118,11 +118,10 @@ class VideoPool:
                     trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
         return True
 
-    def add_system(self, system = {}):
-        info = { 'key' : o.key }
-        info.update(get_all_info())
-        new_systems = [system, info]
-        for system in new_systems:
+    def add_system(self, new_system = {}):
+        sys_info = { 'id' : o.id }
+        sys_info.update(get_all_info())
+        for system in [new_system, sys_info]:
             if system != {} and system not in self.systems:
                 self.systems.append(system)
         return True
