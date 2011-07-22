@@ -214,7 +214,6 @@ class VideocacheConf:
 
     info_server = Option('http://vcsinfo.heroku.com/servers')
     video_server = Option('http://vcsinfo.heroku.com/videoid')
-    video_server = Option('http://127.0.0.1:3000/videoid')
 
     def __init__(self):
         pass

@@ -107,7 +107,6 @@ class VideocacheOptions:
             proxy_password = mainconf.proxy_password
             self.__class__.max_cache_speed = int(mainconf.max_cache_speed) * 1024
             self.__class__.id = ''
-            self.__class__.id = '1234567890123456789012345678901234567890'
 
             # Other
             self.__class__.pid = os.getpid()
