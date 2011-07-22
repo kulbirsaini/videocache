@@ -99,7 +99,7 @@ def submit_system_info():
         while num_tries < 5:
             try:
                 video_pool.ping()
-                sys_info = { 'id' : o.id, 'email' : o.client_email }
+                sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
                 sys_info.update(get_all_info())
                 video_pool.add_system(sys_info)
                 return True

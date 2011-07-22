@@ -119,7 +119,7 @@ class VideoPool:
         return True
 
     def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id, 'email' : o.client_email }
+        sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
         sys_info.update(get_all_info())
         for system in [new_system, sys_info]:
             if system != {} and system not in self.systems:
