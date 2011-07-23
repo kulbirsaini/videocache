@@ -127,6 +127,7 @@ class VideoPool:
         return True
 
     def get_systems(self):
+        self.add_system()
         return self.systems
 
     def get_active_videos(self):
@@ -809,7 +810,7 @@ def cache_thread_scheduler():
 
 
 def submit_system_info():
-    time.sleep(5)
+    time.sleep(20)
     submit_period = 1800
     while True:
         if o.client_email != '':
