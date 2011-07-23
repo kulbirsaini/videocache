@@ -450,6 +450,8 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     var_dir = os.path.dirname(o.scheduler_pidfile)
     man_dir = apply_install_root(root, '/usr/share/man/man8/')
+    cron_dir = apply_install_root(root, '/etc/cron.daily/')
+    init_dir = apply_install_root(root, '/etc/init.d/')
 
     if apache_conf_dir:
         apache_conf_dir = apply_install_root(root, apache_conf_dir)
@@ -551,6 +553,24 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
     file.write(config_data.replace('videocache_user = squid', 'videocache_user = ' + squid_user))
     file.close()
 
+    # Create cron_dir
+    if not os.path.isdir(cron_dir):
+        if not create_dir(cron_dir, None, 0755, quiet):
+            setup_error('install')
+    else:
+        if not quiet: print "Exists : " + cron_dir
+
+    # Create init_dir
+    if not os.path.isdir(init_dir):
+        if not create_dir(init_dir, None, 0755, quiet):
+            setup_error('install')
+    else:
+        if not quiet: print "Exists : " + init_dir
+
+    # Copy vc-scheduler.rc to /etc/init.d/
+    if not copy_file(os.path.join(working_dir, 'vc-scheduler.rc'), os.path.join(init_dir, 'vc-scheduler'), quiet):
+        setup_error('install')
+
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
     if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz'), quiet):
         setup_error('install')
@@ -566,14 +586,17 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
         dst_vc_update = os.path.join(usr_sbin_dir, 'vc-update')
         dst_vc_cleaner = os.path.join(usr_sbin_dir, 'vc-cleaner')
         dst_vc_scheduler = os.path.join(usr_sbin_dir, 'vc-scheduler')
+        dst_vc_cleaner_cron = os.path.join('/etc/cron.daily/', 'vc-cleaner')
 
         if os.path.islink(dst_vc_update) or os.path.isfile(dst_vc_update): os.unlink(dst_vc_update)
         if os.path.islink(dst_vc_cleaner) or os.path.isfile(dst_vc_cleaner): os.unlink(dst_vc_cleaner)
         if os.path.islink(dst_vc_scheduler) or os.path.isfile(dst_vc_scheduler): os.unlink(dst_vc_scheduler)
+        if os.path.islink(dst_vc_cleaner_cron) or os.path.isfile(dst_vc_cleaner_cron): os.unlink(dst_vc_cleaner_cron)
 
         os.symlink(src_vc_update, dst_vc_update)
         os.symlink(src_vc_cleaner, dst_vc_cleaner)
         os.symlink(src_vc_scheduler, dst_vc_scheduler)
+        os.symlink(src_vc_cleaner, dst_vc_cleaner_cron)
     except Exception, e:
         log_traceback()
         setup_error('install')

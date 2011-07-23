@@ -195,6 +195,31 @@ check_root() {
   fi
 }
 
+install_init_script() {
+  message_with_padding "Trying to set default run levels for vc-scheduler"
+  which update-rc.d > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    update-rc.d vc-scheduler defaults > /dev/null 2> /dev/null
+    if [[ $? == 0 ]]; then
+      green 'Done'; echo
+      return
+    fi
+  fi
+
+  which chkconfig > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    chkconfig vc-scheduler on > /dev/null 2> /dev/null
+    if [[ $? == 0 ]]; then
+      green 'Done'; echo
+      return 0
+    fi
+  fi
+  red 'Failed'; echo
+  red 'Please check the init script related section of your operating system manual.'; echo
+  red 'The videocache scheduler init script is located at /etc/init.d/vc-scheduler .'; echo
+  return 1
+}
+
 check_root
 check_dependencies
 install_python_module iniparse "${INIPARSE_URL}" "${INIPARSE_FILENAME}" "${INIPARSE_DIR}"
@@ -202,4 +227,6 @@ install_python_module setuptools "${SETUPTOOLS_URL}" "${SETUPTOOLS_FILENAME}" "$
 check_python_dev
 install_python_module netifaces "${NETIFACES_URL}" "${NETIFACES_FILENAME}" "${NETIFACES_DIR}"
 install_videocache
+install_init_script
+echo
 
