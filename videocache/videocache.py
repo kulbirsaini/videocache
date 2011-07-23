@@ -194,8 +194,10 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, 
             if os.path.isfile(video_path):
                 if website_id == 'youtube':
                     try:
-                        mime = subprocess.Popen(['file', '-b', video_path], stdout = subprocess.PIPE).stdout.read()
-                        if re.compile('webm', re.I).search(mime):
+                        fp = open(video_path, 'rb')
+                        header_data = fp.read(300)
+                        fp.close()
+                        if re.compile('webm', re.I).search(header_data):
                             os.unlink(video_path)
                             continue
                     except Exception, e:
