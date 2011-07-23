@@ -22,6 +22,7 @@ import logging
 import logging.handlers
 import os
 import re
+import subprocess
 import sys
 import syslog
 import threading
@@ -191,6 +192,14 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, 
         for dir in o.base_dirs[website_id]:
             video_path = os.path.join(dir, video_id) + format
             if os.path.isfile(video_path):
+                if website_id == 'youtube':
+                    try:
+                        mime = subprocess.Popen(['file', '-b', video_path], stdout = subprocess.PIPE).stdout.read()
+                        if re.compile('webm', re.I).search(mime):
+                            os.unlink(video_path)
+                            continue
+                    except Exception, e:
+                        pass
                 try:
                     size = os.path.getsize(video_path)
                 except:
@@ -444,6 +453,7 @@ def squid_part():
                         matched = True
                         try:
                             video_id = path.strip('/').split('/')[-1]
+                            video_id = video_id.replace('_hq.mp4', '.mp4')
                         except Exception, e:
                             video_id = None
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )
