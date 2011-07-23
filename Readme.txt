@@ -107,6 +107,7 @@ Videocache Global Configuration
 
     Config file : /etc/videocache.conf
 
+
     client_email
            Please set this option to the email address using which you purchased Videocache license.
 
@@ -381,23 +382,7 @@ Videocache Global Configuration
            use by any other program. Default: 9100.
 
 
-Videocache Files
-      /etc/videocache.conf
-      /etc/httpd/conf.d/videocache.conf OR /etc/apache2/conf.d/videocache.conf
-      /usr/share/videocache/
-      /usr/share/man/man8/videocache.8.gz
-      /usr/sbin/vc-update
-      /usr/sbin/vc-scheduler
-      /usr/sbin/vc-cleaner
-      /var/log/videocache/
-      /var/spool/videocache/
-      /var/run/videocache.pid
-
-
 See Also
-      squid (8)
-
-
            ·  Squid Proxy Server 3.1: Beginner’s Guide : http://tinyurl.com/squidbook
 
            ·  Project Website : http://cachevideos.com/

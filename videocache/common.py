@@ -247,7 +247,7 @@ def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
   Order Allow,Deny
   Allow from all
   <IfModule mod_headers.c>
-    Header add Videocache "1.9.8"
+    Header add Videocache "1.9.9"
   </IfModule>
 </Directory>\n"""
 

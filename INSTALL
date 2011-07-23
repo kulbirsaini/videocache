@@ -5,8 +5,14 @@ Index
   1. Requirements
   2. Installation/Upgrade
   3. Configuration
-  4. Bugs, Suggestions, Comments
-  5. Online Help
+     I. Videocache
+     II. Squid
+  4. Running
+     I. Apache Webserver
+     II. Videocache Scheduler
+     III. Squid Proxy Server
+  5. Bugs, Suggestions, Comments
+  6. Online Help
 
 NOTE
 ====
@@ -25,7 +31,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   Installation and upgrade procedure for videocache are same. Installation is as
   simple as explained below. To upgrade, take a backup of your existing configuration
   file located at /etc/videocache.conf and then perform the normal install. After
-  installation, reference your old configuration file and set the options in new
+  installation, refer your old configuration file and set the options in new
   configuration file generated at /etc/videocache.conf.
 
   a) Untar the videocache-x.x.x.tar.gz
@@ -43,41 +49,72 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
      [root@proxy videocache-x.x.x]# python setup.py install
      Use the -h option to get a list of options available.
 
-  BINGO!! You are done with installation. In case you get any error while installing
-  videocache, there will be proper logging in the console.
+  BINGO!! You are done with installation. In case you get any error while installing videocache,
+  there will be proper logging in the console. Install required packages if missing.
 
 3. Configuration
 ================
-  Assuming you have squid installed. The following configurations are required
-  to get videocache running. Users new to Squid are instructed to stick with default
-  configuration as much as possible otherwise you'll may face unexpected problems.
 
-  a) Restart the httpd service as
-    [root@videocache root]# apachectl -k restart
+  I) Configuring Videocache
+  =========================
+    To configure Videocache, open the configuration file located at /etc/videocache.conf, and
+    go through the option and set appropriate values. For details of individual options, please
+    check the inline comments or visit http://cachevideos.com/#configure.
 
-  b) Start/restart videocache scheduler (vc-scheduler) using the following command
-    [root@videocache root]# vc-scheduler -s restart
+    NOTE: It is  highly recommended that you check the options listed under CRITICAL section and
+    set them properly to avoid trivial issues.
 
-    Use the following command to see available options
-    [root@videocache root]# vc-scheduler -h
+    If you make any changes to configuration file, please run vc-update after saving the changes
+    made to configuration file. Please check http://cachevideos.com/#vc-update for details.
 
-  c) Depending on your version of Squid, open the file vc_squid_x.conf shipped with the
-     software bundle and copy the contents to your Squid configuration file generally
-     located at /etc/squid/squid.conf.
+  II) Configuring Squid
+  =====================
+    Assuming you have installed squid. The following configurations are required
+    to get videocache running. Users new to Squid are instructed to stick with default
+    configuration as much as possible otherwise you'll may face unexpected problems.
 
-     For Squid version 2.x, use the file vc_squid_2.conf and for Squid version 3.x, use
-     the file vc_squid_3.conf.
+    Depending on your version of Squid, open the file vc_squid_x.conf shipped with the
+    software bundle and copy the contents to your Squid configuration file generally
+    located at /etc/squid/squid.conf.
 
-     Save squid.conf and reload/restart the squid service using
-     [root@proxy root]# /etc/init.d/squid restart
+    For Squid version 2.x, use the file vc_squid_2.conf and for Squid version 3.x, use
+    the file vc_squid_3.conf.
 
   See Readme.txt file or videocache manpage for more configuration options.
 
-4. Bugs, Suggestions, Comments
+4. Running
+==========
+  Running videocache is a three step process. We must start/restart Apache webserver,
+  Videocache scheduler and Squid to get Videocache working completely.
+
+  I) Apache Webserver
+  ===================
+
+    Restart the Apache webserver as
+    [root@videocache root]# apachectl -k restart
+
+  II) Videocache Scheduler
+  ========================
+
+    Start/restart videocache scheduler (vc-scheduler) using the following command
+    [root@videocache root]# vc-scheduler -s restart
+
+    Use the following command to see available options for videocache scheduler
+    [root@videocache root]# vc-scheduler -h
+
+  III) Squid Proxy Server
+  =======================
+
+    Reload/restart the squid service using
+    [root@proxy root]# /etc/init.d/squid restart
+
+  Please follow this three step process whenever you want to start or restart Videocache.
+
+5. Bugs, Suggestions, Comments
 ==============================
   File bugs, suggestions or comments at http://cachevideos.com/forum/ .
 
-5. Online Help
+6. Online Help
 ==============
   a. Project Website : http://cachevideos.com/
   b. Squid Proxy Server 3.1: Beginner's Guide : http://tinyurl.com/squidbook

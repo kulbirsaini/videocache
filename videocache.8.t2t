@@ -296,23 +296,7 @@ XMLRPCServer is used for memory sharing across different instances of Videocache
 Please make sure this port is not currently in use. If it is in use by some other program, change this to some port above 1024 which is not in use by any other program. Default: 9100.
 
 
-== Videocache Files ==
-```
-/etc/videocache.conf
-/etc/httpd/conf.d/videocache.conf OR /etc/apache2/conf.d/videocache.conf
-/usr/share/videocache/
-/usr/share/man/man8/videocache.8.gz
-/usr/sbin/vc-update
-/usr/sbin/vc-scheduler
-/usr/sbin/vc-cleaner
-/var/log/videocache/
-/var/spool/videocache/
-/var/run/videocache.pid
-```
 == See Also ==
-```
-squid (8)
-```
 - Squid Proxy Server 3.1: Beginner's Guide : http://tinyurl.com/squidbook
 - Project Website : http://cachevideos.com/
 - How to configure Squid : http://gofedora.com/how-to-configure-squid-proxy-server/
