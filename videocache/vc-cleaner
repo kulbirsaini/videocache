@@ -52,7 +52,7 @@ def cleancache():
                     video_path = os.path.join(dir, video_id)
                     try:
                         if os.path.isfile(video_path):
-                            if (cur_time - os.stat(video_path)[stat.ST_MTIME]) > o.video_lifetime * 86400:
+                            if (cur_time - os.stat(video_path)[stat.ST_ATIME]) > o.video_lifetime * 86400:
                                 age = int((cur_time - os.stat(video_path)[stat.ST_ATIME]) / 86400)
                                 os.remove(video_path)
                                 info( { 'code' : VIDEO_PURGED, 'message' : 'Video older than ' + str(age) + ' days was purged from cache.', 'website_id' : website_id, 'video_id' : video_id } )

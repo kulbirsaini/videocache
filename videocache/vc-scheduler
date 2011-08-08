@@ -489,7 +489,7 @@ def cache_youtube_video(params):
             if view_count < o.min_youtube_views:
                 info( { 'code' : VIEW_COUNT_LOW, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Video has not received enough views and will not be cached.' } )
                 return
-            if 'fmt_url_map' in video_info:
+            if 'url_encoded_fmt_stream_map' in video_info:
                 break
         except Exception, e:
             error({'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Error occured while fetching video info..', 'debug' : str(e) } )
@@ -499,9 +499,9 @@ def cache_youtube_video(params):
     alternate_vid = None
     video_url = None
     try:
-        if 'fmt_url_map' in video_info:
+        if 'url_encoded_fmt_stream_map' in video_info:
             url_map = {}
-            [url_map.update({u.split('|')[0] : u.split('|')[1]}) for u in filter(lambda x: not x.startswith('43') and not x.startswith('45'), video_info['fmt_url_map'][0].split(','))]
+            [url_map.update({i['itag'][0] : i['url'][0]}) for i in [cgi.parse_qs(i) for i in filter(lambda x: not re.compile(urllib.quote_plus('video/webm')).search(x), video_info['url_encoded_fmt_stream_map'][0].split(','))]]
             alternate_url = url_map.values()[0]
 
             if format != '':
