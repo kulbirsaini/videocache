@@ -83,6 +83,8 @@ def get_ip_addresses():
         try:
             co = subprocess.Popen([command], stdout = subprocess.PIPE)
             ifconfig = co.stdout.read()
+            if co.is_alive():
+                co.terminate()
             ips = ', '.join(filter(lambda x: is_valid_ip(x), [i[0] for i in ip_regex.findall(ifconfig, re.MULTILINE)]))
             if ips != '':
                 return ips
@@ -99,6 +101,8 @@ def get_mac_addresses():
         try:
             co = subprocess.Popen([command], stdout = subprocess.PIPE, env = { 'LC_ALL' : 'C' })
             ifconfig = co.stdout.read()
+            if co.is_alive():
+                co.terminate()
             macs = ', '.join(filter(lambda x: is_valid_mac(x), [i[1] for i in mac_regex.findall(ifconfig, re.MULTILINE)]))
             if macs != '':
                 return macs

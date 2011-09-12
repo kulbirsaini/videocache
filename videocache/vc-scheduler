@@ -23,6 +23,7 @@ import cookielib
 import logging
 import pickle
 import pwd
+import shutil
 import socket
 import statvfs
 import sys
@@ -535,7 +536,7 @@ def cache_youtube_video(params):
         if not os.path.exists(video_path):
             if cache_remote_url(video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
-                os.rename(tmp_path, video_path)
+                shutil.move(tmp_path, video_path)
                 os.chmod(video_path, mode)
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
@@ -616,7 +617,7 @@ def cache_dailymotion_video(params):
         if not os.path.exists(video_path):
             if cache_remote_url(video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
-                os.rename(tmp_path, video_path)
+                shutil.move(tmp_path, video_path)
                 os.chmod(video_path, mode)
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
@@ -666,7 +667,7 @@ def cache_megavideo_video(params):
             if not os.path.exists(video_path):
                 if cache_remote_url(url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
-                    os.rename(tmp_path, video_path)
+                    shutil.move(tmp_path, video_path)
                     os.chmod(video_path, mode)
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
@@ -706,7 +707,7 @@ def cache_generalized(params):
             if not os.path.exists(video_path):
                 if cache_remote_url(url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
-                    os.rename(tmp_path, video_path)
+                    shutil.move(tmp_path, video_path)
                     os.chmod(video_path, mode)
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
