@@ -189,6 +189,13 @@ def cache_video(client_ip, website_id, url, video_id, cache_check_only = False, 
 
     video_id = urllib.unquote(video_id)
     try:
+        video_id.decode('ascii')
+    except Exception, e:
+        warn( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not process this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+        trace( { 'code' : VIDEO_ID_ENCODING, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+        return ('', 0)
+
+    try:
         for dir in o.base_dirs[website_id]:
             video_path = os.path.join(dir, video_id) + format
             if os.path.isfile(video_path):
@@ -433,11 +440,11 @@ def squid_part():
 
                 # Dailymotion.com caching is handled here.
                 if not matched and o.enable_dailymotion_cache:
-                    if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_.*').search(path)):
+                    if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
                         website_id = 'dailymotion'
                         matched = True
                         try:
-                            video_id = re.compile('/video/([a-zA-Z0-9]{5,9})_.*').search(path).group(1) + '.mp4'
+                            video_id = re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1) + '.mp4'
                         except Exception, e:
                             video_id = None
                             warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url, 'debug' : str(e) } )

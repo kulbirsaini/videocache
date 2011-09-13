@@ -578,6 +578,14 @@ def cache_dailymotion_video(params):
 
     if o.proxy:
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
+
+    try:
+        request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, o.std_headers)
+        urllib2.urlopen(request).read()
+    except Exception, e:
+        warn( { 'code' : DAILYMOTION_FF_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not disable family filter for dailymotion.com.', 'debug' : str(e) } )
+        trace( { 'code' : DAILYMOTION_FF_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
+
     request = urllib2.Request(urls[0], None, o.std_headers)
 
     try:
