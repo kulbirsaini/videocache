@@ -12,13 +12,17 @@ SETUPTOOLS_URL='http://pypi.python.org/packages/source/s/setuptools/setuptools-0
 SETUPTOOLS_FILENAME='setuptools.tar.gz'
 SETUPTOOLS_DIR='setuptools'
 
-NETIFACES_URL='http://pypi.python.org/packages/source/n/netifaces/netifaces-0.4.tar.gz'
+NETIFACES_URL='http://alastairs-place.net/projects/netifaces/netifaces-0.5.tar.gz'
 NETIFACES_FILENAME='netifaces.tar.gz'
 NETIFACES_DIR='netifaces'
 
 INIPARSE_URL='http://iniparse.googlecode.com/files/iniparse-0.4.tar.gz'
 INIPARSE_FILENAME='python-iniparse.tar.gz'
 INIPARSE_DIR='python-iniparse'
+
+PYINOTIFY_URL='http://pypi.python.org/packages/source/p/pyinotify/pyinotify-0.9.2.tar.gz'
+PYINOTIFY_FILENAME='pyinotify.tar.gz'
+PYINOTIFY_DIR='pyinotify'
 
 blue() {
   echo -en "\033[0;34m${1}\033[0m"
@@ -226,6 +230,7 @@ install_python_module iniparse "${INIPARSE_URL}" "${INIPARSE_FILENAME}" "${INIPA
 install_python_module setuptools "${SETUPTOOLS_URL}" "${SETUPTOOLS_FILENAME}" "${SETUPTOOLS_DIR}"
 check_python_dev
 install_python_module netifaces "${NETIFACES_URL}" "${NETIFACES_FILENAME}" "${NETIFACES_DIR}"
+install_python_module pyinotify "${PYINOTIFY_URL}" "${PYINOTIFY_FILENAME}" "${PYINOTIFY_DIR}"
 install_videocache
 install_init_script
 echo

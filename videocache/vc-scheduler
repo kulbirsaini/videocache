@@ -13,6 +13,7 @@ from error_codes import *
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
 from vcsysinfo import *
+from websites.youtube import *
 
 from optparse import OptionParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -22,6 +23,7 @@ import cgi
 import cookielib
 import logging
 import pickle
+import pyinotify
 import pwd
 import shutil
 import socket
@@ -731,7 +733,7 @@ def cache_generalized(params):
 cache_aol_video = cache_generalized
 cache_bing_video = cache_generalized
 cache_bliptv_video = cache_generalized
-cache_break_video = cache_generalized
+cache_breakcom_video = cache_generalized
 cache_cnn_video = cache_generalized
 cache_facebook_video = cache_generalized
 cache_metacafe_video = cache_generalized
@@ -883,6 +885,40 @@ def scheduler_server_heartbeat():
 
         time.sleep(30)
 
+class ProcessTransientFile(pyinotify.ProcessEvent):
+
+    def reopen_file(self):
+        if os.path.isfile(o.squid_store_log):
+            if is_readable(o.squid_store_log):
+                o.ssl_fo = open(o.squid_store_log, 'r')
+            else:
+                pass
+        else:
+            pass
+
+    def process_IN_MODIFY(self, event):
+        if o.ssl_fo:
+            line = o.ssl_fo.readline().strip()
+            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and line.find('video/') > 0:
+                info({ 'code' : 'SQUID_STORE_LOG', 'message' : line })
+        else:
+            self.reopen_file()
+
+    def process_IN_CREATE(self, event):
+        self.reopen_file()
+
+    def process_IN_ATTRIB(self, event):
+        self.reopen_file()
+
+    def process_default(self, event):
+        return
+
+def watch_squid_store_log():
+    wm = pyinotify.WatchManager()
+    notifier = pyinotify.Notifier(wm)
+    wm.watch_transient_file(o.squid_store_log, pyinotify.IN_MODIFY, ProcessTransientFile)
+    notifier.loop()
+
 class VideoPoolDaemon(VideocacheDaemon):
 
     def __init__(self, o = None, **kwargs):
@@ -897,15 +933,18 @@ class VideoPoolDaemon(VideocacheDaemon):
 
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
-            sysinfo_thread = threading.Thread(target = submit_system_info )
+            sysinfo_thread = threading.Thread(target = submit_system_info)
+            #store_log_watcher_thread = threading.Thread(target = watch_squid_store_log)
 
             server_thread.start()
             cache_thread.start()
             sysinfo_thread.start()
+            #store_log_watcher_thread.start()
 
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
+            #store_log_watcher_thread.join()
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
             trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )

@@ -65,6 +65,7 @@ class VideocacheConf:
     min_video_size = Option(0)
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
+    squid_store_log = Option('/var/log/squid/store.log')
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
@@ -128,8 +129,8 @@ class VideocacheConf:
     bliptv_cache_dir = Option('bliptv')
 
     # Break.tv Specific Options
-    enable_break_cache = Option(1)
-    break_cache_dir = Option('break')
+    enable_breakcom_cache = Option(1)
+    breakcom_cache_dir = Option('break')
 
     # CNN.com Specific Options
     enable_cnn_cache = Option(1)

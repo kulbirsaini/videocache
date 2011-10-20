@@ -14,6 +14,61 @@ import os
 import sys
 import traceback
 
+def print_message_and_abort(message):
+    sys.stderr.write(message)
+    sys.exit(1)
+
+def update_error(error_code):
+    """Report error while updating/installing videocache with proper error code."""
+    usage =  """
+Usage: vc-update (as root/super user)
+Update script can only be used if Videocache is installed on your system.
+Please see http://cachevideos.com/vc-update for more information or getting help.
+"""
+    update_error =  """
+An error has occured while updating videocache.
+Please see http://cachevideos.com/vc-update for more information or getting help.
+"""
+    uid_error = """
+You must be root to update Videocache installation.
+Please see http://cachevideos.com/vc-update for more information or getting help.
+"""
+
+    messages = { 'usage' : usage, 'uid' : uid_error, 'update' : update_error }
+    if messages.has_key(error_code): print_message_and_abort(messages[error_code])
+    return
+
+def update_success():
+    """Print informative messages after successfull installation."""
+    message = """
+Videocache update has completed successfully.
+Now you must restart apache web server on your machine by using the following command
+[root@localhost ~]# apachectl -k restart [ENTER]
+In case of any bugs or problems, check http://cachevideos.com/ .
+    """
+    print message
+
+def update_vc(o, root, squid_user, install_dir, apache_conf_dir, quiet):
+    """Perform the update."""
+    etc_dir = apply_install_root(root, '/etc/')
+    usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
+    var_dir = os.path.dirname(o.scheduler_pidfile)
+    man_dir = apply_install_root(root, '/usr/share/man/man8/')
+
+    if apache_conf_dir: apache_conf_dir = apply_install_root(root, apache_conf_dir)
+
+    for dir in [etc_dir, usr_sbin_dir, apache_conf_dir, var_dir, man_dir]:
+        if not create_or_update_dir(dir, None, 0755, quiet): update_error('update')
+
+    for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
+        if not create_or_update_dir(dir, squid_user, 0755, quiet): update_error('update')
+
+    # Generate Apache webserver configuration file for videocache.
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet): update_error('update')
+
+    update_success()
+    return
+
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
@@ -25,21 +80,9 @@ if __name__ == '__main__':
     parser.add_option('-s', '--skip-apache-conf', dest = 'skip_apache_conf', action='store_true', help = 'Skip creating Videocache specific configuration for Apache.', default = False)
     options, args = parser.parse_args()
 
-    help_message =  """
-Usage: vc-update -h (as root/super user)
-Update script can only be used if Videocache is installed on your system.
-Please see http://cachevideos.com/vc-update for more information or getting help.
-"""
-
-    uid_error = """
-You must be root to update Videocache installation.
-Please see http://cachevideos.com/vc-update for more information or getting help.
-"""
-
     if os.getuid() != 0:
         parser.print_help()
-        sys.stderr.write(uid_error)
-        sys.exit(1)
+        update_error('uid')
 
     if options.skip_apache_conf:
         apache_dir = None
@@ -52,8 +95,7 @@ Please see http://cachevideos.com/vc-update for more information or getting help
             apache_dir = apache2_dir
         else:
             parser.print_help()
-            sys.stderr.write('\nPlease use -a (or --apache-dir) option to specify the path to Apache\'s conf.d directory.\n')
-            sys.exit(1)
+            print_message_and_abort('\nPlease use -a (or --apache-dir) option to specify the path to Apache\'s conf.d directory.\n')
     else:
         apache_dir = options.apache_dir
 
@@ -68,32 +110,31 @@ Please see http://cachevideos.com/vc-update for more information or getting help
         sys.path = [install_dir] + sys.path
         from vcoptions import VideocacheOptions
         from common import *
+        from fsop import *
     elif os.path.isdir('/usr/share/videocache/'):
         install_dir = '/usr/share/videocache/'
         sys.path = [install_dir] + sys.path
         from vcoptions import VideocacheOptions
         from common import *
+        from fsop import *
     else:
-        sys.stderr.write(help_message)
         parser.print_help()
-        sys.exit(1)
+        update_error('usage')
 
     try:
         o = VideocacheOptions(options.config_file, root)
     except Exception, e:
         message = 'vc-update: Could not read options from configuration file.\n'
-        sys.stderr.write(message)
-        syslog_msg(message)
         parser.print_help()
+        syslog_msg(message)
         log_traceback()
-        sys.exit(1)
+        print_message_and_abort(message)
 
     if o.halt:
         message = 'vc-update: One or more errors occured in reading configure file. Please check syslog messages generally located at /var/log/messages.\n'
-        sys.stderr.write(message)
         syslog_msg(message)
         parser.print_help()
-        sys.exit(1)
+        print_message_and_abort(message)
 
     squid_user = options.squid_user or o.videocache_user
     update_vc(o, root, squid_user, install_dir, apache_dir, not options.verbose)
