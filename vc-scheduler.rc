@@ -2,6 +2,8 @@
 #
 # vc-scheduler        Startup script for the Videocache Scheduler (http://cachevideos.com/)
 #
+# (C) Copyright White Magnet Software Private Limited
+#
 # chkconfig: - 76 24
 # description: The Videocache Scheduler is responsible for receiving requests from \
 #	       videocache plugin for caching new videos (http://cachevideos.com/).

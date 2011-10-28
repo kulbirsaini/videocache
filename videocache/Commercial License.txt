@@ -1,6 +1,6 @@
 Videocache Commercial License.
 
-Copyright (c) 2008-2011 Kulbir Saini, all rights reserved
+Copyright (c) White Magnet Software Private Limited, all rights reserved
 
 Please read this License carefully before using or installing the Software (Videocache, as defined below). By using or installing the Software, Licensee is agreeing to be bound by this License and the licenses granted hereunder are subject to compliance with any and all terms of this License. IF YOU DO NOT ACCEPT THE TERMS AND CONDITIONS OF THIS LICENSE, DO NOT USE, INSTALL OR DISTRIBUTE ANY OF THE LICENSED SOFTWARE.
 
@@ -15,7 +15,7 @@ Terms and definitions
 
 "License" means this document.
 
-"Licensor" means Kulbir Saini. 
+"Licensor" means White Magnet Software Private Limited. 
 
 "Licensee" means an individual or entity exercising rights under and complying with the terms of this License who has not previously violated the terms of this License with respect to the Software, or who has received express permission from the Licensor to exercise rights under this License despite a previous violation.
 

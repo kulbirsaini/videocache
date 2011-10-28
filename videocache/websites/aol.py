@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 #
-# (C) Copyright 2008-2011 White Magnet Software Pvt Ltd.
-#
-# For more information check http://cachevideos.com/
+# (C) Copyright White Magnet Software Private Limited
+# Company Website : http://whitemagnet.com/
+# Product Website : http://cachevideos.com/
 #
 
 __author__ = """Kulbir Saini <saini@saini.co.in>"""

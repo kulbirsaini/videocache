@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 #
-# (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
+# (C) Copyright White Magnet Software Private Limited
+# Company Website : http://whitemagnet.com/
+# Product Website : http://cachevideos.com/
 #
-# For more information check http://cachevideos.com/
-#
-# File System Operations
 
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'

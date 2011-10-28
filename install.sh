@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
-#
-# For more information check http://cachevideos.com/
+# (C) Copyright White Magnet Software Private Limited
+# Company Website : http://whitemagnet.com/
+# Product Website : http://cachevideos.com/
 #
 
 MESSAGE_LENGTH=60
