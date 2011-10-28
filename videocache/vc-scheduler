@@ -21,6 +21,7 @@ from xmlrpclib import ServerProxy
 
 import cgi
 import cookielib
+import heapq
 import logging
 import pickle
 import pyinotify
@@ -77,14 +78,21 @@ class VideoPool:
     scores = {}
     queue = {}
     active = {}
+    scores_pq = []
+    scores_changed = True
+    last_scores_rebuild = 0
+    scores_rebuild_threshold = 120
     systems = []
-    time_threshold = 15
+    hit_time_threshold = 15
     last_dump = 0
     dump_threshold = 120
     disk_space = {}
     disk_space_last_update = 0
     disk_space_update_threshold = 300
     last_used_dir = 0
+    last_sync = 0
+    sync_lock = threading.Semaphore(value = 1)
+    sync_threshold = 600
 
     def __init__(self):
         pass
@@ -92,16 +100,28 @@ class VideoPool:
     def ping(self):
         return True
 
+    def add_system(self, new_system = {}):
+        sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
+        sys_info.update(get_all_info())
+        for system in [new_system, sys_info]:
+            if system != {} and system not in self.systems:
+                self.systems.append(system)
+        return True
+
+    def get_systems(self):
+        self.add_system()
+        return self.systems
+
     def load_queue(self):
         for dir in o.base_dir_list:
             queue_file = os.path.join(dir, o.queue_dump_file)
             if os.path.isfile(queue_file):
                 try:
                     [scores, queue] = pickle.load(file(queue_file, 'r'))
-                    self.scores = scores
-                    self.queue = queue
-                    for (video_id, score) in self.scores.items():
-                        self.scores[video_id] = self.scores[video_id] + 1
+                    # Different statement just in case the exception messes up assignment.
+                    self.scores, self.queue = scores, queue
+                    self.trim_queue()
+                    info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
                     return True
                 except Exception, e:
                     warn( { 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file + '.', 'debug' : str(e) } )
@@ -121,37 +141,16 @@ class VideoPool:
                     trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
         return True
 
-    def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
-        sys_info.update(get_all_info())
-        for system in [new_system, sys_info]:
-            if system != {} and system not in self.systems:
-                self.systems.append(system)
-        return True
-
-    def get_systems(self):
-        self.add_system()
-        return self.systems
-
-    def get_active_videos(self):
-        return self.active.keys()
-
-    def get_video_scores(self):
-        return self.scores
-
-    def get_video_queue(self):
-        return self.queue
-
     def add_videos(self, videos = {}):
         info( { 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' } )
 
-        videos_in_queue = len(self.scores)
-        if videos_in_queue - o.max_cache_queue_size >= 0:
-            self.remove_least_popular(videos_in_queue - o.max_cache_queue_size + 1)
+        self.trim_queue()
 
+        self.sync_lock.acquire()
         for video_id in videos:
             for params in videos[video_id]:
                 self.add_video(video_id, params)
+        self.sync_lock.release()
         return True
 
     def add_video(self, video_id, params):
@@ -161,76 +160,97 @@ class VideoPool:
         else:
             old_data = self.queue[video_id]
             try:
-                if params['client_ip'] == old_data['client_ip'] and (int(params['access_time']) - int(old_data['access_time'])) > self.time_threshold:
+                if params['client_ip'] == old_data['client_ip'] and (int(params['access_time']) - int(old_data['access_time'])) > self.hit_time_threshold:
                     self.inc_score(video_id)
                     self.queue[video_id].update( { 'access_time' : params['access_time'] } )
             except Exception, e:
                 self.inc_score(video_id)
         return True
 
+    def trim_queue(self):
+        videos_in_queue = len(self.scores)
+        if videos_in_queue - o.max_cache_queue_size >= 0:
+            self.remove_least_popular(videos_in_queue - o.max_cache_queue_size + 1)
+
+    def sync_queue(self, sync_now = False):
+        if sync_now or (time.time() - self.last_sync) > self.sync_threshold:
+            self.sync_lock.acquire()
+            time.sleep(3)
+            new_queue = {}
+            for video_id in self.scores.keys():
+                if video_id in self.queue:
+                    new_queue[video_id] = self.queue[video_id]
+            self.queue = new_queue
+            self.sync_lock.release()
+            self.last_sync = time.time()
+
+    def rebuild_scores_pq(self, rebuild_scores_now = False):
+        if self.scores_changed and (rebuild_scores_now or time.time() - self.last_scores_rebuild > self.scores_rebuild_threshold):
+            self.scores_changed = False
+            self.scores_pq = [(v,k) for k,v in self.scores.items()]
+            heapq.heapify(self.scores_pq)
+            self.last_scores_rebuild = time.time()
+
     def get_score(self, video_id):
         """Get the score of video represented by video_id."""
-        if video_id in self.scores:
-            return self.scores[video_id]
-        else:
-            return 0
+        return self.scores.get(video_id, 0)
 
     def set_score(self, video_id, score = 1):
         """Set the priority score of a video_id."""
         if video_id in self.scores:
             self.scores[video_id] = score
-        return True
+            self.scores_changed = True
 
     def inc_score(self, video_id, incr = 1):
         """Increase the priority score of video represented by video_id."""
         if video_id in self.scores:
             self.scores[video_id] += incr
-        return True
+            self.scores_changed = True
 
     def dec_score(self, video_id, decr = 1):
         """Decrease the priority score of video represented by video_id."""
         if video_id in self.scores:
             self.scores[video_id] -= decr
+            self.scores_changed = True
 
     def get_popular(self):
         """Return the video_id of the most frequently access video."""
-        vk = [(v,k) for k,v in self.scores.items()]
-        if len(vk) != 0:
-            video_id = sorted(vk, reverse=True)[0][1]
-            return video_id
+        self.sync_queue()
+        self.rebuild_scores_pq()
+
+        popular = heapq.nlargest(1, self.scores_pq)
+        if len(popular) != 0:
+            popular[0] in self.scores_pq and self.scores_pq.remove(popular[0])
+            return popular[0][1]
         return False
 
     def get_least_popular(self, count = 1):
         """Get `count` number of least popular videos"""
-        vk = [(v, k) for k, v in self.scores.items()]
-        if len(vk) != 0:
-            return [k for v, k in sorted(vk)[:count]]
-        return []
+        self.rebuild_scores_pq()
+        return [k for v, k in heapq.nsmallest(count, self.scores_pq)]
 
     def remove_least_popular(self, count = 1):
         """Remove `count` number of least popular videos fromt the queue."""
+        removed = []
         for video_id in self.get_least_popular(count):
+            removed.append((self.scores[video_id], video_id))
             self.remove(video_id)
+        [i in self.scores_pq and self.scores_pq.remove(i) for i in removed]
+        return True
 
     def get_details(self, video_id):
         """Return the details of a particular video represented by video_id."""
-        if video_id in self.queue.keys():
-            return self.queue[video_id]
-        return False
+        return self.queue.get(video_id, False)
 
     def remove_from_queue(self, video_id):
         """Dequeue a video_id from the download queue."""
-        if video_id in self.queue:
-            self.queue.pop(video_id)
-        if video_id in self.scores:
-            self.scores.pop(video_id)
+        video_id in self.queue and self.queue.pop(video_id)
+        video_id in self.scores and self.scores.pop(video_id)
         return True
 
     def remove_url_from_queue(self, video_id, url):
         """Dequeue a url for a video_id from the download queue."""
-        if video_id in self.queue:
-            if url in self.queue[video_id]['urls']:
-                self.queue[video_id]['urls'].remove(url)
+        video_id in self.queue and url in self.queue[video_id]['urls'] and self.queue[video_id]['urls'].remove(url)
         return True
 
     def remove(self, video_id):
@@ -249,7 +269,23 @@ class VideoPool:
         self.queue = {}
         self.scores = {}
         self.active = {}
+        self.scores_pq = []
         return True
+
+    def get_queue_length(self):
+        return len(self.scores)
+
+    def get_pq_length(self):
+        return len(self.scores_pq)
+
+    def get_active_videos(self):
+        return self.active.keys()
+
+    def get_video_scores(self):
+        return self.scores
+
+    def get_video_queue(self):
+        return self.queue
 
     def update_disk_space(self, now = False):
         if now or int(time.time() - self.disk_space_last_update) > self.disk_space_update_threshold:
@@ -791,7 +827,6 @@ def cache_thread_scheduler():
         while True:
             try:
                 video_pool.load_queue()
-                info( { 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' } )
                 break
             except Exception, e:
                 warn({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})

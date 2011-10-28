@@ -129,7 +129,7 @@ check_python_dev() {
 
 install_videocache() {
   message_with_padding "Installing Videocache"
-  output=`python setup.py install 2>&1`
+  output=`python setup.py install --skip-config 2>&1`
   if [[ $? == 0 ]]; then
     green 'Installed'; echo
     green "${output}"; echo

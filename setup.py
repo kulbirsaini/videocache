@@ -52,7 +52,7 @@ In case of any bugs or problems, check http://cachevideos.com/ .
     """
     print message
 
-def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
+def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_config):
     """Perform the setup."""
     install_dir = apply_install_root(root, '/usr/share/videocache/')
     etc_dir = apply_install_root(root, '/etc/')
@@ -79,15 +79,16 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet):
         if not set_permissions_and_ownership(os.path.join(install_dir, filename), squid_user, 0755, quiet): setup_error('install')
 
     # Copy videocache-sysconfig.conf to /etc/videocache.conf .
-    vcsysconfig_file = os.path.join(etc_dir, 'videocache.conf')
-    if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), vcsysconfig_file, quiet): setup_error('install')
+    if not skip_config:
+        vcsysconfig_file = os.path.join(etc_dir, 'videocache.conf')
+        if not copy_file(os.path.join(working_dir, 'videocache-sysconfig.conf'), vcsysconfig_file, quiet): setup_error('install')
 
-    file = open(vcsysconfig_file, 'r')
-    config_data = file.read()
-    file.close()
-    file = open(vcsysconfig_file, 'w')
-    file.write(config_data.replace('videocache_user = squid', 'videocache_user = ' + squid_user))
-    file.close()
+        file = open(vcsysconfig_file, 'r')
+        config_data = file.read()
+        file.close()
+        file = open(vcsysconfig_file, 'w')
+        file.write(config_data.replace('videocache_user = squid', 'videocache_user = ' + squid_user))
+        file.close()
 
     # Copy vc-scheduler.rc to /etc/init.d/
     if not copy_file(os.path.join(working_dir, 'vc-scheduler.rc'), os.path.join(init_dir, 'vc-scheduler'), quiet): setup_error('install')
@@ -131,6 +132,7 @@ if __name__ == '__main__':
     parser.add_option('-u', '--squid-user', dest = 'squid_user', type='string', help = 'User who runs Squid daemon.')
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. In most cases, it\'ll be /etc/httpd/conf.d/ or /etc/apache2/conf.d/.')
     parser.add_option('-s', '--skip-apache-conf', dest = 'skip_apache_conf', action='store_true', help = 'Skip creating Videocache specific configuration for Apache.', default = False)
+    parser.add_option('-c', '--skip-config', dest = 'skip_config', action='store_true', help = 'Skip creating Videocache configuration file.', default = False)
     options, args = parser.parse_args()
 
     if os.getuid() != 0:
@@ -206,5 +208,5 @@ if __name__ == '__main__':
         parser.print_help()
         print_message_and_abort('\nvc-setup: One or more errors occured in reading configure file. Please check syslog messages generally located at /var/log/messages.\n')
 
-    setup_vc(o, root, options.squid_user, apache_dir, working_dir, not options.verbose)
+    setup_vc(o, root, options.squid_user, apache_dir, working_dir, not options.verbose, options.skip_config)
 
