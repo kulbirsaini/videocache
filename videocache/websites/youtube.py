@@ -57,8 +57,12 @@ def get_youtube_video_format(url):
 
     return get_youtube_video_format_from_query(query)
 
-def check_youtube_video(host, path, query, url):
+def check_youtube_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'youtube', None, '', True, True
+
+    if not (host and path and query):
+        fragments = urlparse.urlsplit(url)
+        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if get_youtube_video_format_from_query(query) == 18: format = '_18.mp4'
 

@@ -9,9 +9,14 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urlparse
 
-def check_xhamster_video(host, path, query, url):
+def check_xhamster_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'xhamster', None, '', True, True
+
+    if not (host and path and query):
+        fragments = urlparse.urlsplit(url)
+        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host) and re.compile('\/flv2\/[0-9]+:(.*)\/(.*)\.flv').search(path) and path.find('.flv') > -1:
         try:

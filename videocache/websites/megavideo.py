@@ -10,9 +10,14 @@ __docformat__ = 'plaintext'
 
 import cgi
 import re
+import urlparse
 
-def check_megavideo_video(host, path, query, url):
+def check_megavideo_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'megavideo', None, '', True, True
+
+    if not (host and path and query):
+        fragments = urlparse.urlsplit(url)
+        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if host.find('megavideo.com') > -1:
         try:

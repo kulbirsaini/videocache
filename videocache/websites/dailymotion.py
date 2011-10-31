@@ -9,9 +9,14 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urlparse
 
-def check_dailymotion_video(host, path, query, url):
+def check_dailymotion_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'dailymotion', None, '', True, True
+
+    if not (host and path and query):
+        fragments = urlparse.urlsplit(url)
+        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
         search = False

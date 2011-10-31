@@ -283,7 +283,7 @@ def squid_part():
 
                 for website in o.websites:
                     if eval('o.enable_' + website + '_cache'):
-                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(host, path, query, url)')
+                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(url, host, path, query)')
                         if matched:
                             new_url = search_and_queue({ 'website_id' : website_id, 'video_id' : video_id, 'url' : url, 'format' : format, 'client_ip' : client_ip, 'search' : search, 'queue' : queue })
                             break

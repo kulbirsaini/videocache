@@ -9,9 +9,14 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urlparse
 
-def check_wrzuta_video(host, path, query, url):
+def check_wrzuta_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'wrzuta', None, '', True, True
+
+    if not (host and path and query):
+        fragments = urlparse.urlsplit(url)
+        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if host.find('c.wrzuta.pl') > -1:
         if re.compile('[a-z]a[0-9][0-9]?[0-9]?[0-9]?[0-9]?').search(path):
