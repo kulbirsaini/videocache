@@ -122,6 +122,12 @@ This option sets the minimum available free space in Mega Bytes that is left in 
 
 EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
+: **enable_store_log_monitoring**
+This option enables the monitoring of Squid's cache store log (store.log). Videocache will try to cache the videos permanently at a different location without using any upstream bandwidth. Enable this option to optimize videocache. Default : 1
+
+: **squid_store_log**
+Path to Squid's store.log determined by cache_store_log directive in Squid configuration file (squid.conf). Please make sure that you enable Squid's store log to optimize the caching capabilities of videocache. Note that videocache will use this file in read-only mode. Default : /var/log/squid/store.log
+
 : **enable_videocache**
 This option controls the global behavior of Videocache plugin. If it is 0, Videocache will stop caching or serving anything. This option's value can be either 0 or 1. Default: 1.
 

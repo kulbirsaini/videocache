@@ -65,6 +65,7 @@ class VideocacheConf:
     min_video_size = Option(0)
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
+    enable_store_log_monitoring = Option(1)
     squid_store_log = Option('/var/log/squid/store.log')
 
     # Filesystem

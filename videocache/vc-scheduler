@@ -492,7 +492,6 @@ def cache_remote_url(remote_url, target_file, params = {}):
     return True
 
 def cache_youtube_video(params):
-    mode = 0644
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -575,7 +574,7 @@ def cache_youtube_video(params):
             if cache_remote_url(video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
                 shutil.move(tmp_path, video_path)
-                os.chmod(video_path, mode)
+                os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
             else:
@@ -599,7 +598,6 @@ def cache_youtube_video(params):
     return
 
 def cache_dailymotion_video(params):
-    mode = 0644
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -664,7 +662,7 @@ def cache_dailymotion_video(params):
             if cache_remote_url(video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
                 shutil.move(tmp_path, video_path)
-                os.chmod(video_path, mode)
+                os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
             else:
@@ -690,7 +688,6 @@ def cache_dailymotion_video(params):
 def cache_megavideo_video(params):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
-    mode = 0644
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -714,7 +711,7 @@ def cache_megavideo_video(params):
                 if cache_remote_url(url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
                     shutil.move(tmp_path, video_path)
-                    os.chmod(video_path, mode)
+                    os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
                     return
@@ -729,7 +726,6 @@ def cache_megavideo_video(params):
 def cache_generalized(params):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
-    mode = 0644
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -754,7 +750,7 @@ def cache_generalized(params):
                 if cache_remote_url(url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
                     shutil.move(tmp_path, video_path)
-                    os.chmod(video_path, mode)
+                    os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
                     return
@@ -932,8 +928,24 @@ class ProcessTransientFile(pyinotify.ProcessEvent):
         if o.ssl_fo:
             line = o.ssl_fo.readline().strip()
             if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and line.find('video/') > 0:
-                (matched, website_id, video_id, format, search, queue) = check_youtube_video(line.split()[-1])
-                info({ 'code' : 'STORE_LOG_HIT', 'message' : '%s %s %s %s' % (matched, website_id, video_id, format) })
+                try:
+                    video_url = line.split()[-1]
+                    (matched, website_id, video_id, format, search, queue) = check_youtube_video(video_url)
+                    if matched:
+                        info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid\'s store.log matched.', 'website_id' : website_id, 'video_id' : video_id })
+                        filename = video_id + format
+                        tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
+                        video_path = os.path.join(video_pool.get_next_cache_dir(), website_id, filename)
+                        params = { 'website_id' : website_id, 'video_id' : video_id }
+                        if cache_remote_url(video_url, tmp_path, params):
+                            size = os.path.getsize(tmp_path)
+                            shutil.move(tmp_path, video_path)
+                            os.chmod(video_path, o.file_mode)
+                            os.utime(video_path, None)
+                            info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid\'s cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
+                except Exception, e:
+                    error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.' })
+                    trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
         else:
             self.reopen_file()
 
@@ -967,17 +979,17 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info)
-            store_log_watcher_thread = threading.Thread(target = watch_squid_store_log)
+            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_squid_store_log)
 
             server_thread.start()
             cache_thread.start()
             sysinfo_thread.start()
-            store_log_watcher_thread.start()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
 
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
-            store_log_watcher_thread.join()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
         except Exception, e:
             error( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) + '.' } )
             trace( { 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() } )

@@ -64,8 +64,10 @@ class VideocacheOptions:
             self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server
             self.__class__.video_server = mainconf.video_server
+            self.__class__.enable_store_log_monitoring = int(mainconf.enable_store_log_monitoring)
             self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.ssl_fo = None
+            self.__class__.file_mode = 0644
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
