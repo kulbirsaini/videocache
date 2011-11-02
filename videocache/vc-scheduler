@@ -578,6 +578,7 @@ def cache_youtube_video(params):
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
             else:
+                if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
         else:
             info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
@@ -666,6 +667,7 @@ def cache_dailymotion_video(params):
                 os.utime(video_path, None)
                 info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully.' } )
             else:
+                if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
         else:
             info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
@@ -715,6 +717,8 @@ def cache_megavideo_video(params):
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
                     return
+                else:
+                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
             else:
                 info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
             return
@@ -754,6 +758,8 @@ def cache_generalized(params):
                     os.utime(video_path, None)
                     info( { 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'size' : size, 'message' : 'Video was cached successfully. ' + str(size) } )
                     return
+                else:
+                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
             else:
                 info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip })
             return
@@ -943,6 +949,8 @@ class ProcessTransientFile(pyinotify.ProcessEvent):
                             os.chmod(video_path, o.file_mode)
                             os.utime(video_path, None)
                             info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid\'s cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
+                        elif os.path.isfile(tmp_path):
+                            os.unlink(tmp_path)
                 except Exception, e:
                     error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.' })
                     trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
