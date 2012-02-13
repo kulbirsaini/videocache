@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urllib2
 import urlparse
 
 def check_facebook_video(url, host = None, path = None, query = None):
@@ -20,7 +21,7 @@ def check_facebook_video(url, host = None, path = None, query = None):
 
     if re.compile('video\.(.*)\.fbcdn\.net').search(host) and (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
         try:
-            video_id = urllib.unquote(path).strip('/').split('/')[-1]
+            video_id = urllib2.unquote(path).strip('/').split('/')[-1]
         except Exception, e:
             pass
     else:

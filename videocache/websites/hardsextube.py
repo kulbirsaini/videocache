@@ -18,7 +18,7 @@ def check_hardsextube_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if re.compile('vs[a-z0-9]?[a-z0-9]?[a-z0-9]?\.hardsextube\.com').search(host) and re.compile('(.*)\/(.*)\.flv').search(path) and path.find('.flv') > -1:
+    if re.compile('vs[a-z0-9]?[a-z0-9]?[a-z0-9]?\.hardsextube\.com').search(host) and re.compile('(.*)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
             video_id = path.strip('/').split('/')[-1]
         except Exception, e:

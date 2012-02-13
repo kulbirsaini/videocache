@@ -65,6 +65,7 @@ class VideocacheConf:
     min_video_size = Option(0)
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
+    this_proxy = Option()
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('/var/log/squid/store.log')
 
@@ -161,9 +162,17 @@ class VideocacheConf:
     enable_vimeo_cache = Option(1)
     vimeo_cache_dir = Option('vimeo')
 
+    # Weather.com Specific Options
+    enable_weather_cache = Option(1)
+    weather_cache_dir = Option('weather')
+
     # Wrzuta.pl Specific Options
     enable_wrzuta_cache = Option(1)
     wrzuta_cache_dir = Option('wrzuta')
+
+    # Youku.com Specific Options
+    enable_youku_cache = Option(1)
+    youku_cache_dir = Option('youku')
 
     # Pr0n sites
     # Extremetube.com Specific Options

@@ -67,7 +67,7 @@ def check_youtube_video(url, host = None, path = None, query = None):
     if get_youtube_video_format_from_query(query) == 18: format = '_18.mp4'
 
     # Normal youtube videos in web browser
-    if (path.find('get_video') > -1 or path.find('watch') > -1 or path.find('watch_popup') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
+    if (path.find('get_video') > -1 or path.find('watch') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
         video_id = get_youtube_video_id_from_query(query)
         search = False
     # Embedded youtube videos

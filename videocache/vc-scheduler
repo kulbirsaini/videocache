@@ -10,6 +10,7 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
+from store import search_cache
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
 from vcsysinfo import *
@@ -433,10 +434,13 @@ def cache_remote_url(remote_url, target_file, params = {}):
     client_ip = params.get('client_ip', '-')
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
+    headers = params.get('headers', {})
+    proxy = params.get('proxy', o.proxy)
 
-    if o.proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
-    request = urllib2.Request(remote_url, None, o.std_headers)
+    if proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : proxy, 'https' : proxy, 'ftp' : proxy } )))
+    headers.update(o.std_headers)
+    request = urllib2.Request(remote_url, None, headers)
 
     try:
         connection = urllib2.urlopen(request)
@@ -498,13 +502,14 @@ def cache_youtube_video(params):
     format = params.get('format', '')
     urls = params.get('urls', [])
     cur_cache_dir = params.get('cur_cache_dir', None)
+    proxy = params.get('proxy', o.proxy)
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
-    if o.proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
+    if proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : proxy, 'https' : proxy, 'ftp' : proxy } )))
     request = urllib2.Request('http://www.youtube.com/watch?v=%s&gl=US&hl=en' % video_id, None, o.std_headers)
 
     try:
@@ -563,7 +568,7 @@ def cache_youtube_video(params):
         error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
         return
 
-    cache_dir = os.path.join(cur_cache_dir, website_id)
+    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, alternate_vid) + format
@@ -605,6 +610,7 @@ def cache_dailymotion_video(params):
     format = params.get('format', '')
     urls = params.get('urls', [])
     cur_cache_dir = params.get('cur_cache_dir', None)
+    proxy = params.get('proxy', o.proxy)
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
@@ -613,8 +619,8 @@ def cache_dailymotion_video(params):
     video_url = None
     alternate_vid = None
 
-    if o.proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : o.proxy, 'https' : o.proxy, 'ftp' : o.proxy } )))
+    if proxy:
+        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler( { 'http' : proxy, 'https' : proxy, 'ftp' : proxy } )))
 
     try:
         request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, o.std_headers)
@@ -652,7 +658,7 @@ def cache_dailymotion_video(params):
         error( { 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not determine video URL.' } )
         return
 
-    cache_dir = os.path.join(cur_cache_dir, website_id)
+    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
@@ -700,7 +706,7 @@ def cache_megavideo_video(params):
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
-    cache_dir = os.path.join(cur_cache_dir, website_id)
+    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
@@ -740,7 +746,7 @@ def cache_generalized(params):
         error( { 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : client_ip } )
         return
 
-    cache_dir = os.path.join(cur_cache_dir, website_id)
+    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
     video_path = os.path.join(cache_dir, video_id)
@@ -778,6 +784,7 @@ cache_metacafe_video = cache_generalized
 cache_myspace_video = cache_generalized
 cache_vimeo_video = cache_generalized
 cache_wrzuta_video = cache_generalized
+cache_youku_video = cache_generalized
 
 # Pr0n sites
 cache_extremetube_video = cache_generalized
@@ -931,31 +938,7 @@ class ProcessTransientFile(pyinotify.ProcessEvent):
         o.ssl_fo = None
 
     def process_IN_MODIFY(self, event):
-        if o.ssl_fo:
-            line = o.ssl_fo.readline().strip()
-            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and line.find('video/') > 0:
-                try:
-                    video_url = line.split()[-1]
-                    (matched, website_id, video_id, format, search, queue) = check_youtube_video(video_url)
-                    if matched:
-                        info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid\'s store.log matched.', 'website_id' : website_id, 'video_id' : video_id })
-                        filename = video_id + format
-                        tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
-                        video_path = os.path.join(video_pool.get_next_cache_dir(), website_id, filename)
-                        params = { 'website_id' : website_id, 'video_id' : video_id }
-                        if cache_remote_url(video_url, tmp_path, params):
-                            size = os.path.getsize(tmp_path)
-                            shutil.move(tmp_path, video_path)
-                            os.chmod(video_path, o.file_mode)
-                            os.utime(video_path, None)
-                            info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid\'s cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
-                        elif os.path.isfile(tmp_path):
-                            os.unlink(tmp_path)
-                except Exception, e:
-                    error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.' })
-                    trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
-        else:
-            self.reopen_file()
+        pass
 
     def process_IN_CREATE(self, event):
         self.reopen_file()
@@ -972,6 +955,62 @@ def watch_squid_store_log():
     wm.watch_transient_file(o.squid_store_log, pyinotify.IN_MODIFY, ProcessTransientFile)
     notifier.loop()
 
+def watch_file(file, interval = 5):
+    file.seek(0, os.SEEK_END)
+    while True:
+        where = file.tell()
+        line = file.readline()
+        if not line:
+            time.sleep(interval)
+            file.seek(where)
+        else:
+            yield line
+
+def watch_store_log():
+    if os.path.isfile(o.squid_store_log):
+        try:
+            for line in watch_file(open(o.squid_store_log), 1):
+                if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
+                    try:
+                        video_url = line.split()[-1]
+                        fragments = urlparse.urlsplit(video_url)
+                        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+                        dict = cgi.parse_qs(query)
+
+                        matched = False
+                        for website in o.websites:
+                            if eval('o.enable_' + website + '_cache'):
+                                (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(video_url, host, path, query)')
+                                if matched:
+                                    for video_seek_arg in o.arg_drop_list[website_id]:
+                                        if video_seek_arg in dict:
+                                            matched = False
+                                            break
+                                    break
+                        if matched:
+                            info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid store log matched.', 'website_id' : website_id, 'video_id' : video_id })
+                            if search_cache(o, website_id, video_id, format):
+                                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists in one of the cache directories.', 'website_id' : website_id, 'video_id' : video_id })
+                            else:
+                                filename = video_id + format
+                                tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
+                                video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
+                                params = { 'website_id' : website_id, 'video_id' : video_id, 'headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
+                                if cache_remote_url(video_url, tmp_path, params):
+                                    size = os.path.getsize(tmp_path)
+                                    shutil.move(tmp_path, video_path)
+                                    os.chmod(video_path, o.file_mode)
+                                    os.utime(video_path, None)
+                                    info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid disk cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
+                                elif os.path.isfile(tmp_path):
+                                    os.unlink(tmp_path)
+                    except Exception, e:
+                        error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
+                        trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
+        except Exception, e:
+            error({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
+            trace({ 'code' : STORE_LOG_READ_ERR, 'message' : traceback.format_exc() })
+
 class VideoPoolDaemon(VideocacheDaemon):
 
     def __init__(self, o = None, **kwargs):
@@ -987,7 +1026,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info)
-            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_squid_store_log)
+            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
 
             server_thread.start()
             cache_thread.start()

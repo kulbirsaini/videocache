@@ -199,7 +199,7 @@ def get_cached_url(website_id, video_id, format, client_ip = '-'):
                     index = o.base_dirs[website_id].index(dir)
                 else:
                     index = ''
-                cached_url = os.path.join(o.cache_url, 'videocache', str(index), website_id)
+                cached_url = os.path.join(o.cache_url, 'videocache', str(index), o.website_cache_dir[website_id])
                 url = os.path.join(cached_url, urllib.quote(video_id)) + format
                 new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
                 info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )

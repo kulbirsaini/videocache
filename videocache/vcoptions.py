@@ -28,10 +28,10 @@ class VideocacheOptions:
         self.root = root
         self.youtube_format = { '240p' : [5], '360p' : [34, 18, 43], '480p' : [35], '720p' : [22, 45], '1080p' : [37], '3072p' : [38] }
         self.youtube_format_order = [ '240p', '360p', '480p', '720p', '1080p', '3072p' ]
-        self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'wrzuta', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
+        self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        self.arg_drop_list = {'youtube': [], 'aol': [], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'wrzuta': [], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
+        self.arg_drop_list = {'youtube': ['range', 'noflv'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
         return self.initialize()
 
     def initialize(self):
@@ -64,6 +64,7 @@ class VideocacheOptions:
             self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server
             self.__class__.video_server = mainconf.video_server
+            self.__class__.this_proxy = mainconf.this_proxy
             self.__class__.enable_store_log_monitoring = int(mainconf.enable_store_log_monitoring)
             self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.ssl_fo = None
@@ -127,6 +128,9 @@ class VideocacheOptions:
             [self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
             self.__class__.youtube_video_formats.reverse()
             self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
+            self.__class__.website_cache_dir = {}
+            for website_id in self.websites:
+                self.__class__.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
