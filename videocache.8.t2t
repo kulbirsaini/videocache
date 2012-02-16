@@ -122,6 +122,12 @@ This option sets the minimum available free space in Mega Bytes that is left in 
 
 EXAMPLE: If disk_avail_threshold = 200, Videocache will stop caching videos in a cache directory if the free space available in that cache directory is less than 200 Mega Bytes.
 
+: **disk_cleanup_strategy**
+When all the cache directories are full, Videocache needs to remove old/unused videos to make space for the new ones. This option defines Videocache's strategy to delete videos which are not used anymore. Have a look at the available strategies below and set one appropriately. Default: 1
+
+- 1 : Delete videos which were least recently used. (preserves videos with most hits)
+- 2 : Delete videos which are larger in size. (frees maximum disk space)
+
 : **enable_store_log_monitoring**
 This option enables the monitoring of Squid's cache store log (store.log). Videocache will try to cache the videos permanently at a different location without using any upstream bandwidth. Enable this option to optimize videocache. Default : 1
 
@@ -184,13 +190,6 @@ The video of size less than //min_video_size// (MegaBytes) will not be cached. D
 
 : **scheduler_pidfile**
 The //scheduler_logfile// option can be used to specify the location of a file which will be used to track process ID of the currently running Videocache scheduler. Default: ///var/run/videocache.pid//.
-
-: **enable_videocache_cleaner**
-Enables the Videocache cleaner script which will remove videos from cache which have not been used since long. The value of this option can be 0 or 1. Default: 1.
-
-: **video_lifetime**
-The maximum life of a video in cache without being used. If the video was not accessed for more than //video_lifetime// days, it'll be removed from the cache. The unit of video_lifetime is days. Default: 30.
-``` Example : video_lifetime = 15 will remove videos which were not used since last 15 or more days.
 
 : **logformat, scheduler_logformat, cleaner_logformat**
 Logformat allows you to get log messages in your preferred format. The //logformat//, //scheduler_logformat//, //cleaner_logformat// are applicable to main Videocache log, scheduler log and cleaner log respectively. Use the format codes described below.

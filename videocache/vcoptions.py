@@ -32,6 +32,9 @@ class VideocacheOptions:
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
         self.arg_drop_list = {'youtube': ['range', 'noflv'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
+
+        self.CLEANUP_LRU = 1
+        self.CLEANUP_MAX_SIZE = 2
         return self.initialize()
 
     def initialize(self):
@@ -50,8 +53,6 @@ class VideocacheOptions:
             self.__class__.version = '1.9.9'
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
-            self.__class__.enable_videocache_cleaner = int(mainconf.enable_videocache_cleaner)
-            self.__class__.video_lifetime = int(mainconf.video_lifetime)
             self.__class__.offline_mode = int(mainconf.offline_mode)
             self.__class__.videocache_user = mainconf.videocache_user
             self.__class__.videocache_group = mainconf.videocache_group
@@ -75,6 +76,8 @@ class VideocacheOptions:
             self.__class__.temp_dir = mainconf.temp_dir
             self.__class__.base_dir_selection = int(mainconf.base_dir_selection)
             self.__class__.disk_avail_threshold = int(mainconf.disk_avail_threshold)
+            self.__class__.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
+            self.__class__.cache_dir_filelist_rebuild_interval = int(mainconf.cache_dir_filelist_rebuild_interval)
 
             # Logging
             self.__class__.logdir = mainconf.logdir

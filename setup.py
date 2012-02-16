@@ -104,7 +104,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
 
     try:
         src_vc_update = os.path.join(install_dir, 'vc-update')
-        src_vc_cleaner = os.path.join(install_dir, 'vc-cleaner')
         src_vc_scheduler = os.path.join(install_dir, 'vc-scheduler')
         dst_vc_update = os.path.join(usr_sbin_dir, 'vc-update')
         dst_vc_cleaner = os.path.join(usr_sbin_dir, 'vc-cleaner')
@@ -117,9 +116,7 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
         if os.path.islink(dst_vc_cleaner_cron) or os.path.isfile(dst_vc_cleaner_cron): os.unlink(dst_vc_cleaner_cron)
 
         os.symlink(src_vc_update, dst_vc_update)
-        os.symlink(src_vc_cleaner, dst_vc_cleaner)
         os.symlink(src_vc_scheduler, dst_vc_scheduler)
-        os.symlink(src_vc_cleaner, dst_vc_cleaner_cron)
     except Exception, e:
         log_traceback()
         setup_error('install')

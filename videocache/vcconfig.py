@@ -57,8 +57,6 @@ class VideocacheConf:
     enable_videocache = Option(1)
     offline_mode = Option(0)
     videocache_user = Option('squid')
-    enable_videocache_cleaner = Option(1)
-    video_lifetime = Option(30)
     max_cache_processes = Option(10)
     hit_threshold = Option(1)
     max_video_size = Option(0)
@@ -74,6 +72,8 @@ class VideocacheConf:
     temp_dir = Option('tmp')
     base_dir_selection = Option(2)
     disk_avail_threshold = Option(15000)
+    disk_cleanup_strategy = Option(1)
+    cache_dir_filelist_rebuild_interval = Option(86400)
 
     # Logging
     logdir = Option('/var/log/videocache/')
