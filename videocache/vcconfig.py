@@ -65,7 +65,7 @@ class VideocacheConf:
     max_cache_queue_size = Option(200000)
     this_proxy = Option()
     enable_store_log_monitoring = Option(1)
-    squid_store_log = Option('/var/log/squid/store.log')
+    squid_store_log = Option()
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')

@@ -59,7 +59,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     var_dir = os.path.dirname(o.scheduler_pidfile)
     man_dir = apply_install_root(root, '/usr/share/man/man8/')
-    cron_dir = apply_install_root(root, '/etc/cron.daily/')
     init_dir = apply_install_root(root, '/etc/init.d/')
 
     if apache_conf_dir:
@@ -67,7 +66,7 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
         if not create_or_update_dir(apache_conf_dir, None, 0755, quiet):
             setup_error('update')
 
-    for dir in [install_dir, etc_dir, usr_sbin_dir, var_dir, man_dir, cron_dir, init_dir]:
+    for dir in [install_dir, etc_dir, usr_sbin_dir, var_dir, man_dir, init_dir]:
         if not create_or_update_dir(dir, None, 0755, quiet): setup_error('update')
 
     for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):

@@ -970,6 +970,16 @@ def watch_squid_store_log():
     wm.watch_transient_file(o.squid_store_log, pyinotify.IN_MODIFY, ProcessTransientFile)
     notifier.loop()
 
+def is_cached(video_url):
+    try:
+        urllib2.install_opener( urllib2.build_opener( urllib2.ProxyHandler ({ 'http': o.this_proxy })))
+        request = urllib2.Request(url = video_url, headers = { 'Cache-Control': 'only-if-cached' })
+        if urllib2.urlopen( request ).getcode() == 200:
+            return True
+    except Exception, e:
+        pass
+    return False
+
 def watch_file(file, interval = 5):
     file.seek(0, os.SEEK_END)
     while True:
@@ -982,49 +992,63 @@ def watch_file(file, interval = 5):
             yield line
 
 def watch_store_log():
-    if os.path.isfile(o.squid_store_log):
-        try:
-            for line in watch_file(open(o.squid_store_log), 1):
-                if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
-                    try:
-                        video_url = line.split()[-1]
-                        fragments = urlparse.urlsplit(video_url)
-                        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
-                        dict = cgi.parse_qs(query)
+    if not o.this_proxy:
+        warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
+        return
 
-                        matched = False
-                        for website in o.websites:
-                            if eval('o.enable_' + website + '_cache'):
-                                (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(video_url, host, path, query)')
-                                if matched:
-                                    for video_seek_arg in o.arg_drop_list[website_id]:
-                                        if video_seek_arg in dict:
-                                            matched = False
-                                            break
-                                    break
-                        if matched:
-                            info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid store log matched.', 'website_id' : website_id, 'video_id' : video_id })
-                            if search_cache(o, website_id, video_id, format):
-                                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists in one of the cache directories.', 'website_id' : website_id, 'video_id' : video_id })
+    if not os.path.isfile(o.squid_store_log):
+        warn({ 'code' : STORE_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid\'s store.log file. Please set option squid_store_log option correctly in /etc/videocache.conf and restart vc-scheduler.' })
+        return
+
+    info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
+    try:
+        for line in watch_file(open(o.squid_store_log), 1):
+            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
+                try:
+                    video_url = line.split()[-1]
+                    fragments = urlparse.urlsplit(video_url)
+                    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+                    dict = cgi.parse_qs(query)
+
+                    matched = False
+                    for website in o.websites:
+                        if eval('o.enable_' + website + '_cache'):
+                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(video_url, host, path, query)')
+                            if matched:
+                                for video_seek_arg in o.arg_drop_list[website_id]:
+                                    if video_seek_arg in dict:
+                                        matched = False
+                                        break
+                                break
+
+                    if matched:
+                        info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid store log matched.', 'website_id' : website_id, 'video_id' : video_id })
+                        if search_cache(o, website_id, video_id, format):
+                            info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists in one of the cache directories.', 'website_id' : website_id, 'video_id' : video_id })
+                        else:
+                            if is_cached(video_url):
+                                info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMED' })
                             else:
-                                filename = video_id + format
-                                tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
-                                video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
-                                params = { 'website_id' : website_id, 'video_id' : video_id, 'headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
-                                if cache_remote_url(video_url, tmp_path, params):
-                                    size = os.path.getsize(tmp_path)
-                                    shutil.move(tmp_path, video_path)
-                                    os.chmod(video_path, o.file_mode)
-                                    os.utime(video_path, None)
-                                    info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid disk cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
-                                elif os.path.isfile(tmp_path):
-                                    os.unlink(tmp_path)
-                    except Exception, e:
-                        error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-                        trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
-        except Exception, e:
-            error({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
-            trace({ 'code' : STORE_LOG_READ_ERR, 'message' : traceback.format_exc() })
+                                info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMATION_FAILED' })
+                                continue
+                            filename = video_id + format
+                            tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
+                            video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
+                            params = { 'website_id' : website_id, 'video_id' : video_id, 'headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
+                            if cache_remote_url(video_url, tmp_path, params):
+                                size = os.path.getsize(tmp_path)
+                                shutil.move(tmp_path, video_path)
+                                os.chmod(video_path, o.file_mode)
+                                os.utime(video_path, None)
+                                info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid disk cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
+                            elif os.path.isfile(tmp_path):
+                                os.unlink(tmp_path)
+                except Exception, e:
+                    error({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
+                    trace({ 'code' : STORE_LOG_CACHE_ERR, 'message' : traceback.format_exc() })
+    except Exception, e:
+        error({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
+        trace({ 'code' : STORE_LOG_READ_ERR, 'message' : traceback.format_exc() })
 
 def rebuild_cache_dir_filelist(dir, now = False):
     global cache_dir_data

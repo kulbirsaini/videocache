@@ -21,7 +21,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
 
 1. Requirements
 ===============
-  a. squid >= 2.6
+  a. squid >= 2.6.STABLE21
   b. python >= 2.4.3
   c. python-iniparse
   d. Apache (httpd) or any other Web Server
@@ -71,11 +71,12 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   =====================
     Assuming you have installed squid. The following configurations are required
     to get videocache running. Users new to Squid are instructed to stick with default
-    configuration as much as possible otherwise you'll may face unexpected problems.
+    configuration as much as possible otherwise you may face unexpected problems.
 
     Depending on your version of Squid, open the file vc_squid_x.conf shipped with the
     software bundle and copy the contents to your Squid configuration file generally
-    located at /etc/squid/squid.conf.
+    located at /etc/squid/squid.conf. Please paste the contents at the top of your
+    Squid configuration file.
 
     For Squid version 2.x, use the file vc_squid_2.conf and for Squid version 3.x, use
     the file vc_squid_3.conf.

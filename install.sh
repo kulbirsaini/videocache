@@ -143,16 +143,12 @@ install_videocache() {
 check_apache_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
-    if [[ -d /etc/apache2/conf.d/ ]]; then
-      green 'Installed'; echo
-      return 0
-    elif [[ -d /etc/apache/conf.d/ ]]; then
-      green 'Installed'; echo
-      return 0
-    elif [[ -d /etc/httpd/conf.d/ ]]; then
-      green 'Installed'; echo
-      return 0
-    fi
+    for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/; do
+      if [[ -d $config_dir ]]; then
+        green 'Installed'; echo
+        return 0
+      fi
+    done
   fi
   return 1
 }
@@ -167,6 +163,32 @@ check_apache() {
   done
   red 'Missing'; echo
   echo; red 'Download and install apache from http://www.apache.org/ or check your operating system manual for installing the same.'; echo
+  exit 1
+}
+
+check_squid_with_conf_dir() {
+  which $1 > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    for config_file in /etc/squid/squid.conf /etc/squid3/squid.conf /usr/local/etc/squid/squid.conf /usr/local/squid/etc/squid.conf /usr/local/squid3/etc/squid.conf; do
+      if [[ -f $config_file ]]; then
+        green 'Installed'; echo
+        return 0
+      fi
+    done
+  fi
+  return 1
+}
+
+check_squid() {
+  message_with_padding "Checking squid"
+  for command in squid squid3 /usr/local/sbin/squid /usr/local/sbin/squid3 /usr/local/squid/sbin/squid /usr/local/squid3/sbin/squid; do
+    check_squid_with_conf_dir $command
+    if [[ $? == 0 ]]; then
+      return 0
+    fi
+  done
+  red 'Missing'; echo
+  echo; red 'Download and install squid from http://www.squid-cache.org/ or check your operating system manual for installing the same.'; echo
   exit 1
 }
 
@@ -189,6 +211,7 @@ check_dependencies() {
   check_command wget 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
   check_command tar 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
   check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
+  check_squid
   check_apache
 }
 

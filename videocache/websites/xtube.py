@@ -18,7 +18,7 @@ def check_xtube_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (path.find('.mp4') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1) and path.find('Thumb') < 0 and path.find('av_preview') < 0 and re.compile('\.xtube\.com').search(host):
+    if host.find('.xtube.com') > -1 and path.find('Thumb') < 0 and path.find('av_preview') < 0 and re.compile('(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
             video_id = path.strip('/').split('/')[-1]
         except Exception, e:

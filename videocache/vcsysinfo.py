@@ -76,7 +76,7 @@ def get_interface_details():
 
 def get_ip_addresses():
     cmd = 'ifconfig'
-    ip_regex = re.compile('((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))', re.I)
+    ip_regex = re.compile('(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))', re.I)
 
     for path in ['/sbin/', '', '/bin/']:
         command = os.path.join(path, cmd)
@@ -95,7 +95,7 @@ def get_ip_addresses():
 
 def get_mac_addresses():
     cmd = 'ifconfig'
-    mac_regex = re.compile('(hwaddr|ether).*([0-9A-Fa-f][0-9A-Fa-f]:[0-9A-Fa-f][0-9A-Fa-f]:[0-9A-Fa-f][0-9A-Fa-f]:[0-9A-Fa-f][0-9A-Fa-f]:[0-9A-Fa-f][0-9A-Fa-f]:[0-9A-Fa-f][0-9A-Fa-f])', re.I)
+    mac_regex = re.compile('(hwaddr|ether).*(([0-9A-F]{2}:){5}[0-9A-F]{2})', re.I)
     for path in ['/sbin/', '', '/bin/']:
         command = os.path.join(path, cmd)
         try:

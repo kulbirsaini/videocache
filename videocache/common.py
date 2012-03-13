@@ -13,6 +13,7 @@ from fsop import *
 import cgi
 import os
 import pwd
+import re
 import socket
 import sys
 import syslog
@@ -46,6 +47,12 @@ def is_ascii(string):
         return True
     except Exception, e:
         return False
+
+def is_ip_address(string):
+    return re.compile('^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$').match(string)
+
+def is_mac_address(string):
+    return re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I).search(string)
 
 # Videocache setup/update specific functions
 def print_message_and_abort(message):
