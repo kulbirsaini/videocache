@@ -10,6 +10,7 @@ __docformat__ = 'plaintext'
 
 import cgi
 import re
+import urllib2
 import urlparse
 
 def check_megavideo_video(url, host = None, path = None, query = None):
@@ -22,7 +23,8 @@ def check_megavideo_video(url, host = None, path = None, query = None):
     if host.find('megavideo.com') > -1:
         try:
             dict = cgi.parse_qs(query)
-            video_id = dict.get('v', None)
+            video_id = urllib2.quote(dict.get('v', ''))
+            if video_id == '': video_id = None
         except Exception, e:
             pass
     else:

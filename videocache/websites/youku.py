@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urllib2
 import urlparse
 
 def check_youku_video(url, host = None, path = None, query = None):
@@ -20,7 +21,7 @@ def check_youku_video(url, host = None, path = None, query = None):
 
     if re.compile('^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$').match(host) and re.compile('youku\/[0-9A-Z]+\/[0-9A-Z\-]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
-            video_id = path.strip('/').split('/')[-1]
+            video_id = urllib2.quote(path.strip('/').split('/')[-1])
         except Exception, e:
             pass
     else:

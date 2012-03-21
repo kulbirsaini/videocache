@@ -184,36 +184,25 @@ def add_video_to_local_pool(video_id, params):
         local_video_pool[video_id] = [params]
     thread_pool.release()
 
-def get_cached_url(website_id, video_id, format, client_ip = '-'):
-    for dir in o.base_dirs[website_id]:
-        video_path = os.path.join(dir, video_id) + format
-        if os.path.isfile(video_path):
-            try:
-                size = os.path.getsize(video_path)
-            except:
-                size = '-'
-
-            try:
-                os.utime(video_path, None)
-                if len(o.base_dirs[website_id]) > 1:
-                    index = o.base_dirs[website_id].index(dir)
-                else:
-                    index = ''
-                cached_url = os.path.join(o.cache_url, 'videocache', str(index), o.website_cache_dir[website_id])
-                url = os.path.join(cached_url, urllib.quote(video_id)) + format
-                new_url = o.redirect_code + ':' + refine_url(url, ['noflv'])
-                info( { 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url } )
-                return new_url
-            except Exception, e:
-                warn( { 'code' : VIDEO_SEARCH_WARN, 'message' : 'Could not search video in local cache directory ' + video_path + ' .', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
-                trace( { 'code' : VIDEO_SEARCH_WARN, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
-
-    info( { 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' } )
-    return ''
-
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     warn( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
     trace( { 'code' : VIDEO_ID_ENCODING, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+
+def search_generalized(o, video_id, website_id, format):
+    found, dir, size, index, cached_url = False, '', '-', '', ''
+    filename = video_id + format
+    for dir in o.base_dirs[website_id]:
+        try:
+            video_path = os.path.join(dir, filename)
+            if os.path.isfile(video_path):
+                size = os.path.getsize(video_path)
+                os.utime(video_path, None)
+                if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
+                cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
+                return (True, filename, dir, size, index, cached_url)
+        except Exception, e:
+            continue
+    return (False, filename, dir, size, index, cached_url)
 
 def search_and_queue(params):
     client_ip = params.get('client_ip', '-')
@@ -236,17 +225,17 @@ def search_and_queue(params):
 
     video_id = urllib.unquote(video_id)
     if search:
-        cached_url = get_cached_url(website_id, video_id, format, client_ip)
+        (found, filename, dir, size, index, cached_url) = eval('search_' + website_id + '_video(o, video_id, website_id, format)')
+        if cached_url == '':
+            info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
+        else:
+            info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + cached_url })
 
     if cached_url == '' and queue:
         add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
     return cached_url
 
 def squid_part():
-    # Import website functions
-    for website in o.websites:
-        exec('from websites.' + website + ' import *')
-
     global exit
     input = sys.stdin.readline()
     while input:
@@ -281,9 +270,9 @@ def squid_part():
             if not skip and o.enable_videocache:
                 matched = False
 
-                for website in o.websites:
-                    if eval('o.enable_' + website + '_cache'):
-                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(url, host, path, query)')
+                for website_id in o.websites:
+                    if eval('o.enable_' + website_id + '_cache'):
+                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(url, host, path, query)')
                         if matched:
                             new_url = search_and_queue({ 'website_id' : website_id, 'video_id' : video_id, 'url' : url, 'format' : format, 'client_ip' : client_ip, 'search' : search, 'queue' : queue })
                             break
@@ -332,6 +321,11 @@ if __name__ == '__main__':
         warn( { 'code' : CACHE_HOST_WARN, 'message' : 'The option cache_host is set to 127.0.0.1. Videocache will be able to serve videos only to localhost. Please set it to the private/public IP address of the server and restart/reload Squid daemon' } )
 
     info( { 'code' : VIDEOCACHE_START, 'message' : 'Starting Videocache.' } )
+
+    # Import website functions
+    for website_id in o.websites:
+        exec('search_' + website_id + '_video = search_generalized')
+        exec('from websites.' + website_id + ' import *')
 
     try:
         squid = threading.Thread(target = squid_part)

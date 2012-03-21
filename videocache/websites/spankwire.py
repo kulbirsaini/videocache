@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urllib2
 import urlparse
 
 def check_spankwire_video(url, host = None, path = None, query = None):
@@ -20,7 +21,7 @@ def check_spankwire_video(url, host = None, path = None, query = None):
 
     if (re.compile('cdn[a-z0-9]?[a-z0-9]?[a-z0-9]?\.public\.spankwire\.phncdn\.com').search(host) or re.compile('cdn[a-z0-9]?[a-z0-9]?[a-z0-9]?\.public\.spankwire\.com').search(host)) and re.compile('(.*)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
-            video_id = path.strip('/').split('/')[-1]
+            video_id = urllib2.quote(path.strip('/').split('/')[-1])
         except Exception, e:
             pass
     else:

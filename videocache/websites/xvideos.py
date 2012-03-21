@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urllib2
 import urlparse
 
 def check_xvideos_video(url, host = None, path = None, query = None):
@@ -20,7 +21,7 @@ def check_xvideos_video(url, host = None, path = None, query = None):
 
     if re.compile('porn[a-z0-9][a-z0-9]?[a-z0-9]?[a-z0-9]?\.xvideos\.com').search(host) and re.compile('videos\/flv\/(.*)\/(.*)\.(flv|mp4)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
         try:
-            video_id = path.strip('/').split('/')[-1].split('_')[-1]
+            video_id = urllib2.quote(path.strip('/').split('/')[-1].split('_')[-1])
         except Exception, e:
             pass
     else:

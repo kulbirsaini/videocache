@@ -26,8 +26,33 @@ class VideocacheOptions:
     def __init__(self, config_file = '/etc/videocache.conf', root = '/'):
         self.config_file = config_file
         self.root = root
-        self.youtube_format = { '240p' : [5], '360p' : [34, 18, 43], '480p' : [35], '720p' : [22, 45], '1080p' : [37], '3072p' : [38] }
-        self.youtube_format_order = [ '240p', '360p', '480p', '720p', '1080p', '3072p' ]
+
+        self.youtube_format_order = ['144p', '224p', '270p', '360p', '480p', '720p', '520p', '540p', '1080p', '2304p']
+        self.youtube_format_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
+        self.youtube_formats = {
+            '5'   : {'res': '224p',  'ext': '',      'cat': 'regular'},
+            '6'   : {'res': '270p',  'ext': '',      'cat': 'regular'},
+            '13'  : {'res': '144p',  'ext': '.3gp',  'cat': '3gp'},
+            '17'  : {'res': '144p',  'ext': '.3gp',  'cat': '3gp'},
+            '18'  : {'res': '360p',  'ext': '.mp4',  'cat': 'mobile'},
+            '34'  : {'res': '360p',  'ext': '',      'cat': 'regular'},
+            '35'  : {'res': '480p',  'ext': '',      'cat': 'regular'},
+            '22'  : {'res': '720p',  'ext': '',      'cat': 'regular'},
+            '37'  : {'res': '1080p', 'ext': '',      'cat': 'regular'},
+            '38'  : {'res': '2304p', 'ext': '',      'cat': 'regular'},
+            '83'  : {'res': '240p',  'ext': '',      'cat': 'regular_3d'},
+            '82'  : {'res': '360p',  'ext': '',      'cat': 'regular_3d'},
+            '85'  : {'res': '520p',  'ext': '',      'cat': 'regular_3d'},
+            '84'  : {'res': '720p',  'ext': '',      'cat': 'regular_3d'},
+            '43'  : {'res': '360p',  'ext': '.webm', 'cat': 'webm'},
+            '44'  : {'res': '480p',  'ext': '.webm', 'cat': 'webm'},
+            '45'  : {'res': '720p',  'ext': '.webm', 'cat': 'webm'},
+            '46'  : {'res': '1080p', 'ext': '.webm', 'cat': 'webm'},
+            '100' : {'res': '360p',  'ext': '.webm', 'cat': 'webm_3d'},
+            '101' : {'res': '480p',  'ext': '.webm', 'cat': 'webm_3d'},
+            '102' : {'res': '720p',  'ext': '.webm', 'cat': 'webm_3d'},
+        }
+
         self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
@@ -126,14 +151,19 @@ class VideocacheOptions:
         # Website specific options
         try:
             [ (setattr(self.__class__, 'enable_' + website_id + '_cache', int(eval('mainconf.enable_' + website_id + '_cache'))), setattr(self.__class__, website_id + '_cache_dir', eval('mainconf.' + website_id + '_cache_dir'))) for website_id in self.websites ]
-            valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.max_youtube_video_quality) + 1]
-            self.__class__.youtube_video_formats = []
-            [self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
-            self.__class__.youtube_video_formats.reverse()
-            self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
+
             self.__class__.website_cache_dir = {}
             for website_id in self.websites:
                 self.__class__.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
+
+            #BEGIN -- YouTube
+            #valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.max_youtube_video_quality) + 1]
+            #self.__class__.youtube_video_formats = []
+            #[self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
+            #self.__class__.youtube_video_formats.reverse()
+            self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
+            self.__class__.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
+            #END -- YouTube
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
@@ -150,6 +180,7 @@ class VideocacheOptions:
             return None
 
         try:
+            self.__class__.cache_alias = 'videocache'
             self.__class__.cache_url = 'http://' + self.__class__.cache_host + '/'
             cache_host_parts = self.__class__.cache_host.split(':')
             if len(cache_host_parts) == 1:

@@ -54,6 +54,23 @@ def is_ip_address(string):
 def is_mac_address(string):
     return re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I).search(string)
 
+def max_or_empty(sequence):
+    if len(sequence) == 0:
+        return sequence.__class__()
+    else:
+        return max(sequence)
+
+def min_or_empty(sequence):
+    if len(sequence) == 0:
+        return sequence.__class__()
+    else:
+        return min(sequence)
+
+# Extending urllib2 to support HTTP HEAD requests.
+class HeadRequest(urllib2.Request):
+    def get_method(self):
+        return 'HEAD'
+
 # Videocache setup/update specific functions
 def print_message_and_abort(message):
     sys.stderr.write(message)
@@ -90,7 +107,10 @@ def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
   Order Allow,Deny
   Allow from all
   <IfModule mod_headers.c>
-    Header add Videocache "1.9.9"
+    Header add Videocache "2.0.0"
+  </IfModule>
+  <IfModule mod_mime.c>
+    AddType video/webm .webm
   </IfModule>
 </Directory>\n"""
 

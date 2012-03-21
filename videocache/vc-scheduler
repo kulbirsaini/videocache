@@ -91,12 +91,6 @@ def connection():
             trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
 
 class VideoPool:
-    scores = {}
-    queue = {}
-    active = {}
-    scores_pq = []
-    scores_changed = True
-    last_scores_rebuild = 0
     scores_rebuild_threshold = 120
     systems = []
     hit_time_threshold = 15
@@ -106,12 +100,27 @@ class VideoPool:
     disk_space_last_update = 0
     disk_space_update_threshold = 300
     last_used_dir = 0
-    last_sync = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
 
+    # To be scoped
+    scores = {} # scores = { 'youtube' : { 'video_id' : score }, ... }
+    queue = {} # queue = { 'youtube' : { 'video_id' : { 'url' : url }, ... }, ... }
+    active = {} # active = { 'youtube' : { 'video_id' : thread }, ... }
+    scores_pq = {} # scores_pq = { 'youtube' : [ (score, 'video_id'), ... ], ... }
+    scores_changed = {} # scores_changed = { 'youtube' : True, ... }
+    last_scores_rebuild = {} # last_scores_rebuild = { 'youtube' : time, ... }
+    last_sync = {} # last_sync = { 'youtube' : time, ... }
+
     def __init__(self):
-        pass
+        for website_id in o.websites:
+            self.scores[website_id] = {}
+            self.queue[website_id] = {}
+            self.active[website_id] = {}
+            self.scores_pq[website_id] = []
+            self.scores_changed[website_id] = True
+            self.last_scores_rebuild[website_id] = 0
+            self.last_sync[website_id] = 0
 
     def ping(self):
         return True
@@ -145,7 +154,8 @@ class VideoPool:
         return False
 
     def dump_queue(self, now = False):
-        if now or int(time.time() - self.last_dump) > self.dump_threshold:
+        if now or (self.queue_changed_after_dump() and time.time() - self.last_dump > self.dump_threshold):
+            info({ 'code' : 'QUEUE_DUMPED' })
             self.last_dump = time.time()
             queue_dump_string = pickle.dumps([self.scores, self.queue])
             for dir in o.base_dir_list:
@@ -156,6 +166,11 @@ class VideoPool:
                     warn( { 'code' : QUEUE_DUMP_WARN, 'message' : 'Unable to dump video queue to dump file at ' + queue_file + '.', 'debug' : str(e) } )
                     trace( { 'code' : QUEUE_DUMP_WARN, 'message' : traceback.format_exc() } )
         return True
+
+    def queue_changed_after_dump(self):
+        for website_id in o.websites:
+            if self.scores_changed[website_id] or self.last_scores_rebuild[website_id] > self.last_dump: return True
+        return False
 
     def add_videos(self, videos = {}):
         info( { 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' } )
@@ -170,138 +185,185 @@ class VideoPool:
         return True
 
     def add_video(self, video_id, params):
-        if video_id not in self.queue:
-            self.queue[video_id] = params
-            self.scores[video_id] = 1
+        website_id = params['website_id']
+        if video_id not in self.queue[website_id]:
+            self.queue[website_id][video_id] = params
+            self.set_score(video_id, website_id, 1)
         else:
-            old_data = self.queue[video_id]
+            old_data = self.queue[website_id][video_id]
             try:
                 if params['client_ip'] == old_data['client_ip'] and (int(params['access_time']) - int(old_data['access_time'])) > self.hit_time_threshold:
-                    self.inc_score(video_id)
-                    self.queue[video_id].update( { 'access_time' : params['access_time'] } )
+                    self.inc_score(video_id, website_id)
+                    self.queue[website_id][video_id].update( { 'access_time' : params['access_time'] } )
             except Exception, e:
-                self.inc_score(video_id)
+                self.inc_score(video_id, website_id)
         return True
 
     def trim_queue(self):
-        videos_in_queue = len(self.scores)
+        videos_in_queue = self.get_queue_length()
         if videos_in_queue - o.max_cache_queue_size >= 0:
             self.remove_least_popular(videos_in_queue - o.max_cache_queue_size + 1)
+        return True
 
-    def sync_queue(self, sync_now = False):
-        if sync_now or (time.time() - self.last_sync) > self.sync_threshold:
-            self.sync_lock.acquire()
-            time.sleep(3)
-            new_queue = {}
-            for video_id in self.scores.keys():
-                if video_id in self.queue:
-                    new_queue[video_id] = self.queue[video_id]
-            self.queue = new_queue
-            self.sync_lock.release()
-            self.last_sync = time.time()
+    def sync_queue(self, website_id = None, sync_now = False):
+        if website_id:
+            if sync_now or (time.time() - self.last_sync[website_id]) > self.sync_threshold:
+                self.sync_lock.acquire()
+                new_queue = {}
+                for video_id in self.scores[website_id].keys():
+                    if video_id in self.queue[website_id]:
+                        new_queue[video_id] = self.queue[website_id][video_id]
+                self.queue[website_id] = new_queue
+                self.last_sync[website_id] = time.time()
+                self.sync_lock.release()
+        else:
+            [self.sync_queue(web_id, sync_now) for web_id in o.websites]
+        return True
 
-    def rebuild_scores_pq(self, rebuild_scores_now = False):
-        if self.scores_changed and (rebuild_scores_now or time.time() - self.last_scores_rebuild > self.scores_rebuild_threshold):
-            self.scores_changed = False
-            self.scores_pq = [(v,k) for k,v in self.scores.items()]
-            heapq.heapify(self.scores_pq)
-            self.last_scores_rebuild = time.time()
+    def rebuild_scores_pq(self, website_id = None, rebuild_scores_now = False):
+        if website_id:
+            #FIXME AND vs OR when to rebuild scores priority queue
+            #if self.scores_changed[website_id] and (rebuild_scores_now or time.time() - self.last_scores_rebuild[website_id] > self.scores_rebuild_threshold):
+            #FIXME rebuilding scores makes sense only if they have changed.
+            #if self.scores_changed[website_id] or (rebuild_scores_now or time.time() - self.last_scores_rebuild[website_id] > self.scores_rebuild_threshold):
+            if rebuild_scores_now or self.scores_changed[website_id]:
+                self.scores_pq[website_id] = [(v,k) for k,v in self.scores[website_id].items()]
+                self.scores_changed[website_id], self.last_scores_rebuild[website_id] = False, time.time()
+        else:
+            [self.rebuild_scores_pq(web_id, rebuild_scores_now) for web_id in o.websites]
+        return True
 
-    def get_score(self, video_id):
+    def get_score(self, video_id, website_id):
         """Get the score of video represented by video_id."""
-        return self.scores.get(video_id, 0)
+        return self.scores[website_id].get(video_id, 0)
 
-    def set_score(self, video_id, score = 1):
+    def set_score(self, video_id, website_id, score = 1):
         """Set the priority score of a video_id."""
-        if video_id in self.scores:
-            self.scores[video_id] = score
-            self.scores_changed = True
+        self.scores[website_id][video_id] = score
+        self.scores_changed[website_id] = True
+        return True
 
-    def inc_score(self, video_id, incr = 1):
+    def inc_score(self, video_id, website_id, incr = 1):
         """Increase the priority score of video represented by video_id."""
-        if video_id in self.scores:
-            self.scores[video_id] += incr
-            self.scores_changed = True
-
-    def dec_score(self, video_id, decr = 1):
-        """Decrease the priority score of video represented by video_id."""
-        if video_id in self.scores:
-            self.scores[video_id] -= decr
-            self.scores_changed = True
-
-    def get_popular(self):
-        """Return the video_id of the most frequently access video."""
-        self.sync_queue()
-        self.rebuild_scores_pq()
-
-        popular = heapq.nlargest(1, self.scores_pq)
-        if len(popular) != 0:
-            popular[0] in self.scores_pq and self.scores_pq.remove(popular[0])
-            return popular[0][1]
+        if video_id in self.scores[website_id]:
+            self.scores[website_id][video_id] += incr
+            self.scores_changed[website_id] = True
+            return True
         return False
 
-    def get_least_popular(self, count = 1):
-        """Get `count` number of least popular videos"""
-        self.rebuild_scores_pq()
-        return [k for v, k in heapq.nsmallest(count, self.scores_pq)]
+    def dec_score(self, video_id, website_id, decr = 1):
+        """Decrease the priority score of video represented by video_id."""
+        if video_id in self.scores[website_id]:
+            self.scores[website_id][video_id] -= decr
+            self.scores_changed[website_id] = True
+            return True
+        return False
 
-    def remove_least_popular(self, count = 1):
-        """Remove `count` number of least popular videos fromt the queue."""
-        removed = []
-        for video_id in self.get_least_popular(count):
-            removed.append((self.scores[video_id], video_id))
-            self.remove(video_id)
-        [i in self.scores_pq and self.scores_pq.remove(i) for i in removed]
-        return True
+    def get_popular(self, count = 1, website_id = None):
+        """Return the video_id of the most frequently access video."""
+        self.sync_queue(website_id)
+        self.rebuild_scores_pq(website_id)
 
-    def get_details(self, video_id):
-        """Return the details of a particular video represented by video_id."""
-        return self.queue.get(video_id, False)
-
-    def remove_from_queue(self, video_id):
-        """Dequeue a video_id from the download queue."""
-        video_id in self.queue and self.queue.pop(video_id)
-        video_id in self.scores and self.scores.pop(video_id)
-        return True
-
-    def remove_url_from_queue(self, video_id, url):
-        """Dequeue a url for a video_id from the download queue."""
-        video_id in self.queue and url in self.queue[video_id]['urls'] and self.queue[video_id]['urls'].remove(url)
-        return True
-
-    def remove(self, video_id):
-        """Remove video_id from queue as well as active connection list."""
-        return self.remove_from_queue(video_id) and self.remove_conn(video_id)
-
-    def remove_url(self, video_id, url):
-        """Remove url from url list for a video_id."""
-        if len(self.queue[video_id]['urls']) == 1:
-            return self.remove(video_id)
+        if website_id:
+            return [(video_id, website_id) for score, video_id in heapq.nlargest(count, self.scores_pq[website_id])]
         else:
-            return self.remove_url_from_queue(video_id, url)
+            return [(v, w) for s, v, w in heapq.nlargest(count, [(self.get_score(vid, wid), vid, wid) for vid, wid in [hit for hit_list in [self.get_popular(count, web_id) for web_id in o.websites] for hit in hit_list]])]
 
-    def flush(self):
-        """Flush the queue and reinitialize everything."""
-        self.queue = {}
-        self.scores = {}
-        self.active = {}
-        self.scores_pq = []
+    def get_least_popular(self, count = 1, website_id = None):
+        """Get `count` number of least popular videos"""
+        self.rebuild_scores_pq(website_id)
+
+        if website_id:
+            return [(video_id, website_id) for score, video_id in heapq.nsmallest(count, self.scores_pq[website_id])]
+        else:
+            return [(v, w) for s, v, w in heapq.nsmallest(count, [(self.get_score(vid, wid), vid, wid) for vid, wid in [flop for flop_list in [self.get_least_popular(count, web_id) for web_id in o.websites] for flop in flop_list]])]
+
+    def remove_least_popular(self, count = 1, website_id = None):
+        """Remove `count` number of least popular videos fromt the queue."""
+        for video_id, web_id in self.get_least_popular(count, website_id):
+            self.remove(video_id, web_id)
         return True
 
-    def get_queue_length(self):
-        return len(self.scores)
+    def get_details(self, video_id, website_id):
+        """Return the details of a particular video represented by video_id."""
+        return self.queue[website_id].get(video_id, False)
 
-    def get_pq_length(self):
-        return len(self.scores_pq)
+    def remove_from_queue(self, video_id, website_id):
+        """Dequeue a video_id from the download queue."""
+        item = (self.get_score(video_id, website_id), video_id)
+        item in self.scores_pq[website_id] and self.scores_pq[website_id].remove(item)
+        self.scores_changed[website_id] = True
+        video_id in self.queue[website_id] and self.queue[website_id].pop(video_id)
+        video_id in self.scores[website_id] and self.scores[website_id].pop(video_id)
+        return True
 
-    def get_active_videos(self):
-        return self.active.keys()
+    def remove_url_from_queue(self, video_id, website_id, url):
+        """Dequeue a url for a video_id from the download queue."""
+        video_id in self.queue[website_id] and url in self.queue[website_id][video_id]['urls'] and self.queue[website_id][video_id]['urls'].remove(url)
+        return True
 
-    def get_video_scores(self):
-        return self.scores
+    def remove(self, video_id, website_id):
+        """Remove video_id from queue as well as active connection list."""
+        return self.remove_from_queue(video_id, website_id) and self.remove_conn(video_id, website_id)
 
-    def get_video_queue(self):
-        return self.queue
+    def remove_url(self, video_id, website_id, url):
+        """Remove url from url list for a video_id."""
+        if len(self.queue[website_id][video_id]['urls']) == 1:
+            return self.remove(video_id, website_id)
+        else:
+            return self.remove_url_from_queue(video_id, website_id, url)
+
+    def flush(self, website_id = None):
+        """Flush the queue and reinitialize everything."""
+        if website_id:
+            self.scores[website_id] = {}
+            self.queue[website_id] = {}
+            self.active[website_id] = {}
+            self.scores_pq[website_id] = []
+            self.scores_changed[website_id] = True
+            self.last_scores_rebuild[website_id] = 0
+            self.last_sync[website_id] = 0
+            return True
+        else:
+            [self.flush(web_id) for web_id in o.websites]
+        self.dump_queue(True)
+        return True
+
+    def get_queue_length(self, website_id = None):
+        if website_id:
+            return len(self.scores[website_id])
+        else:
+            return sum([self.get_queue_length(web_id) for web_id in o.websites])
+
+    def get_pq_length(self, website_id = None):
+        if website_id:
+            return len(self.scores_pq[website_id])
+        else:
+            return sum([self.get_pq_length(web_id) for web_id in o.websites])
+
+    def get_active(self, website_id = None):
+        if website_id:
+            return self.active[website_id]
+        else:
+            return self.active
+
+    def get_scores(self, website_id = None):
+        if website_id:
+            return self.scores[website_id]
+        else:
+            return self.scores
+
+    def get_queue(self, website_id = None):
+        if website_id:
+            return self.queue[website_id]
+        else:
+            return self.queue
+
+    def get_scores_pq(self, website_id = None):
+        if website_id:
+            return self.scores_pq[website_id]
+        else:
+            return self.scores_pq
 
     def update_disk_space(self, now = False):
         if now or int(time.time() - self.disk_space_last_update) > self.disk_space_update_threshold:
@@ -311,6 +373,7 @@ class VideoPool:
                 self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
                 if space_available < o.disk_avail_threshold:
                     self.disk_space[dir].update( { 'use' : False } )
+        return True
 
     def get_next_cache_dir(self):
         self.update_disk_space()
@@ -334,25 +397,28 @@ class VideoPool:
         fork(cleancache)()
         return o.base_dir_list[0]
 
-    def start_cache_thread(self, video_id, params):
+    def start_cache_thread(self, video_id, website_id, params):
         """Start a new thread which will cache the vdieo"""
         new_thread = threading.Thread(target = cache, name = str(video_id), kwargs = { 'params' : params })
-        self.set_score(video_id, 0)
-        self.add_conn(video_id, new_thread)
+        self.set_score(video_id, website_id, 0)
+        self.add_conn(video_id, website_id, new_thread)
         new_thread.start()
-        info( { 'code' : CACHE_THREAD_START, 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'client_ip' : params['client_ip'], 'message' : 'Starting cache thread.' } )
+        info( { 'code' : CACHE_THREAD_START, 'website_id' : website_id, 'video_id' : video_id, 'client_ip' : params['client_ip'], 'message' : 'Starting cache thread.' } )
         return True
 
-    def clean_threads(self):
+    def clean_threads(self, website_id = None):
         """Cleanup threads which have exitted."""
-        for (video_id, thread) in self.active.items():
-            try:
-                if not thread.isAlive():
-                    self.remove(video_id)
-                    info( { 'code' : CACHE_THREAD_REMOVE, 'video_id' : video_id, 'message' : 'Cache thread completed. Removing from active list.' } )
-            except Exception, e:
-                error( { 'code' : CACHE_THREAD_REMOVE_ERR, 'message' : 'Unable to remove cache thread from thread list', 'debug' : str(e), 'video_id' : video_id } )
-                trace( { 'code' : CACHE_THREAD_REMOVE_ERR, 'message' : traceback.format_exc(), 'video_id' : video_id } )
+        if website_id:
+            for (video_id, thread) in self.active[website_id].items():
+                try:
+                    if not thread.isAlive():
+                        self.remove(video_id, website_id)
+                        info( { 'code' : CACHE_THREAD_REMOVE, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Cache thread completed. Removing from active list.' } )
+                except Exception, e:
+                    error( { 'code' : CACHE_THREAD_REMOVE_ERR, 'website_id' : website_id, 'message' : 'Unable to remove cache thread from thread list', 'debug' : str(e), 'video_id' : video_id } )
+                    trace( { 'code' : CACHE_THREAD_REMOVE_ERR, 'website_id' : website_id, 'message' : traceback.format_exc(), 'video_id' : video_id } )
+        else:
+            [self.clean_threads(web_id) for web_id in o.websites]
         return True
 
     def schedule(self):
@@ -362,19 +428,23 @@ class VideoPool:
             if o.offline_mode or not is_caching_time():
                 return False
             if self.get_conn_number() < o.max_cache_processes:
-                video_id = self.get_popular()
-                if video_id != False and self.is_active(video_id) == False and self.get_score(video_id) >= o.hit_threshold:
-                    params = self.get_details(video_id)
+                popular = self.get_popular()
+                info({'code' : str(popular) })
+                if len(popular) != 1 or len(popular[0]) != 2:
+                    return False
+                video_id, website_id = popular[0]
+                if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
+                    params = self.get_details(video_id, website_id)
                     if params != False:
                         next_cache_dir = self.get_next_cache_dir()
                         if next_cache_dir is False:
                             return False
                         else:
                             params.update({ 'cur_cache_dir' : next_cache_dir })
-                        self.start_cache_thread(video_id, params)
+                        self.start_cache_thread(video_id, website_id, params)
                         return True
-                elif self.is_active(video_id) == True:
-                    self.set_score(video_id, 0)
+                elif self.is_active(video_id, website_id) == True:
+                    self.set_score(video_id, website_id, 0)
                     return False
         except Exception, e:
             error( { 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not find out the next video to schedule.', 'debug' : str(e) } )
@@ -385,24 +455,27 @@ class VideoPool:
     # Functions related download scheduling.
     # Have to mess up things in single class because python
     # RPCServer doesn't allow to register multiple instances.
-    def add_conn(self, video_id, thread):
+    def add_conn(self, video_id, website_id, thread):
         """Add video_id to active connections list."""
-        if video_id not in self.active:
-            self.active[video_id] = thread
+        if video_id not in self.active[website_id]:
+            self.active[website_id][video_id] = thread
         return True
 
-    def get_conn_number(self):
+    def get_conn_number(self, website_id = None):
         """Return the number of currently active connections."""
-        return len(self.active)
+        if website_id:
+            return len(self.active[website_id])
+        else:
+            return sum([self.get_conn_number(web_id) for web_id in o.websites])
 
-    def is_active(self, video_id):
+    def is_active(self, video_id, website_id):
         """Returns whether a connection is active or not."""
-        return video_id in self.active
+        return video_id in self.active[website_id]
 
-    def remove_conn(self, video_id):
+    def remove_conn(self, video_id, website_id):
         """Remove video_id from active connections list."""
-        if video_id in self.active:
-            self.active.pop(video_id)
+        if video_id in self.active[website_id]:
+            self.active[website_id].pop(video_id)
         return True
 
 class VideoPoolRPCServer(SimpleXMLRPCServer):
@@ -559,21 +632,21 @@ def cache_youtube_video(params):
     try:
         if 'url_encoded_fmt_stream_map' in video_info:
             url_map = {}
-            [url_map.update({i['itag'][0] : i['url'][0]}) for i in [cgi.parse_qs(i) for i in filter(lambda x: not re.compile(urllib.quote_plus('video/webm')).search(x), video_info['url_encoded_fmt_stream_map'][0].split(','))]]
-            alternate_url = url_map.values()[0]
+            #FIXME
+            #[url_map.update({i['itag'][0] : i['url'][0]}) for i in [cgi.parse_qs(i) for i in filter(lambda x: not re.compile(urllib.quote_plus('video/webm')).search(x), video_info['url_encoded_fmt_stream_map'][0].split(','))]]
+            [url_map.update({i['itag'][0] : i['url'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
+            alternate_vid = get_youtube_video_id(url_map.values()[0])
 
-            if format != '':
-                video_url = url_map['18']
+            if url_map.has_key(format):
+                video_url = url_map[format]
             else:
                 for fmt in o.youtube_video_formats:
-                    if fmt != 18 and url_map.has_key(str(fmt)):
+                    if url_map.has_key(str(fmt)):
                         video_url = url_map[str(fmt)]
+                        format = fmt
                         break
 
-            if not video_url:
-                video_url = alternate_url
-
-            alternate_vid = get_youtube_video_id(video_url)
+            info({ 'code' : format, 'message' : video_url })
     except Exception, e:
         error( { 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Error while extracting alternate video id.', 'debug' : str(e) } )
         trace( { 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : traceback.format_exc() } )
@@ -586,6 +659,7 @@ def cache_youtube_video(params):
     cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
+    format = get_youtube_file_ext(o, format)
     video_path = os.path.join(cache_dir, alternate_vid) + format
     tmp_path = os.path.join(tmp_dir, alternate_vid) + format
 
@@ -973,7 +1047,7 @@ def watch_squid_store_log():
 def is_cached(video_url):
     try:
         urllib2.install_opener( urllib2.build_opener( urllib2.ProxyHandler ({ 'http': o.this_proxy })))
-        request = urllib2.Request(url = video_url, headers = { 'Cache-Control': 'only-if-cached' })
+        request = HeadRequest(url = video_url, headers = { 'Cache-Control': 'only-if-cached' })
         if urllib2.urlopen( request ).getcode() == 200:
             return True
     except Exception, e:
@@ -1031,6 +1105,8 @@ def watch_store_log():
                             else:
                                 info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMATION_FAILED' })
                                 continue
+                            if website_id == 'youtube':
+                                format = get_youtube_file_ext(o, format)
                             filename = video_id + format
                             tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
                             video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)

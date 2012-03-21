@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
+import urllib2
 import urlparse
 
 def check_xhamster_video(url, host = None, path = None, query = None):
@@ -20,7 +21,7 @@ def check_xhamster_video(url, host = None, path = None, query = None):
 
     if re.compile('^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$').match(host) and re.compile('(.*)key=[a-zA-Z0-9]+(.*)\.flv').search(path):
         try:
-            video_id = re.compile('.*key=([a-z0-9A-Z]+).*').search(path).groups()[0]
+            video_id = urllib2.quote(re.compile('.*key=([a-z0-9A-Z]+).*').search(path).groups()[0])
         except Exception, e:
             pass
     else:
