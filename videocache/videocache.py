@@ -52,12 +52,22 @@ def trace(params = {}):
         params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
         o.trace_logger.info(build_message(params))
 
+def ent(params = {}):
+    error(params)
+    params.update({ 'message' : traceback.format_exc() })
+    trace(params)
+
+def wnt(params = {}):
+    error(params)
+    params.update({ 'message' : traceback.format_exc() })
+    trace(params)
+
 def sync_video_info():
     global local_video_pool
     info({ 'code' : VIDEO_SYNC_START, 'message' : 'Starting sync thread to sync video information to RPC server.'})
     connection()
     videos = {}
-    sleep_time = 5
+    sleep_time = 3
     while True:
         try:
             thread_pool.acquire()
@@ -84,8 +94,7 @@ def sync_video_info():
                 else:
                     warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
         except Exception, e:
-            warn({ 'code' : VIDEO_SUBMIT_WARN, 'message' : 'Error in updating server with video inforation. Continuing.', 'debug' : str(e)})
-            trace({ 'code' : VIDEO_SUBMIT_WARN, 'message' : traceback.format_exc() })
+            wnt({ 'code' : VIDEO_SUBMIT_WARN, 'message' : 'Error in updating server with video inforation. Continuing.', 'debug' : str(e)})
         for i in range(1, int(sleep_time / 0.1)):
             if exit:
                 info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
@@ -158,8 +167,7 @@ def submit_videos(videos):
         info({ 'code' : VIDEO_SUBMIT, 'message' : 'Submitted ' + str(len(videos)) + ' videos to videocache scheduler.'})
         return True
     except Exception, e:
-        error({ 'code' : VIDEO_SUBMIT_ERR, 'message' : 'Could not submit video information to videocache scheduler.', 'debug' : str(e)})
-        trace({ 'code' : VIDEO_SUBMIT_ERR, 'message' : traceback.format_exc() })
+        ent({ 'code' : VIDEO_SUBMIT_ERR, 'message' : 'Could not submit video information to videocache scheduler.', 'debug' : str(e)})
     return False
 
 def connection():
@@ -172,8 +180,7 @@ def connection():
             video_pool.ping()
             info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
         except Exception, e:
-            error({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
-            trace({ 'code' : RPC_CONNECT_ERR, 'message' : traceback.format_exc() })
+            ent({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
 
 def add_video_to_local_pool(video_id, params):
     global local_video_pool
@@ -185,10 +192,9 @@ def add_video_to_local_pool(video_id, params):
     thread_pool.release()
 
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
-    warn( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
-    trace( { 'code' : VIDEO_ID_ENCODING, 'message' : traceback.format_exc(), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+    wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
-def search_generalized(o, video_id, website_id, format):
+def generalized_cached_url(o, video_id, website_id, format):
     found, dir, size, index, cached_url = False, '', '-', '', ''
     filename = video_id + format
     for dir in o.base_dirs[website_id]:
@@ -202,7 +208,7 @@ def search_generalized(o, video_id, website_id, format):
                 return (True, filename, dir, size, index, cached_url)
         except Exception, e:
             continue
-    return (False, filename, dir, size, index, cached_url)
+    return (False, filename, '', '-', '', '')
 
 def search_and_queue(params):
     client_ip = params.get('client_ip', '-')
@@ -223,9 +229,8 @@ def search_and_queue(params):
         non_ascci_video_id_warning(website_id, video_id, client_ip)
         return cached_url
 
-    video_id = urllib.unquote(video_id)
     if search:
-        (found, filename, dir, size, index, cached_url) = eval('search_' + website_id + '_video(o, video_id, website_id, format)')
+        (found, filename, dir, size, index, cached_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
         if cached_url == '':
             info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
         else:
@@ -262,8 +267,7 @@ def squid_part():
                 else:
                     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
         except Exception, e:
-            warn( { 'code' : INPUT_PARSE_ERR, 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL.', 'debug' : str(e) } )
-            trace( { 'code' : INPUT_PARSE_ERR, 'message' : traceback.format_exc() } )
+            wnt( { 'code' : INPUT_PARSE_ERR, 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL.', 'debug' : str(e) } )
             skip = True
 
         if o.client_email != '':
@@ -283,8 +287,7 @@ def squid_part():
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
         except Exception, e:
-            warn( { 'code' : WRITEBACK_ERR, 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
-            trace( { 'code' : WRITEBACK_ERR, 'message' : traceback.format_exc() } )
+            wnt( { 'code' : WRITEBACK_ERR, 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
         input = sys.stdin.readline()
     else:
         info( { 'code' : VIDEOCACHE_EXIT, 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
@@ -324,7 +327,7 @@ if __name__ == '__main__':
 
     # Import website functions
     for website_id in o.websites:
-        exec('search_' + website_id + '_video = search_generalized')
+        exec(website_id + '_cached_url = generalized_cached_url')
         exec('from websites.' + website_id + ' import *')
 
     try:
@@ -338,6 +341,5 @@ if __name__ == '__main__':
         video_info.join()
         system_info.join()
     except Exception, e:
-        error( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
-        trace( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : traceback.format_exc() } )
+        ent( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
 

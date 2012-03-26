@@ -114,9 +114,11 @@ class VideocacheConf:
 
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)
-    enable_youtube_format_support = Option(0)
-    max_youtube_video_quality = Option('480p')
-    min_youtube_views = Option(10000)
+    enable_youtube_format_support = Option(3)
+    enable_youtube_html5_videos = Option(1)
+    enable_youtube_3d_videos = Option(1)
+    max_youtube_video_quality = Option('720p')
+    min_youtube_views = Option(100)
     youtube_cache_dir = Option('youtube')
 
     # AOL.com Specific Options

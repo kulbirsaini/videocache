@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import cgi
+import os
 import re
 import urllib2
 import urlparse
@@ -56,14 +57,70 @@ def get_youtube_video_format(url):
 
     return get_youtube_video_format_from_query(query)
 
-def get_youtube_file_ext(o, format):
-    ext = ''
+def get_youtube_video_range_from_query(query):
+    dict = cgi.parse_qs(query)
+    start = end = 0
+    if 'range' in dict:
+        try:
+            start, end = [int(i) for i in dict.get('range', '0-0')]
+        except Exception, e:
+            pass
+    return (start, end)
+
+def get_youtube_video_range(url):
+    fragments = urlparse.urlsplit(url)
+    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+    return get_youtube_video_range_from_query(query)
+
+def get_youtube_filename(o, video_id, format):
+    if format == '': return video_id
+    if o.youtube_formats.has_key(format): return video_id + '_' + format + o.youtube_formats[format]['ext']
+    return video_id + '_' + format
+
+def youtube_cached_url(o, video_id, website_id, format):
+    found, dir, size, index, cached_url = False, '', '-', '', ''
+    valid_fmts = [format]
     if o.youtube_formats.has_key(format):
-        ext = '_' + format + o.youtube_formats[format]['ext']
-    return ext
+        if o.enable_youtube_format_support == 1:
+            cat = o.youtube_formats[format]['cat']
+            formats = filter(lambda fmt: o.youtube_formats[fmt]['res'] <= o.max_youtube_video_quality, o.youtube_itag_order[cat][o.youtube_itag_order[cat].index(format):])
+            format in formats and formats.remove(format)
+            valid_fmts += formats
+        elif o.enable_youtube_format_support == 2:
+            pass
+        elif o.enable_youtube_format_support == 3:
+            format_group = filter(lambda fmt_group: format in fmt_group, o.youtube_itag_groups)
+            if len(format_group) != 0:
+                format_group[0].remove(format)
+                valid_fmts += format_group[0]
+
+    if o.enable_youtube_html5_videos == 0:
+        valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['webm', 'webm_3d'], valid_fmts)
+    if o.enable_youtube_3d_videos == 0:
+        valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['regular_3d', 'webm_3d'], valid_fmts)
+
+    for fmt in valid_fmts:
+        found, filename, dir, size, index = search_youtube_video(o, video_id, website_id, fmt)
+        if found:
+            cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
+            return (True, filename, dir, size, index, cached_url)
+    return (False, '', '', '-', '', '')
 
 def search_youtube_video(o, video_id, website_id, format):
-    pass
+    found, dir, size, index = False, '', '-', ''
+    filename = get_youtube_filename(o, video_id, format)
+    for dir in o.base_dirs[website_id]:
+        try:
+            video_path = os.path.join(dir, filename)
+            if os.path.isfile(video_path):
+                size = os.path.getsize(video_path)
+                os.utime(video_path, None)
+                if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
+                return (True, filename, dir, size, index)
+        except Exception, e:
+            continue
+    return (False, filename, '', '-', '')
 
 def check_youtube_video(url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'youtube', None, '', True, True
@@ -87,7 +144,6 @@ def check_youtube_video(url, host = None, path = None, query = None):
             pass
     # Mobile API requests
     elif re.compile('\/feeds\/api\/videos\/[0-9a-zA-Z_-]{11}\/').search(path) and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
-        format = '18'
         search = False
         try:
             video_id = re.compile('\/feeds\/api\/videos\/([0-9a-zA-Z_-]{11})\/').search(path).group(1)
@@ -96,6 +152,7 @@ def check_youtube_video(url, host = None, path = None, query = None):
     # Actual video content
     elif path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
         video_id = get_youtube_video_id_from_query(query)
+        if get_youtube_video_range_from_query(query)[0] > 1000: queue = False
     else:
         matched = False
 

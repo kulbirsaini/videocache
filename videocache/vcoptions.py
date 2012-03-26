@@ -27,30 +27,31 @@ class VideocacheOptions:
         self.config_file = config_file
         self.root = root
 
-        self.youtube_format_order = ['144p', '224p', '270p', '360p', '480p', '720p', '520p', '540p', '1080p', '2304p']
-        self.youtube_format_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
+        self.youtube_res_order = [144, 224, 270, 360, 480, 720, 520, 540, 1080, 2304]
+        self.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
+        self.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
         self.youtube_formats = {
-            '5'   : {'res': '224p',  'ext': '',      'cat': 'regular'},
-            '6'   : {'res': '270p',  'ext': '',      'cat': 'regular'},
-            '13'  : {'res': '144p',  'ext': '.3gp',  'cat': '3gp'},
-            '17'  : {'res': '144p',  'ext': '.3gp',  'cat': '3gp'},
-            '18'  : {'res': '360p',  'ext': '.mp4',  'cat': 'mobile'},
-            '34'  : {'res': '360p',  'ext': '',      'cat': 'regular'},
-            '35'  : {'res': '480p',  'ext': '',      'cat': 'regular'},
-            '22'  : {'res': '720p',  'ext': '',      'cat': 'regular'},
-            '37'  : {'res': '1080p', 'ext': '',      'cat': 'regular'},
-            '38'  : {'res': '2304p', 'ext': '',      'cat': 'regular'},
-            '83'  : {'res': '240p',  'ext': '',      'cat': 'regular_3d'},
-            '82'  : {'res': '360p',  'ext': '',      'cat': 'regular_3d'},
-            '85'  : {'res': '520p',  'ext': '',      'cat': 'regular_3d'},
-            '84'  : {'res': '720p',  'ext': '',      'cat': 'regular_3d'},
-            '43'  : {'res': '360p',  'ext': '.webm', 'cat': 'webm'},
-            '44'  : {'res': '480p',  'ext': '.webm', 'cat': 'webm'},
-            '45'  : {'res': '720p',  'ext': '.webm', 'cat': 'webm'},
-            '46'  : {'res': '1080p', 'ext': '.webm', 'cat': 'webm'},
-            '100' : {'res': '360p',  'ext': '.webm', 'cat': 'webm_3d'},
-            '101' : {'res': '480p',  'ext': '.webm', 'cat': 'webm_3d'},
-            '102' : {'res': '720p',  'ext': '.webm', 'cat': 'webm_3d'},
+            '5'   : {'res': 224,  'ext': '',      'cat': 'regular'},
+            '6'   : {'res': 270,  'ext': '',      'cat': 'regular'},
+            '13'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
+            '17'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
+            '18'  : {'res': 360,  'ext': '.mp4',  'cat': 'mobile'},
+            '34'  : {'res': 360,  'ext': '',      'cat': 'regular'},
+            '35'  : {'res': 480,  'ext': '',      'cat': 'regular'},
+            '22'  : {'res': 720,  'ext': '',      'cat': 'regular'},
+            '37'  : {'res': 1080, 'ext': '',      'cat': 'regular'},
+            '38'  : {'res': 2304, 'ext': '',      'cat': 'regular'},
+            '83'  : {'res': 240,  'ext': '',      'cat': 'regular_3d'},
+            '82'  : {'res': 360,  'ext': '',      'cat': 'regular_3d'},
+            '85'  : {'res': 520,  'ext': '',      'cat': 'regular_3d'},
+            '84'  : {'res': 720,  'ext': '',      'cat': 'regular_3d'},
+            '43'  : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
+            '44'  : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
+            '45'  : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
+            '46'  : {'res': 1080, 'ext': '.webm', 'cat': 'webm'},
+            '100' : {'res': 360,  'ext': '.webm', 'cat': 'webm_3d'},
+            '101' : {'res': 480,  'ext': '.webm', 'cat': 'webm_3d'},
+            '102' : {'res': 720,  'ext': '.webm', 'cat': 'webm_3d'},
         }
 
         self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
@@ -157,12 +158,11 @@ class VideocacheOptions:
                 self.__class__.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
 
             #BEGIN -- YouTube
-            #valid_youtube_formats = self.youtube_format_order[:self.youtube_format_order.index(mainconf.max_youtube_video_quality) + 1]
-            #self.__class__.youtube_video_formats = []
-            #[self.__class__.youtube_video_formats.extend(self.youtube_format[i]) for i in valid_youtube_formats]
-            #self.__class__.youtube_video_formats.reverse()
+            self.__class__.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
             self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
             self.__class__.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
+            self.__class__.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
+            self.__class__.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
             #END -- YouTube
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
