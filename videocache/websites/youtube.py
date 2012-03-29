@@ -62,10 +62,10 @@ def get_youtube_video_range_from_query(query):
     start = end = 0
     if 'range' in dict:
         try:
-            start, end = [int(i) for i in dict.get('range', '0-0')]
+            start, end = [int(i) for i in dict.get('range', ['0-0'])[0].split('-')]
         except Exception, e:
             pass
-    return (start, end)
+    return { 'start' : start, 'end' : end }
 
 def get_youtube_video_range(url):
     fragments = urlparse.urlsplit(url)
@@ -73,15 +73,20 @@ def get_youtube_video_range(url):
 
     return get_youtube_video_range_from_query(query)
 
-def get_youtube_filename(o, video_id, format):
-    if format == '': return video_id
-    if o.youtube_formats.has_key(format): return video_id + '_' + format + o.youtube_formats[format]['ext']
-    return video_id + '_' + format
+def get_youtube_filename(o, video_id, format, bit_range = {}):
+    fmt = ext = suffix = ''
+    start, end = bit_range.get('start', 0), bit_range.get('end', 0)
 
-def youtube_cached_url(o, video_id, website_id, format):
+    if format != '': fmt = '_' + format
+    if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
+    if o.youtube_formats.has_key(format): ext = o.youtube_formats[format]['ext']
+    return video_id + fmt + suffix + ext
+
+def youtube_cached_url(o, video_id, website_id, format, params = {}):
+    strict_mode = params.get('strict_mode', False)
     found, dir, size, index, cached_url = False, '', '-', '', ''
     valid_fmts = [format]
-    if o.youtube_formats.has_key(format):
+    if not strict_mode and o.youtube_formats.has_key(format):
         if o.enable_youtube_format_support == 1:
             cat = o.youtube_formats[format]['cat']
             formats = filter(lambda fmt: o.youtube_formats[fmt]['res'] <= o.max_youtube_video_quality, o.youtube_itag_order[cat][o.youtube_itag_order[cat].index(format):])
@@ -101,15 +106,15 @@ def youtube_cached_url(o, video_id, website_id, format):
         valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['regular_3d', 'webm_3d'], valid_fmts)
 
     for fmt in valid_fmts:
-        found, filename, dir, size, index = search_youtube_video(o, video_id, website_id, fmt)
+        found, filename, dir, size, index = search_youtube_video(o, video_id, website_id, fmt, params)
         if found:
             cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
             return (True, filename, dir, size, index, cached_url)
     return (False, '', '', '-', '', '')
 
-def search_youtube_video(o, video_id, website_id, format):
+def search_youtube_video(o, video_id, website_id, format, params = {}):
     found, dir, size, index = False, '', '-', ''
-    filename = get_youtube_filename(o, video_id, format)
+    filename = get_youtube_filename(o, video_id, format, params)
     for dir in o.base_dirs[website_id]:
         try:
             video_path = os.path.join(dir, filename)
@@ -152,7 +157,7 @@ def check_youtube_video(url, host = None, path = None, query = None):
     # Actual video content
     elif path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
         video_id = get_youtube_video_id_from_query(query)
-        if get_youtube_video_range_from_query(query)[0] > 1000: queue = False
+        if get_youtube_video_range_from_query(query)['start'] > 2048: queue = False
     else:
         matched = False
 

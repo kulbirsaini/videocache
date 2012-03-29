@@ -11,6 +11,7 @@ __docformat__ = 'plaintext'
 from common import *
 from error_codes import *
 from fork import *
+from store import generalized_cached_url
 from vcoptions import VideocacheOptions
 from vcsysinfo import *
 
@@ -194,58 +195,11 @@ def add_video_to_local_pool(video_id, params):
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
-def generalized_cached_url(o, video_id, website_id, format):
-    found, dir, size, index, cached_url = False, '', '-', '', ''
-    filename = video_id + format
-    for dir in o.base_dirs[website_id]:
-        try:
-            video_path = os.path.join(dir, filename)
-            if os.path.isfile(video_path):
-                size = os.path.getsize(video_path)
-                os.utime(video_path, None)
-                if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
-                cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
-                return (True, filename, dir, size, index, cached_url)
-        except Exception, e:
-            continue
-    return (False, filename, '', '-', '', '')
-
-def search_and_queue(params):
-    client_ip = params.get('client_ip', '-')
-    website_id = params.get('website_id', '-')
-    url = params.get('url', None)
-    video_id = params.get('video_id', None)
-    format = params.get('format', '')
-    queue = params.get('queue', True)
-    search = params.get('search', True)
-    cached_url = ''
-
-    if video_id is None:
-        warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
-        return cached_url
-
-    info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
-    if not is_ascii(video_id):
-        non_ascci_video_id_warning(website_id, video_id, client_ip)
-        return cached_url
-
-    if search:
-        (found, filename, dir, size, index, cached_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
-        if cached_url == '':
-            info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
-        else:
-            info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + cached_url })
-
-    if cached_url == '' and queue:
-        add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
-    return cached_url
-
 def squid_part():
     global exit
     input = sys.stdin.readline()
     while input:
-        new_url = ''
-        skip = False
+        new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
         try:
             fields = input.strip().split(' ')
             if o.cache_host == '':
@@ -272,13 +226,35 @@ def squid_part():
 
         if o.client_email != '':
             if not skip and o.enable_videocache:
-                matched = False
-
                 for website_id in o.websites:
                     if eval('o.enable_' + website_id + '_cache'):
                         (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(url, host, path, query)')
                         if matched:
-                            new_url = search_and_queue({ 'website_id' : website_id, 'video_id' : video_id, 'url' : url, 'format' : format, 'client_ip' : client_ip, 'search' : search, 'queue' : queue })
+                            if video_id == None or video_id == '':
+                                warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+                                break
+
+                            info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
+                            if not is_ascii(video_id):
+                                non_ascci_video_id_warning(website_id, video_id, client_ip)
+                                break
+
+                            if search:
+                                if website_id == 'youtube':
+                                    youtube_params = {}
+                                    if o.enable_youtube_partial_caching:
+                                        youtube_params.update(get_youtube_video_range_from_query(query))
+                                        if youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
+                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                else:
+                                    (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
+                                if new_url == '':
+                                    info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
+                                else:
+                                    info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
+
+                            if new_url == '' and queue:
+                                add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )

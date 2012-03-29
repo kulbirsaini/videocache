@@ -14,12 +14,21 @@ import os
 import statvfs
 import subprocess
 
-def search_cache(o, website_id, video_id, format):
+def generalized_cached_url(o, video_id, website_id, format, params = {}):
+    found, dir, size, index, cached_url = False, '', '-', '', ''
+    filename = video_id + format
     for dir in o.base_dirs[website_id]:
-        video_path = os.path.join(dir, video_id) + format
-        if os.path.isfile(video_path):
-            return True
-    return False
+        try:
+            video_path = os.path.join(dir, filename)
+            if os.path.isfile(video_path):
+                size = os.path.getsize(video_path)
+                os.utime(video_path, None)
+                if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
+                cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
+                return (True, filename, dir, size, index, cached_url)
+        except Exception, e:
+            continue
+    return (False, filename, '', '-', '', '')
 
 def free_space(dir):
     disk_stat = os.statvfs(dir)

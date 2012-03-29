@@ -31,20 +31,20 @@ class VideocacheOptions:
         self.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
         self.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
         self.youtube_formats = {
-            '5'   : {'res': 224,  'ext': '',      'cat': 'regular'},
-            '6'   : {'res': 270,  'ext': '',      'cat': 'regular'},
+            '5'   : {'res': 224,  'ext': '.flv',      'cat': 'regular'},
+            '6'   : {'res': 270,  'ext': '.flv',      'cat': 'regular'},
             '13'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
             '17'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
             '18'  : {'res': 360,  'ext': '.mp4',  'cat': 'mobile'},
-            '34'  : {'res': 360,  'ext': '',      'cat': 'regular'},
-            '35'  : {'res': 480,  'ext': '',      'cat': 'regular'},
-            '22'  : {'res': 720,  'ext': '',      'cat': 'regular'},
-            '37'  : {'res': 1080, 'ext': '',      'cat': 'regular'},
-            '38'  : {'res': 2304, 'ext': '',      'cat': 'regular'},
-            '83'  : {'res': 240,  'ext': '',      'cat': 'regular_3d'},
-            '82'  : {'res': 360,  'ext': '',      'cat': 'regular_3d'},
-            '85'  : {'res': 520,  'ext': '',      'cat': 'regular_3d'},
-            '84'  : {'res': 720,  'ext': '',      'cat': 'regular_3d'},
+            '34'  : {'res': 360,  'ext': '.flv',      'cat': 'regular'},
+            '35'  : {'res': 480,  'ext': '.flv',      'cat': 'regular'},
+            '22'  : {'res': 720,  'ext': '.mp4',      'cat': 'regular'},
+            '37'  : {'res': 1080, 'ext': '.mp4',      'cat': 'regular'},
+            '38'  : {'res': 2304, 'ext': '.mp4',      'cat': 'regular'},
+            '83'  : {'res': 240,  'ext': '.mp4',      'cat': 'regular_3d'},
+            '82'  : {'res': 360,  'ext': '.mp4',      'cat': 'regular_3d'},
+            '85'  : {'res': 520,  'ext': '.mp4',      'cat': 'regular_3d'},
+            '84'  : {'res': 720,  'ext': '.mp4',      'cat': 'regular_3d'},
             '43'  : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
             '44'  : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
             '45'  : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
@@ -57,7 +57,7 @@ class VideocacheOptions:
         self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'megavideo', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        self.arg_drop_list = {'youtube': ['range', 'noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
+        self.arg_drop_list = {'youtube': ['noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'megavideo': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
 
         self.CLEANUP_LRU = 1
         self.CLEANUP_MAX_SIZE = 2
@@ -163,6 +163,9 @@ class VideocacheOptions:
             self.__class__.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
             self.__class__.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
             self.__class__.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
+            self.__class__.enable_youtube_partial_caching = int(mainconf.enable_youtube_partial_caching)
+            if not self.__class__.enable_youtube_partial_caching:
+                self.arg_drop_list['youtube'].append('range')
             #END -- YouTube
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))

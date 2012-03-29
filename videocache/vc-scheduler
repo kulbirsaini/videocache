@@ -10,8 +10,8 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
-from fork import fork
-from store import search_cache, free_space, get_filelist
+from fork import *
+from store import *
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
 from vcsysinfo import *
@@ -117,13 +117,13 @@ class VideoPool:
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
 
-    scores = {} # scores = { 'youtube' : { 'video_id' : score }, ... }
-    queue = {} # queue = { 'youtube' : { 'video_id' : { 'url' : url }, ... }, ... }
-    active = {} # active = { 'youtube' : { 'video_id' : thread }, ... }
-    scores_pq = {} # scores_pq = { 'youtube' : [ (score, 'video_id'), ... ], ... }
-    scores_changed = {} # scores_changed = { 'youtube' : True, ... }
-    last_scores_rebuild = {} # last_scores_rebuild = { 'youtube' : time, ... }
-    last_sync = {} # last_sync = { 'youtube' : time, ... }
+    scores = {}
+    queue = {}
+    active = {}
+    scores_pq = {}
+    scores_changed = {}
+    last_scores_rebuild = {}
+    last_sync = {}
 
     def __init__(self):
         for website_id in o.websites:
@@ -1110,9 +1110,19 @@ def watch_store_log():
                                 break
 
                     if matched:
-                        info({ 'code' : STORE_LOG_URL_HIT, 'message' : 'A URL in squid store log matched.', 'website_id' : website_id, 'video_id' : video_id })
-                        if search_cache(o, website_id, video_id, format):
-                            info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists in one of the cache directories.', 'website_id' : website_id, 'video_id' : video_id })
+                        info({'code' : STORE_LOG_URL_HIT, 'website_id' : website_id, 'video_id':video_id, 'message':'A URL in squid store log matched.'})
+                        cached = False
+                        if website_id == 'youtube':
+                            youtube_params = { 'strict_mode' : True }
+                            if o.enable_youtube_partial_caching: youtube_params.update(get_youtube_video_range_from_query(query))
+                            if youtube_cached_url(o, video_id, website_id, format, youtube_params)[0]:
+                                cached = True
+                        else:
+                            if eval(website_id + '_cached_url(o, video_id, website_id, format)')[0]:
+                                cached = True
+
+                        if cached:
+                            info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Video already exists.' })
                         else:
                             if is_cached(video_url):
                                 info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMED' })
@@ -1121,7 +1131,7 @@ def watch_store_log():
                                 continue
                             filename = video_id + format
                             if website_id == 'youtube':
-                                filename = get_youtube_filename(o, video_id, format)
+                                filename = get_youtube_filename(o, video_id, format, youtube_params)
                             tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
                             video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
                             params = { 'website_id' : website_id, 'video_id' : video_id, 'headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
@@ -1130,7 +1140,7 @@ def watch_store_log():
                                 shutil.move(tmp_path, video_path)
                                 os.chmod(video_path, o.file_mode)
                                 os.utime(video_path, None)
-                                info({ 'code' : VIDEO_CACHED, 'message' : 'Video fetched from squid disk cache.', 'video_id' : video_id, 'website_id' : website_id, 'size' : size })
+                                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache' })
                             elif os.path.isfile(tmp_path):
                                 os.unlink(tmp_path)
                 except Exception, e:
