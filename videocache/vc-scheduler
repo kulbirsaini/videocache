@@ -28,6 +28,7 @@ import logging
 import pickle
 import pyinotify
 import pwd
+import random
 import shutil
 import socket
 import sys
@@ -541,16 +542,20 @@ def cache(params):
     except Exception, e:
         ent({'code' : CACHE_THREAD_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error in cache thread.'})
 
+def get_random_user_agent():
+    return o.std_headers[random.randint(0, o.num_std_headers - 1)]
+
 def cache_remote_url(remote_url, target_file, params = {}):
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
-    headers = params.get('headers', {})
+    http_headers = params.get('http_headers', {})
     proxy = params.get('proxy', o.proxy)
+    if not http_headers.has_key('User-Agent'):
+        http_headers.update(get_random_user_agent())
 
     if proxy:
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
-    headers.update(o.std_headers)
-    request = urllib2.Request(remote_url, None, headers)
+    request = urllib2.Request(remote_url, None, http_headers)
 
     try:
         connection = urllib2.urlopen(request)
@@ -607,6 +612,8 @@ def cache_youtube_video(params):
     format = params.get('format', '')
     cur_cache_dir = params.get('cur_cache_dir', None)
     proxy = params.get('proxy', o.proxy)
+    http_headers = get_random_user_agent()
+    params['http_headers'] = http_headers
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None:
         error({ 'code' : VIDEO_INFO2_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Enough video info not available in thread' })
@@ -614,18 +621,10 @@ def cache_youtube_video(params):
 
     if proxy: urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
 
-    #FIXME This code should be removed as it's doing nothing.
-    #try:
-    #    request = urllib2.Request('http://www.youtube.com/watch?v=%s&gl=US&hl=en' % video_id, None, o.std_headers)
-    #    webpage = urllib2.urlopen(request).read()
-    #except Exception, e:
-    #    ent({'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while fetching video page', 'debug' : str(e)})
-    #    return
-
     video_info = None
     for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
         info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
-        request = urllib2.Request(info_url, None, o.std_headers)
+        request = urllib2.Request(info_url, None, http_headers)
         try:
             video_info = cgi.parse_qs(urllib2.urlopen(request).read())
             try:
@@ -724,6 +723,8 @@ def cache_dailymotion_video(params):
     urls = params.get('urls', [])
     cur_cache_dir = params.get('cur_cache_dir', None)
     proxy = params.get('proxy', o.proxy)
+    http_headers = get_random_user_agent()
+    params['http_headers'] = http_headers
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
@@ -736,12 +737,12 @@ def cache_dailymotion_video(params):
         urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
 
     try:
-        request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, o.std_headers)
+        request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, http_headers)
         urllib2.urlopen(request).read()
     except Exception, e:
         wnt({ 'code' : DAILYMOTION_FF_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not disable family filter for dailymotion.com.', 'debug' : str(e) })
 
-    request = urllib2.Request(urls[0], None, o.std_headers)
+    request = urllib2.Request(urls[0], None, http_headers)
 
     try:
         page_data = urllib2.urlopen(request).read()
@@ -756,7 +757,7 @@ def cache_dailymotion_video(params):
                     video_url = search_hqurl.group(1)
 
         if video_url:
-            request = urllib2.Request(video_url, None, o.std_headers)
+            request = urllib2.Request(video_url, None, http_headers)
             webpage = urllib2.urlopen(request)
             if webpage and webpage.url != '':
                 path = urlparse.urlsplit(webpage.url)[2]
@@ -809,6 +810,8 @@ def cache_megavideo_video(params):
     website_id = params.get('website_id', '-')
     urls = params.get('urls', [])
     cur_cache_dir = params.get('cur_cache_dir', None)
+    http_headers = get_random_user_agent()
+    params['http_headers'] = http_headers
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
@@ -847,6 +850,8 @@ def cache_generalized(params):
     website_id = params.get('website_id', '-')
     urls = params.get('urls', [])
     cur_cache_dir = params.get('cur_cache_dir', None)
+    http_headers = get_random_user_agent()
+    params['http_headers'] = http_headers
 
     if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
         error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
@@ -1155,7 +1160,7 @@ def watch_store_log():
                                 filename = get_youtube_filename(o, video_id, format, youtube_params)
                             tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
                             video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
-                            params = { 'website_id' : website_id, 'video_id' : video_id, 'headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
+                            params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
                             if cache_remote_url(video_url, tmp_path, params):
                                 size = os.path.getsize(tmp_path)
                                 shutil.move(tmp_path, video_path)
