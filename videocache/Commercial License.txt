@@ -22,7 +22,7 @@ Terms and definitions
 License Grant
 -------------
 
-Licensor hereby grants the Licensee a non-exclusive, non-transferable, non-assignable license, without the right to sublicense to: Access, display, integrate and use the Software in one (1) Server/Computer that has been registered with Licensor.
+Licensor hereby grants the Licensee a non-exclusive, non-transferable, non-assignable license, without the right to sublicense to: Access, display, integrate and use the Software in one (1) Server/Computer that has been registered with Licensor for a period of one (1) year from the date of purchase of the license.
 
 Licensor hereby grants the Licensee a non-exclusive, worldwide, royalty-free, non-transferable, non-assignable patent license, without the right to sublicense, under any patent rights the Licensor holds in the Software to use, run, and modify the Software in the one (1) Server/Computer that has been registered with Licensor.
 
@@ -50,7 +50,7 @@ The rights and licenses granted hereunder shall commence on the date any of the 
 Termination of the license
 --------------------------
 
-This license is subject to termination by Licensor at any time if (a) Licensee violates any terms of this License, (b) Licensor has a reasonable basis to believe that Licensee's business is impairing Licensor's business.
+This license is subject to termination by Licensor at any time if (a) Licensee violates any terms of this License, (b) Licensor has a reasonable basis to believe that Licensee's business is impairing Licensor's business, (c) Licensee failes to renew the the license after one (1) year from the date of purchase of the license.
 
 Ownership of Intellectual Property
 ----------------------------------

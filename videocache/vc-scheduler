@@ -1068,15 +1068,36 @@ def is_cached(video_url):
         pass
     return False
 
-def watch_file(file, interval = 5):
-    file.seek(0, os.SEEK_END)
+def reopen_file(filename, file = None):
+    try:
+        file = open(filename, 'r')
+        file.seek(0, os.SEEK_END)
+        return file
+    except Exception, e:
+        wnt({ 'code' : STORE_LOG_OPEN_ERR, 'message' : 'Error while openning squid store log file. Check if file is present and is readable by squid' })
+
+    return None
+
+def watch_file(filename, interval = 3):
+    failed_reopen_wait_time, read_blank_threshold, last_read, must_reopen, file = 180, 60, time.time(), False, None
     while True:
+        if not file or must_reopen:
+            must_reopen, last_read = False, time.time()
+            file = reopen_file(filename, file)
+            if not file:
+                time.sleep(failed_reopen_wait_time)
+                continue
+
         where = file.tell()
         line = file.readline()
         if not line:
+            if (time.time() - last_read) > read_blank_threshold:
+                must_reopen = True
+                continue
             time.sleep(interval)
             file.seek(where)
         else:
+            last_read = time.time()
             yield line
 
 def watch_store_log():
@@ -1090,7 +1111,7 @@ def watch_store_log():
 
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     try:
-        for line in watch_file(open(o.squid_store_log), 1):
+        for line in watch_file(o.squid_store_log, 1):
             if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
                 try:
                     video_url = line.split()[-1]
