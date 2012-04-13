@@ -61,6 +61,7 @@ class VideocacheConf:
     hit_threshold = Option(1)
     max_video_size = Option(0)
     min_video_size = Option(0)
+    force_video_size = Option(1)
     cache_period = Option('')
     max_cache_queue_size = Option(200000)
     this_proxy = Option()

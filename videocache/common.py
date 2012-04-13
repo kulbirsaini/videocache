@@ -71,6 +71,14 @@ class HeadRequest(urllib2.Request):
     def get_method(self):
         return 'HEAD'
 
+# Fake thread class
+class FakeThread:
+    def __init__(self):
+        pass
+
+    def isAlive(self):
+        return True
+
 # Videocache setup/update specific functions
 def print_message_and_abort(message):
     sys.stderr.write(message)

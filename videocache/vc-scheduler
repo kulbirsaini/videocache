@@ -117,6 +117,7 @@ class VideoPool:
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
+    store_log_threshold = 600
 
     scores = {}
     queue = {}
@@ -157,13 +158,17 @@ class VideoPool:
             if os.path.isfile(queue_file):
                 try:
                     [scores, queue] = pickle.load(file(queue_file, 'r'))
+                    if o.websites[0] not in scores or o.websites[0] not in queue:
+                        self.flush()
+                        info({ 'code' : QUEUE_INCOMPATIBLE, 'message' : 'Video queue flushed because it was incompatible with the current version' })
+                        return True
                     # Different statement just in case the exception messes up assignment.
                     self.scores, self.queue = scores, queue
                     self.trim_queue()
-                    info({ 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file.' })
+                    info({ 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file' })
                     return True
                 except Exception, e:
-                    wnt({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file + '.', 'debug' : str(e) })
+                    wnt({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file, 'debug' : str(e) })
         return False
 
     def dump_queue(self, now = False):
@@ -210,6 +215,7 @@ class VideoPool:
         if video_id not in self.queue[website_id]:
             params['fmts'] = { fmt : { 'score' : 1, 'access_time' : params['access_time'] } }
             self.queue[website_id][video_id] = params
+            self.queue[website_id][video_id]['first_access'] = time.time()
             self.set_score(video_id, website_id, -10)
         else:
             old_data = self.queue[website_id][video_id]
@@ -226,6 +232,7 @@ class VideoPool:
 
         if video_id not in self.queue[website_id]:
             self.queue[website_id][video_id] = params
+            self.queue[website_id][video_id]['first_access'] = time.time()
             self.set_score(video_id, website_id, 1)
         else:
             old_data = self.queue[website_id][video_id]
@@ -449,7 +456,7 @@ class VideoPool:
         if website_id:
             for (video_id, thread) in self.active[website_id].items():
                 try:
-                    if not thread.isAlive():
+                    if not thread or not thread.isAlive():
                         self.remove(video_id, website_id)
                         info({ 'code' : CACHE_THREAD_REMOVE, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Cache thread completed. Removing from active list.' })
                 except Exception, e:
@@ -473,6 +480,8 @@ class VideoPool:
                 if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
                     params = self.get_details(video_id, website_id)
                     if params != False:
+                        if o.enable_store_log_monitoring and (time.time() - params.get('first_access', 0)) < self.store_log_threshold:
+                            return False
                         next_cache_dir = self.get_next_cache_dir()
                         if next_cache_dir is False:
                             return False
@@ -495,6 +504,10 @@ class VideoPool:
         """Add video_id to active connections list."""
         if video_id not in self.active[website_id]:
             self.active[website_id][video_id] = thread
+        return True
+
+    def set_conn(self, video_id, website_id, thread):
+        self.active[website_id][video_id] = thread
         return True
 
     def get_conn_number(self, website_id = None):
@@ -550,6 +563,8 @@ def cache_remote_url(remote_url, target_file, params = {}):
     website_id = params.get('website_id', '-')
     http_headers = params.get('http_headers', {})
     proxy = params.get('proxy', o.proxy)
+    max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
+
     if not http_headers.has_key('User-Agent'):
         http_headers.update(get_random_user_agent())
 
@@ -563,7 +578,9 @@ def cache_remote_url(remote_url, target_file, params = {}):
             conn_info = connection.info()
             video_size = int(conn_info.get('content-length', -1))
             if video_size == -1:
-                info({ 'code' : VIDEO_SIZE_NOT_SUPPLIED, 'message' : 'Video size was not supplied by the remote server.', 'video_id' : video_id, 'website_id' : website_id })
+                if o.force_video_size == 1:
+                    info({ 'code' : VIDEO_SIZE_NOT_SUPPLIED, 'message' : 'Video size was not supplied by web server. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
+                    return False
             elif o.max_video_size != 0 and o.min_video_size != 0:
                 if video_size > o.max_video_size:
                     info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
@@ -1151,24 +1168,35 @@ def watch_store_log():
                             info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Video already exists.' })
                         else:
                             if is_cached(video_url):
-                                info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMED' })
+                                info({ 'code' : STORE_LOG_URL_HIT_CONFIRMED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
                             else:
-                                info({ 'code' : 'STORE_LOG_URL_HIT_CONFIRMATION_FAILED' })
+                                info({ 'code' : STORE_LOG_URL_HIT_CONFIRMATION_FAILED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
                                 continue
-                            filename = video_id + format
-                            if website_id == 'youtube':
-                                filename = get_youtube_filename(o, video_id, format, youtube_params)
-                            tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
-                            video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
-                            params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy }
-                            if cache_remote_url(video_url, tmp_path, params):
-                                size = os.path.getsize(tmp_path)
-                                shutil.move(tmp_path, video_path)
-                                os.chmod(video_path, o.file_mode)
-                                os.utime(video_path, None)
-                                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache' })
-                            elif os.path.isfile(tmp_path):
-                                os.unlink(tmp_path)
+
+                            try:
+                                if not video_pool.is_active(video_id, website_id):
+                                    video_pool.add_conn(video_id, website_id, FakeThread())
+                                else:
+                                    info({ 'code' : CACHE_IN_PROGRESS, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is being cached already in another thread.' })
+                                    continue
+                                filename = video_id + format
+                                if website_id == 'youtube':
+                                    filename = get_youtube_filename(o, video_id, format, youtube_params)
+                                tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
+                                video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
+                                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
+                                if cache_remote_url(video_url, tmp_path, params):
+                                    size = os.path.getsize(tmp_path)
+                                    shutil.move(tmp_path, video_path)
+                                    os.chmod(video_path, o.file_mode)
+                                    os.utime(video_path, None)
+                                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache' })
+                                elif os.path.isfile(tmp_path):
+                                    os.unlink(tmp_path)
+                                video_pool.remove_conn(video_id, website_id)
+                            except Exception, e:
+                                ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
+                                video_pool.remove_conn(video_id, website_id)
                 except Exception, e:
                     ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
     except Exception, e:
