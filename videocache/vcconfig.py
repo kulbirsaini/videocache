@@ -113,6 +113,8 @@ class VideocacheConf:
     proxy_password = Option()
     max_cache_speed = Option(0)
 
+    magnet = Option('0')
+
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)
     enable_youtube_format_support = Option(3)

@@ -203,6 +203,28 @@ def expired_video(o):
     except Exception, e:
         pass
 
+def generate_magnet_http(src_file, dst_file):
+    try:
+        import binascii, os
+        magnet = binascii.b2a_hex(os.urandom(8))
+    except Exception, e:
+        import random, time
+        random.seed(time.time())
+        magnet = hex(random.getrandbits(64))[2:-1]
+
+    try:
+        file = open(src_file, 'r')
+        data = file.read()
+        file.close()
+
+        data = data.replace("magnet = Option('0')", "magnet = Option('" + magnet + "')")
+        file = open(dst_file, 'w')
+        file.write(data)
+        file.close()
+        return True
+    except Exception, e:
+        return False
+
 # Networking Related
 def is_port_open(ip, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

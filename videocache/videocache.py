@@ -111,7 +111,7 @@ def submit_system_info():
             try:
                 video_pool.ping()
                 sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
-                sys_info.update(get_all_info())
+                sys_info.update(get_all_info(o))
                 video_pool.add_system(sys_info)
                 return True
             except Exception, e:

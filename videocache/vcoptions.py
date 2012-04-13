@@ -76,7 +76,7 @@ class VideocacheOptions:
         try:
             # Options not in configuration file
             self.__class__.queue_dump_file = mainconf.queue_dump_file
-            self.__class__.version = '1.9.9'
+            self.__class__.version = '2.0.0'
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
             self.__class__.offline_mode = int(mainconf.offline_mode)
@@ -133,6 +133,7 @@ class VideocacheOptions:
             self.__class__.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
             self.__class__.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
             self.__class__.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
+            self.__class__.magnet = mainconf.magnet
 
             # Network
             self.__class__.cache_host = str(mainconf.cache_host).strip()

@@ -111,12 +111,13 @@ def get_mac_addresses():
 
     return ''
 
-def get_all_info():
+def get_all_info(o):
     info = {}
     info.update(get_dist_details())
     info.update(get_python_version())
     info.update(get_system_name())
     info.update(get_system_arch())
     info.update(get_interface_details())
+    info['magnet'] = o.magnet
     return info
 
