@@ -19,7 +19,7 @@ def check_slutload_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if re.compile('\.slutload-media\.com').search(host) and re.compile('(.*)\/[a-zA-Z0-9_-]+\.flv').search(path) and path.find('.flv') > -1:
+    if re.compile('\.slutload-media\.com').search(host) and re.compile('(.*)\/[a-zA-Z0-9_.-]+\.flv').search(path) and path.find('.flv') > -1:
         try:
             video_id = urllib2.quote(path.strip('/').split('/')[-1])
         except Exception, e:

@@ -23,7 +23,7 @@ class VideocacheOptions:
     initialized = False
     halt = True
 
-    def __init__(self, config_file = '/etc/videocache.conf', root = '/'):
+    def __init__(self, config_file = '/etc/videocache.conf', root = '/', generate_crossdomain_files = False):
         self.config_file = config_file
         self.root = root
 
@@ -61,9 +61,9 @@ class VideocacheOptions:
 
         self.CLEANUP_LRU = 1
         self.CLEANUP_MAX_SIZE = 2
-        return self.initialize()
+        return self.initialize(generate_crossdomain_files)
 
-    def initialize(self):
+    def initialize(self, generate_crossdomain_files = False):
         if self.__class__.initialized:
             return
 
@@ -159,16 +159,20 @@ class VideocacheOptions:
             for website_id in self.websites:
                 self.__class__.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
 
-            #BEGIN -- YouTube
             self.__class__.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
             self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
             self.__class__.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
             self.__class__.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
             self.__class__.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
             self.__class__.enable_youtube_partial_caching = int(mainconf.enable_youtube_partial_caching)
-            if not self.__class__.enable_youtube_partial_caching:
-                self.arg_drop_list['youtube'].append('range')
-            #END -- YouTube
+            if generate_crossdomain_files:
+                if not self.__class__.enable_youtube_partial_caching:
+                    self.arg_drop_list['youtube'].append('range')
+                    for dir in self.__class__.base_dir_list:
+                        os.path.isfile(os.path.join(dir, 'youtube_crossdomain.xml')) and os.unlink(os.path.join(dir, 'youtube_crossdomain.xml'))
+                else:
+                    for dir in self.__class__.base_dir_list:
+                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), True)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

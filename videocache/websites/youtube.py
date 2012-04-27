@@ -114,7 +114,18 @@ def youtube_cached_url(o, video_id, website_id, format, params = {}):
 
 def search_youtube_video(o, video_id, website_id, format, params = {}):
     found, dir, size, index = False, '', '-', ''
-    filename = get_youtube_filename(o, video_id, format, params)
+
+    #start, end, strict_mode = params.get('start', 0), params.get('end', 0), params.get('strict_mode', False)
+    #if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
+
+    #filenames = [get_youtube_filename(o, video_id, format, params)]
+
+    #if not strict_mode and start < 2048 and end != 0:
+    #    params.update({ 'start' : 0, 'end' : 0 })
+    #    filenames += [get_youtube_filename(o, video_id, format, params)]
+
+    filenames = get_youtube_filename(o, video_id, format, params)
+
     for dir in o.base_dirs[website_id]:
         try:
             video_path = os.path.join(dir, filename)

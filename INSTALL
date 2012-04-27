@@ -1,4 +1,6 @@
-IMPORTANT NOTE : Check http://cachevideos.com/installation/ for latest details.
+For a complete user manual, please read Manual.pdf included with your bundle.
+
+Videocache is a product of White Magnet Software Pvt Ltd http://whitemag.net/
 
 Index
 =====
@@ -8,9 +10,10 @@ Index
      I. Videocache
      II. Squid
   4. Running
-     I. Apache Webserver
-     II. Videocache Scheduler
-     III. Squid Proxy Server
+     I. Update Script
+     II. Apache Webserver
+     III. Videocache Scheduler
+     IV. Squid Proxy Server
   5. Bugs, Suggestions, Comments
   6. Online Help
 
@@ -35,19 +38,13 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   configuration file generated at /etc/videocache.conf.
 
   a) Untar the videocache-x.x.x.tar.gz
-  [root@videocache root]# tar -xvzf videocache-x.x.x.tar.gz
+  [root@white-magnet root]# tar -xvzf videocache-x.x.x.tar.gz
 
   b) Go to videocache-x.x.x
-  [root@videocache root]# cd videocache-x.x.x
+  [root@white-magnet root]# cd videocache-x.x.x
 
-  c) Use the install.sh install script (RECOMMENDED) to intsall videocache and required components.
-  [root@videocache videocache-x.x.x]# bash install.sh
-
-                  OR
-
-     You can use the setup.py install script to explore advanced installation options.
-     [root@proxy videocache-x.x.x]# python setup.py install
-     Use the -h option to get a list of options available.
+  c) Use the install.sh install script to intsall videocache and required components.
+  [root@white-magnet videocache-x.x.x]# bash install.sh
 
   BINGO!! You are done with installation. In case you get any error while installing videocache,
   there will be proper logging in the console. Install required packages if missing.
@@ -88,22 +85,29 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   Running videocache is a three step process. We must start/restart Apache webserver,
   Videocache scheduler and Squid to get Videocache working completely.
 
-  I) Apache Webserver
+  I) Update Script
+  ================
+
+    To update the system in accordance with the changes we made to videocache.conf, we
+    need to run update script (vc-update) as follows.
+    [root@white-magnet ~]$ vc-update (or /usr/sbin/vc-update)
+
+  II) Apache Webserver
   ===================
 
     Restart the Apache webserver as
-    [root@videocache root]# apachectl -k restart
+    [root@white-magnet root]# apachectl -k restart
 
-  II) Videocache Scheduler
+  III) Videocache Scheduler
   ========================
 
     Start/restart videocache scheduler (vc-scheduler) using the following command
-    [root@videocache root]# vc-scheduler -s restart
+    [root@white-magnet root]# vc-scheduler -s restart
 
     Use the following command to see available options for videocache scheduler
-    [root@videocache root]# vc-scheduler -h
+    [root@white-magnet root]# vc-scheduler -h
 
-  III) Squid Proxy Server
+  IV) Squid Proxy Server
   =======================
 
     Reload/restart the squid service using

@@ -98,10 +98,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
     # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
     if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz'), quiet): setup_error('install')
 
-    # Copy crossdomain.xml to all base dirs
-    for dir in o.base_dir_list:
-        if not generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), quiet): setup_error('install')
-
     # Generate Apache webserver configuration file for videocache.
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet): setup_error('install')
     if not generate_magnet_http(os.path.join(working_dir, 'videocache', 'vcconfig.py'), os.path.join(install_dir, 'vcconfig.py')): setup_error('install')

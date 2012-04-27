@@ -19,9 +19,9 @@ def check_youporn_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if host.find('.youporn.com') > -1 and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
+    if host.find('.public.youporn.phncdn.com') > -1 and re.compile('(.*)\/[a-zA-Z0-9_-]+\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
-            video_id = urllib2.quote(path.strip('/').split('/')[-1])
+            video_id = urllib2.quote(path.strip('/').split('/')[-2])
         except Exception, e:
             pass
     else:

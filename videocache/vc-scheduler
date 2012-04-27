@@ -777,8 +777,7 @@ def cache_dailymotion_video(params):
             request = urllib2.Request(video_url, None, http_headers)
             webpage = urllib2.urlopen(request)
             if webpage and webpage.url != '':
-                path = urlparse.urlsplit(webpage.url)[2]
-                alternate_vid = path.strip('/').split('/')[-1]
+                a, b, alternate_vid, c, d, e = check_dailymotion_video(webpage.url)
     except Exception, e:
         ent({ 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while fetching video webpage.', 'debug' : str(e) })
         return
@@ -1339,7 +1338,7 @@ if __name__ == '__main__':
 
     if options.sig:
         try:
-            o = VideocacheOptions(options.config_file, options.vc_root)
+            o = VideocacheOptions(options.config_file, options.vc_root, True)
         except Exception, e:
             message = 'Could not load Videocache configuration file. \nDebugging output: \n' + traceback.format_exc()
             syslog_msg(message.replace('\n', ''))

@@ -63,9 +63,6 @@ def update_vc(o, root, squid_user, install_dir, apache_conf_dir, quiet):
     for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
         if not create_or_update_dir(dir, squid_user, 0755, quiet): update_error('update')
 
-    for dir in o.base_dir_list:
-        if not generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), quiet): update_error('update')
-
     # Generate Apache webserver configuration file for videocache.
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet): update_error('update')
 
