@@ -58,7 +58,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     var_dir = os.path.dirname(o.scheduler_pidfile)
-    man_dir = apply_install_root(root, '/usr/share/man/man8/')
     init_dir = apply_install_root(root, '/etc/init.d/')
 
     if apache_conf_dir:
@@ -66,7 +65,7 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
         if not create_or_update_dir(apache_conf_dir, None, 0755, quiet):
             setup_error('update')
 
-    for dir in [install_dir, etc_dir, usr_sbin_dir, var_dir, man_dir, init_dir]:
+    for dir in [install_dir, etc_dir, usr_sbin_dir, var_dir, init_dir]:
         if not create_or_update_dir(dir, None, 0755, quiet): setup_error('update')
 
     for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
@@ -94,9 +93,6 @@ def setup_vc(o, root, squid_user, apache_conf_dir, working_dir, quiet, skip_conf
 
     # Copy vc-scheduler.rc to /etc/init.d/
     if not copy_file(os.path.join(working_dir, 'vc-scheduler.rc'), os.path.join(init_dir, 'vc-scheduler'), quiet): setup_error('install')
-
-    # Copy videocache.8.gz (manpage) to /usr/share/man/man8/videocache.8.gz
-    if not copy_file(os.path.join(working_dir, 'videocache.8.gz'), os.path.join(man_dir, 'videocache.8.gz'), quiet): setup_error('install')
 
     # Generate Apache webserver configuration file for videocache.
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet): setup_error('install')
@@ -186,7 +182,6 @@ if __name__ == '__main__':
     working_dir = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
     videocache_dir = os.path.join(working_dir, 'videocache')
     config_file = os.path.join(working_dir, 'videocache-sysconfig.conf')
-    man_page = os.path.join(working_dir, 'videocache.8.gz')
 
     if os.path.isdir(videocache_dir):
         sys.path = [videocache_dir] + sys.path

@@ -777,7 +777,11 @@ def cache_dailymotion_video(params):
             request = urllib2.Request(video_url, None, http_headers)
             webpage = urllib2.urlopen(request)
             if webpage and webpage.url != '':
-                a, b, alternate_vid, c, d, e = check_dailymotion_video(webpage.url)
+                a, b, alternate_vid, format, d, e = check_dailymotion_video(webpage.url)
+                if generalized_cached_url(o, alternate_vid, website_id, format)[0]:
+                    info({ 'code' : VIDEO_EXISTS, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists', 'website_id' : website_id, 'video_id' : video_id })
+                    return
+
     except Exception, e:
         ent({ 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while fetching video webpage.', 'debug' : str(e) })
         return
@@ -789,8 +793,8 @@ def cache_dailymotion_video(params):
     cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
-    video_path = os.path.join(cache_dir, video_id)
-    tmp_path = os.path.join(tmp_dir, video_id)
+    video_path = os.path.join(cache_dir, alternate_vid)
+    tmp_path = os.path.join(tmp_dir, alternate_vid)
 
     try:
         if not os.path.exists(video_path):
@@ -799,24 +803,16 @@ def cache_dailymotion_video(params):
                 shutil.move(tmp_path, video_path)
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
-                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully.' })
+                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully.' })
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
         else:
-            info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
+            info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists at ' + video_path })
 
-        try:
-            new_video_path = os.path.join(cache_dir, alternate_vid)
-            if new_video_path is not None:
-                if not os.path.exists(new_video_path):
-                    os.link(video_path, new_video_path)
-                os.utime(new_video_path, None)
-        except Exception, e:
-            ent({ 'code' : VIDEO_LINK_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not link video to alternate video id.', 'debug' : str(e) })
         return
     except Exception, e:
-        ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + video_url + '.', 'video_id' : video_id, 'website_id' : website_id })
+        ent({ 'code' : URL_CACHE_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url })
     return
 
 def cache_megavideo_video(params):

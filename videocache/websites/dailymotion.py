@@ -26,11 +26,11 @@ def check_dailymotion_video(url, host = None, path = None, query = None):
             video_id = urllib2.quote(re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1))
         except Exception, e:
             pass
-    elif (host.find('vid.ec.dmcdn.net') > -1 or host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and (path.find('.mp4') > -1 or path.find('.on2') > -1 or path.find('.flv') > -1 or path.find('.mov') > -1 or path.find('.mkv') > -1 or path.find('.avi') > -1 or path.find('.rm') > -1 or path.find('.rmvb') > -1 or path.find('.mp3') > -1 or path.find('.m4v') > -1 or path.find('.wmv') > -1 or path.find('.mpg') > -1 or path.find('.mpeg') > -1 or path.find('.3gp') > -1):
+    elif (host.find('vid.ec.dmcdn.net') > -1 or host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg|on2)').search(path):
         queue = False
         try:
-            video_id = urllib2.quote(path.strip('/').split('/')[-1])
-            video_id = video_id.replace('_hq.', '.')
+            video_id = '.'.join(urllib2.quote(path.strip('/').split('/')[-1]).split('.')[:-1])
+            video_id = video_id.replace('_hq', '')
         except Exception, e:
             pass
     else:

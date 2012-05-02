@@ -53,11 +53,10 @@ def update_vc(o, root, squid_user, install_dir, apache_conf_dir, quiet):
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
     var_dir = os.path.dirname(o.scheduler_pidfile)
-    man_dir = apply_install_root(root, '/usr/share/man/man8/')
 
     if apache_conf_dir: apache_conf_dir = apply_install_root(root, apache_conf_dir)
 
-    for dir in [etc_dir, usr_sbin_dir, apache_conf_dir, var_dir, man_dir]:
+    for dir in [etc_dir, usr_sbin_dir, apache_conf_dir, var_dir]:
         if not create_or_update_dir(dir, None, 0755, quiet): update_error('update')
 
     for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
