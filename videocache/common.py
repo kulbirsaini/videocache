@@ -190,13 +190,13 @@ if __name__ == '__main__':
                 pass
     return done
 
-def expired_video(o):
+def expired_video(o, un = ''):
     cookie_handler = urllib2.HTTPCookieProcessor()
     redirect_handler = urllib2.HTTPRedirectHandler()
     info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
 
     try:
-        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id, '[e]' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail') })).read()
+        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id, '[un]' : un, '[e]' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail') })).read()
         if status == 'YES':
             if remove_video():
                 o.enable_videocache = 0
@@ -261,15 +261,24 @@ def cache_period_s2lh(cache_period):
     except Exception, e:
         return False
 
+def uuid_number():
+    try:
+        import binascii, os
+        return binascii.b2a_hex(os.urandom(8))
+    except Exception, e:
+        import random, time
+        random.seed(time.time())
+        return hex(random.getrandbits(64))[2:-1]
+
 # Megavideo
-def hex2bin(hex):
+def hex2bin(hexcode):
     convert = {'0': '0000', '1': '0001', '2': '0010', '3': '0011',
                '4': '0100', '5': '0101', '6': '0110', '7': '0111',
                '8': '1000', '9': '1001', 'A': '1010', 'B': '1011',
                'C': '1100', 'D': '1101', 'E': '1110', 'F': '1111',
                'a': '1010', 'b': '1011', 'c': '1100', 'd': '1101',
                'e': '1110', 'f': '1111'}
-    return ''.join([convert[char] for char in hex])
+    return ''.join([convert[char] for char in hexcode])
 
 def bin2hex(binary):
     if len(binary) % 4 != 0:

@@ -118,6 +118,5 @@ def get_all_info(o):
     info.update(get_system_name())
     info.update(get_system_arch())
     info.update(get_interface_details())
-    info['magnet'] = o.magnet
     return info
 

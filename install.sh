@@ -24,6 +24,10 @@ PYINOTIFY_URL='http://pypi.python.org/packages/source/p/pyinotify/pyinotify-0.9.
 PYINOTIFY_FILENAME='pyinotify.tar.gz'
 PYINOTIFY_DIR='pyinotify'
 
+CTYPES_URL='http://downloads.sourceforge.net/project/ctypes/ctypes/1.0.2/ctypes-1.0.2.tar.gz'
+CTYPES_FILENAME='ctypes.tar.gz'
+CTYPES_DIR='ctypes'
+
 blue() {
   echo -en "\033[0;34m${1}\033[0m"
 }
@@ -254,6 +258,7 @@ install_python_module setuptools "${SETUPTOOLS_URL}" "${SETUPTOOLS_FILENAME}" "$
 check_python_dev
 install_python_module netifaces "${NETIFACES_URL}" "${NETIFACES_FILENAME}" "${NETIFACES_DIR}"
 install_python_module pyinotify "${PYINOTIFY_URL}" "${PYINOTIFY_FILENAME}" "${PYINOTIFY_DIR}"
+install_python_module ctypes "${CTYPES_URL}" "${CTYPES_FILENAME}" "${CTYPES_DIR}"
 install_videocache
 install_init_script
 echo
