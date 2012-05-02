@@ -92,7 +92,7 @@ class VideocacheOptions:
             self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server
             self.__class__.video_server = mainconf.video_server
-            self.__class__.this_proxy = mainconf.this_proxy
+            this_proxy = mainconf.this_proxy.strip()
             self.__class__.enable_store_log_monitoring = int(mainconf.enable_store_log_monitoring)
             self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.ssl_fo = None
@@ -139,9 +139,9 @@ class VideocacheOptions:
             self.__class__.cache_host = str(mainconf.cache_host).strip()
             self.__class__.rpc_host = mainconf.rpc_host
             self.__class__.rpc_port = int(mainconf.rpc_port)
-            proxy = mainconf.proxy
-            proxy_username = mainconf.proxy_username
-            proxy_password = mainconf.proxy_password
+            proxy = mainconf.proxy.strip()
+            proxy_username = mainconf.proxy_username.strip()
+            proxy_password = mainconf.proxy_password.strip()
             self.__class__.max_cache_speed = int(mainconf.max_cache_speed) * 1024
             self.__class__.id = ''
 
@@ -213,12 +213,15 @@ class VideocacheOptions:
 
         try:
             self.__class__.proxy = None
+            self.__class__.this_proxy = None
             if proxy:
                 if proxy_username and proxy_password:
                     proxy_parts = urlparse.urlsplit(proxy)
-                    self.__class__.proxy = '%s://%s:%s@%s/' % (proxy_parts[0], proxy_username, proxy_password, proxy_parts[1])
+                    self.__class__.proxy = 'http://%s:%s@%s/' % (proxy_username, proxy_password, proxy)
                 else:
                     self.__class__.proxy = proxy
+            if this_proxy:
+                self.__class__.this_proxy = 'http://%s/' % (this_proxy)
         except Exception, e:
             syslog_msg('Could not set proxy for caching videos. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

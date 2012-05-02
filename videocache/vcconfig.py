@@ -63,10 +63,10 @@ class VideocacheConf:
     min_video_size = Option(0)
     force_video_size = Option(1)
     cache_period = Option('')
-    max_cache_queue_size = Option(200000)
-    this_proxy = Option()
+    max_cache_queue_size = Option(100000)
+    this_proxy = Option('')
     enable_store_log_monitoring = Option(1)
-    squid_store_log = Option()
+    squid_store_log = Option('')
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
@@ -91,13 +91,13 @@ class VideocacheConf:
     scheduler_logformat = Option('%tl %p %s %i %w %c %v %m %d')
     scheduler_logfile = Option('scheduler.log')
     max_scheduler_logfile_size = Option(10)
-    max_scheduler_logfile_backups = Option(10)
+    max_scheduler_logfile_backups = Option(5)
     # Videocache Cleaner Logfile
     enable_cleaner_log = Option(1)
     cleaner_logformat = Option('%tl %p %s %w %c %v %m %d')
     cleaner_logfile = Option('cleaner.log')
     max_cleaner_logfile_size = Option(10)
-    max_cleaner_logfile_backups = Option(5)
+    max_cleaner_logfile_backups = Option(1)
     # Trace file
     enable_trace_log = Option(1)
     tracefile = Option('trace.log')
@@ -108,9 +108,9 @@ class VideocacheConf:
     cache_host = Option('')
     rpc_host = Option('127.0.0.1')
     rpc_port = Option(9100)
-    proxy = Option()
-    proxy_username = Option()
-    proxy_password = Option()
+    proxy = Option('')
+    proxy_username = Option('')
+    proxy_password = Option('')
     max_cache_speed = Option(0)
 
     magnet = Option('0')
