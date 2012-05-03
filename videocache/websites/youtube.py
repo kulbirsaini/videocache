@@ -124,7 +124,7 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
     #    params.update({ 'start' : 0, 'end' : 0 })
     #    filenames += [get_youtube_filename(o, video_id, format, params)]
 
-    filenames = get_youtube_filename(o, video_id, format, params)
+    filename = get_youtube_filename(o, video_id, format, params)
 
     for dir in o.base_dirs[website_id]:
         try:

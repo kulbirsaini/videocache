@@ -117,7 +117,7 @@ class VideoPool:
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
-    store_log_threshold = 600
+    store_log_threshold = 1200
 
     scores = {}
     queue = {}
@@ -670,7 +670,7 @@ def cache_youtube_video(params):
             error({ 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not determine alternate video id' })
             return
 
-        for count in range(5):
+        for count in range(10):
             video_details = video_pool.get_details(alternate_vid, website_id)
             if video_details != False: break
             time.sleep(5)
@@ -1375,8 +1375,9 @@ if __name__ == '__main__':
             cache_dir_data[cache_dir] = { 'last_checked' : 0, 'filelist' : [] }
 
         # Import website functions
-        for website in o.websites:
-            exec('from websites.' + website + ' import *')
+        for website_id in o.websites:
+            exec(website_id + '_cached_url = generalized_cached_url')
+            exec('from websites.' + website_id + ' import *')
 
         if options.sig == 'start':
             daemon.start()

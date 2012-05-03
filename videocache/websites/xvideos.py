@@ -19,7 +19,7 @@ def check_xvideos_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if re.compile('porn[a-z0-9][a-z0-9]?[a-z0-9]?[a-z0-9]?\.xvideos\.com').search(host) and re.compile('videos\/flv\/(.*)\/(.*)\.(flv|mp4)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
+    if host.find('.xvideos.com') > -1 and re.compile('videos\/flv\/(.*)\/(.*)\.(flv|mp4)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
         try:
             video_id = urllib2.quote(path.strip('/').split('/')[-1].split('_')[-1])
         except Exception, e:
