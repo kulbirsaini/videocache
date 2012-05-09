@@ -11,7 +11,7 @@ __docformat__ = 'plaintext'
 import cgi
 import os
 import re
-import urllib2
+import urllib
 import urlparse
 
 # Functions related to Youtube video ID and video format
@@ -27,7 +27,7 @@ def get_youtube_video_id_from_query(query):
     elif 'v' in dict:
         video_id = dict['v'][0]
 
-    video_id = urllib2.quote(video_id)
+    video_id = urllib.quote(video_id)
     if video_id == '': video_id = None
     return video_id
 
@@ -77,15 +77,19 @@ def get_youtube_filename(o, video_id, format, bit_range = {}):
     fmt = ext = suffix = ''
     start, end = bit_range.get('start', 0), bit_range.get('end', 0)
 
-    if format != '': fmt = '_' + format
-    if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
+    if format != '':
+        fmt = '_' + format
+        if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
     if o.youtube_formats.has_key(format): ext = o.youtube_formats[format]['ext']
     return video_id + fmt + suffix + ext
 
 def youtube_cached_url(o, video_id, website_id, format, params = {}):
     strict_mode = params.get('strict_mode', False)
+    cache_check_only = params.get('cache_check_only', False)
     found, dir, size, index, cached_url = False, '', '-', '', ''
     valid_fmts = [format]
+    if not cache_check_only:
+        valid_fmts += ['']
     if not strict_mode and o.youtube_formats.has_key(format):
         if o.enable_youtube_format_support == 1:
             cat = o.youtube_formats[format]['cat']

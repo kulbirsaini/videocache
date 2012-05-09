@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_cnn_video(url, host = None, path = None, query = None):
@@ -21,7 +21,7 @@ def check_cnn_video(url, host = None, path = None, query = None):
 
     if host.find('cdn.turner.com') > -1 and re.compile('(.*)/(.*)\.(flv)').search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
         try:
-            video_id = urllib2.quote(path.strip('/').split('/')[-1])
+            video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:
             pass
     else:

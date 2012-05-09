@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_aol_video(url, host = None, path = None, query = None):
@@ -21,7 +21,7 @@ def check_aol_video(url, host = None, path = None, query = None):
 
     if (host.find('videos.5min.com') > -1 or host.find('stream.aol.com') > -1) and (re.compile('(.*)/[a-zA-Z0-9]+\/(.*)\.(flv|mp4)').search(path) or re.compile('(.*)/[0-9_]+\.(flv|mp4)').search(path)):
         try:
-            video_id = urllib2.quote('_'.join(path.strip('/').split('/')[-2:]))
+            video_id = urllib.quote('_'.join(path.strip('/').split('/')[-2:]))
         except Exception, e:
             pass
     else:

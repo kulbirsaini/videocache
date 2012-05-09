@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_slutload_video(url, host = None, path = None, query = None):
@@ -21,7 +21,7 @@ def check_slutload_video(url, host = None, path = None, query = None):
 
     if re.compile('\.slutload-media\.com').search(host) and re.compile('(.*)\/[a-zA-Z0-9_.-]+\.flv').search(path) and path.find('.flv') > -1:
         try:
-            video_id = urllib2.quote(path.strip('/').split('/')[-1])
+            video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:
             pass
     else:

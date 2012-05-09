@@ -10,7 +10,7 @@ __docformat__ = 'plaintext'
 
 import cgi
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_weather_video(url, host = None, path = None, query = None):
@@ -23,7 +23,7 @@ def check_weather_video(url, host = None, path = None, query = None):
     if host.find('v.imwx.com') > -1 and re.compile('v\/wxcom\/[a-zA-Z0-9]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path) and re.compile('videoId=[0-9]+&').search(query):
         try:
             dict = cgi.parse_qs(query)
-            video_id = urllib2.quote(dict['videoId'][0])
+            video_id = urllib.quote(dict['videoId'][0])
         except Exception, e:
             pass
     else:

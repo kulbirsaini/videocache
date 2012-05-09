@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_wrzuta_video(url, host = None, path = None, query = None):
@@ -22,12 +22,12 @@ def check_wrzuta_video(url, host = None, path = None, query = None):
     if host.find('c.wrzuta.pl') > -1:
         if re.compile('wv[0-9]+\/[a-z0-9]+\/0\/').search(path):
             try:
-                video_id = urllib2.quote(path.strip('/').split('/')[-2])
+                video_id = urllib.quote(path.strip('/').split('/')[-2])
             except Exception, e:
                 pass
         elif re.compile('wa[0-9]+\/[a-z0-9]+').search(path):
             try:
-                video_id = urllib2.quote(path.strip('/').split('/')[-1])
+                video_id = urllib.quote(path.strip('/').split('/')[-1])
             except Exception, e:
                 pass
     else:

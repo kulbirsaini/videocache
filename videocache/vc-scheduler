@@ -1091,7 +1091,7 @@ def is_cached(video_url):
 def reopen_file(filename, file = None):
     try:
         file = open(filename, 'r')
-        file.seek(0, os.SEEK_END)
+        file.seek(0, 2)
         return file
     except Exception, e:
         wnt({ 'code' : STORE_LOG_OPEN_ERR, 'message' : 'Error while openning squid store log file. Check if file is present and is readable by squid' })
@@ -1154,7 +1154,7 @@ def watch_store_log():
                         info({'code' : STORE_LOG_URL_HIT, 'website_id' : website_id, 'video_id':video_id, 'message':'A URL in squid store log matched.'})
                         cached = False
                         if website_id == 'youtube':
-                            youtube_params = { 'strict_mode' : True }
+                            youtube_params = { 'strict_mode' : True, 'cache_check_only' : True }
                             if o.enable_youtube_partial_caching: youtube_params.update(get_youtube_video_range_from_query(query))
                             if youtube_cached_url(o, video_id, website_id, format, youtube_params)[0]:
                                 cached = True

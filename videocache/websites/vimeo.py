@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_vimeo_video(url, host = None, path = None, query = None):
@@ -21,7 +21,7 @@ def check_vimeo_video(url, host = None, path = None, query = None):
 
     if (host.find('.vimeo.com') > -1 or (host.find('.amazonaws.com') > -1 and path.find('.vimeo.com') > -1)) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
-            video_id = urllib2.quote(path.strip('/').split('/')[-1])
+            video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:
             pass
     else:

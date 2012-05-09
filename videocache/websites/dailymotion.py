@@ -10,7 +10,7 @@ __docformat__ = 'plaintext'
 
 import os
 import re
-import urllib2
+import urllib
 import urlparse
 
 def check_dailymotion_video(url, host = None, path = None, query = None):
@@ -23,13 +23,13 @@ def check_dailymotion_video(url, host = None, path = None, query = None):
     if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
         search = False
         try:
-            video_id = urllib2.quote(re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1))
+            video_id = urllib.quote(re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1))
         except Exception, e:
             pass
     elif (host.find('vid.ec.dmcdn.net') > -1 or host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg|on2)').search(path):
         queue = False
         try:
-            video_id = '.'.join(urllib2.quote(path.strip('/').split('/')[-1]).split('.')[:-1])
+            video_id = '.'.join(urllib.quote(path.strip('/').split('/')[-1]).split('.')[:-1])
             video_id = video_id.replace('_hq', '')
         except Exception, e:
             pass
