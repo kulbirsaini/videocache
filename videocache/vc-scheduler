@@ -26,7 +26,6 @@ import cookielib
 import heapq
 import logging
 import pickle
-import pyinotify
 import pwd
 import random
 import shutil
@@ -1051,32 +1050,6 @@ def scheduler_server_heartbeat():
             error({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler or set rpc_port option in /etc/videocache.conf to a different value.' })
 
         time.sleep(30)
-
-class ProcessTransientFile(pyinotify.ProcessEvent):
-
-    def reopen_file(self):
-        if os.path.isfile(o.squid_store_log) and is_readable(o.squid_store_log):
-            o.ssl_fo = open(o.squid_store_log, 'r')
-            return
-        o.ssl_fo = None
-
-    def process_IN_MODIFY(self, event):
-        pass
-
-    def process_IN_CREATE(self, event):
-        self.reopen_file()
-
-    def process_IN_ATTRIB(self, event):
-        self.reopen_file()
-
-    def process_default(self, event):
-        return
-
-def watch_squid_store_log():
-    wm = pyinotify.WatchManager()
-    notifier = pyinotify.Notifier(wm)
-    wm.watch_transient_file(o.squid_store_log, pyinotify.IN_MODIFY, ProcessTransientFile)
-    notifier.loop()
 
 def is_cached(video_url):
     try:
