@@ -174,7 +174,6 @@ class VideoPool:
 
     def dump_queue(self, now = False):
         if now or (self.queue_changed_after_dump() and time.time() - self.last_dump > self.dump_threshold):
-            info({ 'code' : 'QUEUE_DUMPED' })
             self.last_dump = time.time()
             queue_dump_string = pickle.dumps([self.scores, self.queue])
             for dir in o.base_dir_list:
