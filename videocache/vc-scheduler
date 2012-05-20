@@ -1055,10 +1055,15 @@ def is_cached(video_url):
     try:
         urllib2.install_opener( urllib2.build_opener( urllib2.ProxyHandler ({ 'http': o.this_proxy })))
         request = HeadRequest(url = video_url, headers = { 'Cache-Control': 'only-if-cached' })
-        if urllib2.urlopen( request ).getcode() == 200:
-            return True
+        head_conn = urllib2.urlopen(request)
+        try:
+            if head_conn.getcode() == 200:
+                return True
+        except Exception, e:
+            if head_conn.code == 200:
+                return True
     except Exception, e:
-        pass
+        trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
     return False
 
 def reopen_file(filename, file = None):
