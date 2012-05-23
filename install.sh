@@ -143,7 +143,7 @@ install_videocache() {
 check_apache_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
-    for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/; do
+    for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/ /etc/httpd/extra/; do
       if [[ -d $config_dir ]]; then
         green 'Installed'; echo
         return 0
