@@ -1102,9 +1102,12 @@ def watch_store_log():
         warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
-    if not os.path.isfile(o.squid_store_log):
-        warn({ 'code' : STORE_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid\'s store.log file. Please set option squid_store_log option correctly in /etc/videocache.conf and restart vc-scheduler.' })
-        return
+    while True:
+        if not os.path.isfile(o.squid_store_log):
+            warn({ 'code' : STORE_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid\'s store.log file. Please set option squid_store_log option correctly in /etc/videocache.conf and restart vc-scheduler.' })
+        else:
+            break
+        sleep(300)
 
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     try:
@@ -1128,6 +1131,9 @@ def watch_store_log():
                                 break
 
                     if matched:
+                        if video_id == None:
+                            warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf file. Please set it to off. After that restart squid and vc-scheduler.' })
+                            continue
                         info({'code' : STORE_LOG_URL_HIT, 'website_id' : website_id, 'video_id':video_id, 'message':'A URL in squid store log matched.'})
                         cached = False
                         if website_id == 'youtube':
@@ -1157,8 +1163,9 @@ def watch_store_log():
                                 filename = video_id + format
                                 if website_id == 'youtube':
                                     filename = get_youtube_filename(o, video_id, format, youtube_params)
-                                tmp_path = os.path.join(video_pool.get_next_cache_dir(), o.temp_dir, filename)
-                                video_path = os.path.join(video_pool.get_next_cache_dir(), o.website_cache_dir[website_id], filename)
+                                cache_dir = video_pool.get_next_cache_dir()
+                                tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
+                                video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
                                 if cache_remote_url(video_url, tmp_path, params):
                                     size = os.path.getsize(tmp_path)
