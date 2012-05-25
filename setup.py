@@ -129,6 +129,10 @@ if __name__ == '__main__':
     parser.add_option('-a', '--apache-dir', dest = 'apache_dir', type='string', help = 'Path to conf.d directory for Apache. In most cases, it\'ll be /etc/httpd/conf.d/ or /etc/apache2/conf.d/.')
     parser.add_option('-s', '--skip-apache-conf', dest = 'skip_apache_conf', action='store_true', help = 'Skip creating Videocache specific configuration for Apache.', default = False)
     parser.add_option('-c', '--skip-config', dest = 'skip_config', action='store_true', help = 'Skip creating Videocache configuration file.', default = False)
+    parser.add_option('-e', '--client-email', dest = 'client_email', type='string', help = 'Email address using which Videocache was purchased.', default = '')
+    parser.add_option('-t', '--cache-host', dest = 'cache_host', type='string', help = 'Cache host (IP Address with optional port) to serve cached videos via Apache.', default = '')
+    parser.add_option('-x', '--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).', default = '')
+    parser.add_option('-l', '--squid-store-log', dest = 'squid_store_log', type='string', help = 'Full path to Squid store.log file. Example : /var/log/squid/store.log', default = '')
     options, args = parser.parse_args()
 
     if os.getuid() != 0:

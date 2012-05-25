@@ -13,28 +13,28 @@ netifaces_url='https://github.com/kulbirsaini/videocache-dependencies/blob/maste
 iniparse_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/iniparse.tar.gz?raw=true'
 ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/ctypes.tar.gz?raw=true'
 
-blue() { #{{{
+blue_without_newline() { #{{{
   echo -en "\033[0;34m${1}\033[0m"
 }
 
-red() {
+red_without_newline() {
   echo -en "\033[0;31m${1}\033[0m"
 }
 
-green() {
+green_without_newline() {
   echo -en "\033[0;32m${1}\033[0m"
 }
 
-blue_with_newline() {
-  blue "$1"; echo
+blue() {
+  blue_without_newline "$1"; echo
 }
 
-red_with_newline() {
-  red "$1"; echo
+red() {
+  red_without_newline "$1"; echo
 }
 
-green_with_newline() {
-  green "$1"; echo
+green() {
+  green_without_newline "$1"; echo
 }
 
 strlen() {
@@ -44,7 +44,7 @@ strlen() {
 message_with_padding() {
   str_len=`strlen "${1}"`
   dots=`expr ${MESSAGE_LENGTH} - ${str_len}`
-  blue "${1}${MESSAGE_STR:0:${dots}}"
+  blue_without_newline "${1}${MESSAGE_STR:0:${dots}}"
 } #}}}
 
 # Options
@@ -55,16 +55,16 @@ install_python_module() { #{{{
   message_with_padding "Checking module ${1}"
   output=`python -c "import ${1}" 2>&1`
   if [[ $? != 0 ]]; then
-    red_with_newline 'Missing'
+    red 'Missing'
 
     message_with_padding "Fetching module ${1}"
     output=`wget -q "${url}" -O /tmp/"${archive}" 2>&1`
     if [[ $? == 0 ]]; then
-      green_with_newline 'Done'
+      green 'Done'
     else
-      red_with_newline 'Failed'
-      red_with_newline 'Please check your network connection!'
-      red_with_newline "${output}"
+      red 'Failed'
+      red 'Please check your network connection!'
+      red "${output}"
       exit 1
     fi
 
@@ -72,10 +72,10 @@ install_python_module() { #{{{
     message_with_padding "Extracting module ${1}"
     output=`tar -C /tmp/"${1}" -xzf /tmp/"${archive}" 2>&1`
     if [[ $? == 0 ]]; then
-      green_with_newline 'Done'
+      green 'Done'
     else
-      red_with_newline 'Failed'
-      red_with_newline "${output}"
+      red 'Failed'
+      red "${output}"
       exit 1
     fi
 
@@ -84,10 +84,10 @@ install_python_module() { #{{{
     cd /tmp/"${1}"/*
     output=`python setup.py install 2>&1`
     if [[ $? == 0 ]]; then
-      green_with_newline 'Success'
+      green 'Success'
     else
-      red_with_newline 'Failed'
-      red_with_newline "${output}"
+      red 'Failed'
+      red "${output}"
       exit 1
     fi
     cd $cur_dir
@@ -97,14 +97,14 @@ install_python_module() { #{{{
     message_with_padding "Testing module ${1}"
     output=`python -c "import ${1}" 2>&1`
     if [[ $? == 0 ]]; then
-      green_with_newline 'Verified'
+      green 'Verified'
     else
-      red_with_newline 'Failed'
-      red_with_newline "${output}"
+      red 'Failed'
+      red "${output}"
       exit 1
     fi
   else
-    green_with_newline 'Installed'
+    green 'Installed'
   fi
 } #}}}
 
@@ -112,32 +112,33 @@ check_python_dev() { #{{{
   message_with_padding "Checking Python.h"
   pythonh=`python -c 'import setuptools; print setuptools.distutils.sysconfig.get_python_inc()' 2>&1`
   if [[ $? != 0 ]]; then
-    red_with_newline 'Failed'
-    red_with_newline 'Either python setuptools are not installed on your system or we can not locate them.' 
-    red_with_newline 'Check the error below.'
-    red_with_newline "${pythonh}"
+    red 'Failed'
+    red 'Either python setuptools are not installed on your system or we can not locate them.' 
+    red 'Check the error below.'
+    red "${pythonh}"
     exit 1
   fi
 
   if [[ -f ${pythonh}/Python.h ]]; then
-    green_with_newline 'Installed'
+    green 'Installed'
     return 0
   else
-    red_with_newline 'Missing'
-    red_with_newline 'Please install python-dev or python-devel package depending on your operating system.'
+    red 'Missing'
+    red 'Please install python-dev or python-devel package depending on your operating system.'
   fi
   exit 1
 } #}}}
 
 install_videocache() { #{{{
+  build_setup_command
   message_with_padding "Installing Videocache"
-  output=`python setup.py install 2>&1`
+  output=`eval $setup_command`
   if [[ $? == 0 ]]; then
-    green 'Installed'; echo
-    green "${output}"; echo
+    green 'Installed'
+    green "${output}"
   else
-    red 'Failed'; echo
-    red "${output}"; echo
+    red 'Failed'
+    red "${output}"
     exit 1
   fi
 } #}}}
@@ -155,18 +156,18 @@ get_apache_conf_dir() { #{{{
       if [[ -d $choice ]]; then
         apache_config_dir=$choice
       else
-        red "Directory $choice doesn't exist."
+        red_without_newline "Directory $choice doesn't exist."
         if [[ $i == 2 ]]; then
-          red_with_newline " Will exit now."
+          red " Will exit now."
           exit 1
         else
-          red_with_newline " Try again."
+          red " Try again."
           continue
         fi
       fi
     fi
     message_with_padding 'Selected Apache conf.d or extra directory'
-    green_with_newline $apache_config_dir
+    green $apache_config_dir
     return 0
   done
 } #}}}
@@ -176,7 +177,7 @@ check_apache_with_conf_dir() { #{{{
   if [[ $? == 0 ]]; then
     for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/ /etc/httpd/extra/ /usr/local/etc/apache22/extra/ /etc/apache22/conf.d/ ; do
       if [[ -d $config_dir ]]; then
-        green_with_newline 'Installed'
+        green 'Installed'
         apache_config_dir=$config_dir
         return 0
       fi
@@ -193,7 +194,7 @@ check_apache() { #{{{
       return 0
     fi
   done
-  red_with_newline 'Missing'
+  red 'Missing'
   return 1
 } #}}}
 
@@ -220,7 +221,7 @@ get_squid_store_log() { #{{{
     squid_store_log=$choice
   fi
   message_with_padding "Selected Squid store.log file"
-  green_with_newline $squid_store_log
+  green $squid_store_log
 } #}}}
 
 check_squid_with_conf_dir() { #{{{
@@ -228,7 +229,7 @@ check_squid_with_conf_dir() { #{{{
   if [[ $? == 0 ]]; then
     for config_file in /etc/squid/squid.conf /etc/squid3/squid.conf /usr/local/etc/squid/squid.conf /usr/local/squid/etc/squid.conf /usr/local/squid3/etc/squid.conf; do
       if [[ -f $config_file ]]; then
-        green_with_newline 'Installed'
+        green 'Installed'
         return 0
       fi
     done
@@ -244,7 +245,7 @@ check_squid() { #{{{
       return 0
     fi
   done
-  red_with_newline 'Missing'
+  red 'Missing'
   return 1
 } #}}}
 
@@ -252,10 +253,10 @@ check_command() { #{{{
   message_with_padding "Checking ${1}"
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
-    green_with_newline 'Installed'
+    green 'Installed'
   else
-    red_with_newline 'Missing'
-    red_with_newline "${2}"
+    red 'Missing'
+    red "${2}"
     exit 1
   fi
 } #}}}
@@ -272,11 +273,11 @@ check_dependencies() { #{{{
 check_root() { #{{{
   message_with_padding 'Checking root access'
   if [[ $UID != 0 ]]; then
-    red_with_newline 'Missing'
-    red_with_newline 'You must run install.sh as root user or with sudo! Aborting now. Please try again.'
+    red 'Missing'
+    red 'You must run install.sh as root user or with sudo! Aborting now. Please try again.'
     exit 1
   else
-    green_with_newline 'Granted'
+    green 'Granted'
   fi
 } #}}}
 
@@ -286,8 +287,8 @@ install_init_script() { #{{{
   if [[ $? == 0 ]]; then
     update-rc.d vc-scheduler defaults > /dev/null 2> /dev/null
     if [[ $? == 0 ]]; then
-      green 'Done'; echo
-      return
+      green 'Done'
+      return 0
     fi
   fi
 
@@ -295,13 +296,13 @@ install_init_script() { #{{{
   if [[ $? == 0 ]]; then
     chkconfig vc-scheduler on > /dev/null 2> /dev/null
     if [[ $? == 0 ]]; then
-      green 'Done'; echo
+      green 'Done'
       return 0
     fi
   fi
-  red 'Failed'; echo
-  red 'Please check the init script related section of your operating system manual.'; echo
-  red 'The videocache scheduler init script is located at /etc/init.d/vc-scheduler .'; echo
+  red 'Failed'
+  red 'Please check the init script related section of your operating system manual.'
+  red 'The videocache scheduler init script is located at /etc/init.d/vc-scheduler .'
   return 1
 } #}}}
 
@@ -423,7 +424,7 @@ detect_or_select_os() { #{{{
   detect_os
   if [[ $? == 0 ]]; then
     message_with_padding "Automatically detected Operating System"
-    green_with_newline $OS
+    green $OS
     ask_question "Do you want to select your Operating System manually? (y/n): "
     if [[ $? == 1 ]]; then
       want_to_select_os=1
@@ -497,18 +498,18 @@ get_squid_user() { #{{{
       if [[ $? == 0 ]]; then
         squid_user=$choice
       else
-        red "User $choice doesn't exist on system."
+        red_without_newline "User $choice doesn't exist on system."
         if [[ $i == 2 ]]; then
-          red_with_newline " Will exit now."
+          red " Will exit now."
           exit 1
         else
-          red_with_newline " Try again."
+          red " Try again."
           continue
         fi
       fi
     fi
     message_with_padding 'Selected user who runs Squid daemon'
-    green_with_newline $squid_user
+    green $squid_user
     return 0
   done
 } #}}}
@@ -517,9 +518,9 @@ os_detection() { #{{{
   detect_or_select_os
   if [[ $? == 0 && $OS != '' ]]; then
     message_with_padding "Selected Operating System"
-    green_with_newline $OS
+    green $OS
   else
-    red_with_newline "Operating System not detected or specified. Will continue with defaults."
+    red "Operating System not detected or specified. Will continue with defaults."
   fi
 } #}}}
 
@@ -530,7 +531,7 @@ squid_code() { #{{{
     if [[ $? == 1 ]]; then
       echo "Okay, I trust you! Let's move forward."
     else
-      red_with_newline 'Download and install squid from http://www.squid-cache.org/ or check your operating system manual for installing the same.'
+      red 'Download and install squid from http://www.squid-cache.org/ or check your operating system manual for installing the same.'
       exit 1
     fi
   fi
@@ -543,7 +544,7 @@ apache_code() { #{{{
   ask_question 'Do you want to skip Apache configuration? (y/n): '
   if [[ $? == 1 ]]; then
     message_with_padding "Apache configuration"
-    green_with_newline "Skipped"
+    green "Skipped"
     skip_apache=1
     apache_config_dir=''
   fi
@@ -554,7 +555,7 @@ apache_code() { #{{{
       if [[ $? == 1 ]]; then
         echo "Sure thing! Let's move forward."
       else
-        red_with_newline 'Download and install apache from http://www.apache.org/ or check your operating system manual for installing the same.'
+        red 'Download and install apache from http://www.apache.org/ or check your operating system manual for installing the same.'
         exit 1
       fi
     fi
@@ -569,7 +570,7 @@ get_client_email() { #{{{
     choice=`echo $choice`
     if [[ $choice == '' ]] || [[ ! $choice =~ [^@\ ]@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,5}$ ]]; then
       if [[ $i == $tries ]]; then
-        red_with_newline "A valid email address was not entered. Will exit now."
+        red "A valid email address was not entered. Will exit now."
         exit 1
       else
         echo "Invalid input. Please try again."
@@ -578,7 +579,7 @@ get_client_email() { #{{{
     else
       client_email=$choice
       message_with_padding 'Selected email address'
-      green_with_newline $client_email
+      green $client_email
       return 0
     fi
   done
@@ -629,7 +630,7 @@ get_cache_host() { #{{{
     if [[ $? == 0 ]]; then
       cache_host=$choice
       message_with_padding "Selected cache_host"
-      green_with_newline $cache_host
+      green $cache_host
       return 0
     else
       if [[ $i == $tries ]]; then
@@ -653,7 +654,7 @@ get_this_proxy() { #{{{
     if [[ $? == 0 ]]; then
       this_proxy=$choice
       message_with_padding "Selected proxy server"
-      green_with_newline $this_proxy
+      green $this_proxy
       return 0
     else
       if [[ $i == $tries ]]; then
@@ -685,6 +686,16 @@ print_info() { #{{{
   echo "Squid proxy: $this_proxy"
 } #}}}
 
+build_setup_command() { #{{{
+  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log"
+  if [[ $skip_apache == 0 ]]; then
+    setup_command="$setup_command --apache-dir $apache_config_dir"
+  else
+    setup_command="$setup_command --skip-apache-conf"
+  fi
+  setup_command="$setup_command 2>&1"
+} #}}}
+
 main() { #{{{
   check_root
   os_detection
@@ -696,8 +707,8 @@ main() { #{{{
   get_cache_host
   get_this_proxy
   print_info
-  #install_videocache
-  #install_init_script
+  install_videocache
+  install_init_script
 } #}}}
 
 tries=2
@@ -710,6 +721,7 @@ apache_config_dir=''
 client_email=''
 cache_host=''
 this_proxy=''
+setup_command=''
 
 main
 
