@@ -38,7 +38,7 @@ green_with_newline() {
 }
 
 strlen() {
-  echo `expr length "${1}"`
+  echo `expr "${1}" : '.*'`
 }
 
 message_with_padding() {
@@ -443,7 +443,7 @@ detect_or_select_os() { #{{{
 } #}}}
 
 ask_question() { #{{{
-  for((i = 0; i < 3; i++)); do
+  for((i = 1; i <= $tries; ++i)); do
     echo -n "$1"
     read choice
     case $choice in
@@ -454,7 +454,7 @@ ask_question() { #{{{
       return 0
       break;;
       *)
-      if [[ $i == 2 ]]; then
+      if [[ $i == $tries ]]; then
         echo 'You did not enter a valid input for three consecutive times.'
         return 2
       else
@@ -563,7 +563,7 @@ apache_code() { #{{{
 } #}}}
 
 get_client_email() { #{{{
-  for((i = 0; i <= $tries; ++i)); do
+  for((i = 1; i <= $tries; ++i)); do
     echo -n "Enter the email address using which you purchased Videocache: "
     read choice
     choice=`echo $choice`
@@ -584,28 +584,87 @@ get_client_email() { #{{{
   done
 } #}}}
 
-get_cache_host() { #{{{
-  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' '`
-  echo -n "Enter IP address for cache_host option (available: ${ips}): "
-  read choice
-  choice=`echo $choice`
-  if [[ $choice != '' ]]; then
-    cache_host=$choice
+is_valid_ip() { #{{{
+  count=0
+  for number in `echo $1 | tr '.' '\n'`; do
+    number=`echo $number`
+    if [[ $number == '' || $number -lt 0 || $number -gt 255 ]]; then
+      return 1
+    fi
+    count=`expr $count + 1`
+  done
+  if [[ $count != 4 ]]; then
+    return 1
   fi
-  message_with_padding "Selected cache_host"
-  green_with_newline $cache_host
+  return 0
+} #}}}
+
+is_valid_host_port() { #{{{
+  ip=`echo $1 | cut -d\: -f1`
+  port=`echo $1 | grep ':' | cut -d\: -f2`
+  port=`echo $port`
+  is_valid_ip $ip
+  if [[ $? != 0 ]]; then
+    return 1
+  fi
+  if [[ $2 == 'check_port' && $port == '' ]]; then
+    return 1
+  fi
+  if [[ $port == '' && $1 =~ [0-9.]+: ]]; then
+    return 1
+  fi
+  if [[ $port != '' ]] && [[ $port -lt 1 || $port -gt 65535 ]]; then
+    return 1
+  fi
+  return 0
+} #}}}
+
+get_cache_host() { #{{{
+  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -`
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter IP address for cache_host option (available: ${ips}): "
+    read choice
+    choice=`echo $choice`
+    is_valid_host_port $choice
+    if [[ $? == 0 ]]; then
+      cache_host=$choice
+      message_with_padding "Selected cache_host"
+      green_with_newline $cache_host
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        echo "Cache host not specified. Will exit now."
+        exit 1
+      else
+        echo "Invalid format for cache host. Please try again."
+        continue
+      fi
+    fi
+  done
 } #}}}
 
 get_this_proxy() { #{{{
-  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' '`
-  echo -n "Enter IPADDRESS:PORT combination for Squid proxy on this machine (example: 127.0.0.1:3128): "
-  read choice
-  choice=`echo $choice`
-  if [[ $choice != '' ]]; then
-    this_proxy=$choice
-  fi
-  message_with_padding "Selected proxy server"
-  green_with_newline $this_proxy
+  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -`
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter IPADDRESS:PORT combination for Squid proxy on this machine (example: 127.0.0.1:3128): "
+    read choice
+    choice=`echo $choice`
+    is_valid_host_port $choice check_port
+    if [[ $? == 0 ]]; then
+      this_proxy=$choice
+      message_with_padding "Selected proxy server"
+      green_with_newline $this_proxy
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        echo "Squid proxy not specified. Will exit now."
+        exit 1
+      else
+        echo "Invalid format for squid proxy. Please try again."
+        continue
+      fi
+    fi
+  done
 } #}}}
 
 install_python_modules() { #{{{
@@ -616,16 +675,27 @@ install_python_modules() { #{{{
   install_python_module ctypes "${CTYPES_URL}"
 } #}}}
 
+print_info() { #{{{
+  echo "Operating System: $OS"
+  echo "Squid store.log: $squid_store_log"
+  echo "Squid user: $squid_user"
+  echo "Apache conf.d: $apache_config_dir"
+  echo "Email address: $client_email"
+  echo "Cache Host: $cache_host"
+  echo "Squid proxy: $this_proxy"
+} #}}}
+
 main() { #{{{
   check_root
-  #os_detection
-  #check_dependencies
+  os_detection
+  check_dependencies
   install_python_modules
-  #squid_code
-  #apache_code
-  #get_client_email
-  #get_cache_host
-  #get_this_proxy
+  squid_code
+  apache_code
+  get_client_email
+  get_cache_host
+  get_this_proxy
+  print_info
   #install_videocache
   #install_init_script
 } #}}}
