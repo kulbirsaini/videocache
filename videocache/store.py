@@ -35,7 +35,7 @@ def free_space(dir):
     return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
 
 def get_filelist(dir, sort_by = 'time', order = 'desc'):
-    cmd = 'ls -1d'
+    cmd = "find %s -name '*' -type f ! -iname '*.xml' ! -iname '*.queue' | xargs ls -1" % dir
 
     if sort_by == 'size':
         cmd += 'S'
@@ -44,7 +44,7 @@ def get_filelist(dir, sort_by = 'time', order = 'desc'):
 
     if order == 'asc': cmd += 'r'
 
-    cmd += ' ' + dir + ' 2> /dev/null'
+    cmd += ' ' + dir + ' | grep "^\/" 2> /dev/null'
     for path in ['', '/bin/']:
         command = os.path.join(path, cmd)
         try:

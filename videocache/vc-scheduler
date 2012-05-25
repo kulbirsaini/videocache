@@ -1193,7 +1193,7 @@ def rebuild_cache_dir_filelist(dir, now = False):
     if now or (time.time() - cache_dir_data[dir]['last_checked']) > o.cache_dir_filelist_rebuild_interval or len(cache_dir_data[dir]['filelist']) < 1:
         try:
             cleaner_info({ 'code' : FILELIST_BUILD_START, 'message' : 'Obtaining filelist for cache directory ' + dir })
-            cache_dir_data[dir] = { 'filelist' : get_filelist(os.path.join(dir, '*', '*'), sort_by, 'asc'), 'last_checked' : time.time() }
+            cache_dir_data[dir] = { 'filelist' : get_filelist(dir, sort_by, 'asc'), 'last_checked' : time.time() }
             cleaner_info({ 'code' : FILELIST_BUILD_FINISH, 'message' : 'Finished building filelist for cache directory ' + dir })
         except Exception, e:
             cent({ 'code' : FILELIST_BUILD_ERR, 'message' : 'Error occured while building filelist for cache directory ' + dir, 'debug' : str(e) })
@@ -1228,7 +1228,7 @@ def cleancache():
             if free_space(dir) < o.disk_avail_threshold:
                 while True:
                     rebuild_cache_dir_filelist(dir)
-                    if len(cache_dir_data[dir]['filelist']) == 0:
+                    if len(cache_dir_data[dir]['filelist']) < 50:
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         break
@@ -1311,6 +1311,11 @@ def flush_scheduler_queue():
             sys.stderr.write('Error while flushing videocache scheduler queue. There might have been a file permission issue.\n')
             sys.exit(1)
 
+def independent_cleaner():
+    o.set_loggers()
+    cleancache()
+    return
+
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
@@ -1377,6 +1382,10 @@ if __name__ == '__main__':
             os.setgid(uid)
             os.setuid(uid)
             flush_scheduler_queue()
+        elif options.sig == 'clean':
+            os.setgid(uid)
+            os.setuid(uid)
+            independent_cleaner()
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:
