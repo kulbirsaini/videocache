@@ -563,12 +563,22 @@ apache_code() { #{{{
   fi
 } #}}}
 
+is_valid_email() { #{{{
+python - <<END
+import re, sys
+if re.compile('^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$').match("$1"):
+  sys.exit(0)
+sys.exit(1)
+END
+} #}}}
+
 get_client_email() { #{{{
   for((i = 1; i <= $tries; ++i)); do
     echo -n "Enter the email address using which you purchased Videocache: "
     read choice
     choice=`echo $choice`
-    if [[ $choice == '' ]] || [[ ! $choice =~ [^@\ ]@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,5}$ ]]; then
+    is_valid_email $choice
+    if [[ $? == 1 ]]; then
       if [[ $i == $tries ]]; then
         red "A valid email address was not entered. Will exit now."
         exit 1
@@ -677,23 +687,25 @@ install_python_modules() { #{{{
 } #}}}
 
 print_info() { #{{{
-  echo "Operating System: $OS"
-  echo "Squid store.log: $squid_store_log"
-  echo "Squid user: $squid_user"
-  echo "Apache conf.d: $apache_config_dir"
-  echo "Email address: $client_email"
-  echo "Cache Host: $cache_host"
-  echo "Squid proxy: $this_proxy"
+  echo -e "\nWe will be using the following information to install videocache."
+  echo "Operating System:  $OS"
+  echo "Squid store.log:   $squid_store_log"
+  echo "Squid user:        $squid_user"
+  echo "Apache conf.d:     $apache_config_dir"
+  echo "Email address:     $client_email"
+  echo "Cache Host:        $cache_host"
+  echo "Squid proxy:       $this_proxy"
+  echo
 } #}}}
 
 build_setup_command() { #{{{
   setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log"
   if [[ $skip_apache == 0 ]]; then
-    setup_command="$setup_command --apache-dir $apache_config_dir"
+    setup_command="$setup_command --apache-conf-dir $apache_config_dir"
   else
     setup_command="$setup_command --skip-apache-conf"
   fi
-  setup_command="$setup_command 2>&1"
+  setup_command="$setup_command install 2>&1"
 } #}}}
 
 main() { #{{{
