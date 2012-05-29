@@ -16,8 +16,26 @@ import re
 import sys
 import traceback
 
+def red(msg):#{{{
+    return "\033[1;31m%s\033[0m" % msg
+
+def blue(msg):
+    return "\033[1;36m%s\033[0m" % msg
+
+def green(msg):
+    return "\033[1;32m%s\033[0m" % msg#}}}
+
+def print_message_and_abort(message):
+    print >>sys.stderr, message
+    sys.exit(1)
+
+def log_traceback():
+    print blue('\n' + '-' * 25 + 'Traceback Begin' + '-' * 25)
+    print traceback.format_exc(),
+    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
+
 # Setup specific functions
-def setup_error(error_code, print_msg = True):#{{{
+def setup_error(error_code):#{{{
     """Report error while updating/installing videocache with proper error code."""
 
     messages = {}
@@ -226,10 +244,10 @@ def is_valid_path(path, file = True):#{{{
 
 def verify_options(options, args):#{{{
     if os.geteuid() != 0:
-        print_message_and_abort(setup_error('uid'))
+        print_message_and_abort(red(setup_error('uid')))
 
     if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or not options.squid_store_log or (options.skip_apache_conf == False and not options.apache_conf_dir):
-        print_message_and_abort(setup_error('usage'))
+        print_message_and_abort(red(setup_error('usage')))
 
     messages = ''
     if not is_valid_host_port(options.cache_host, port_optional = True):
@@ -265,16 +283,17 @@ if __name__ == '__main__':
     config_file = os.path.join(working_dir, 'videocache-sysconfig.conf')
 
     if os.path.isdir(videocache_dir):
-        sys.path = [videocache_dir] + sys.path
-        from vcoptions import VideocacheOptions
-        from common import *
-        from fsop import *
-        from vcsysinfo import get_ip_addresses
+        try:
+            sys.path = [videocache_dir] + sys.path
+            from vcoptions import VideocacheOptions
+            from common import *
+            from fsop import *
+            from vcsysinfo import get_ip_addresses
+        except Exception, e:
+            log_traceback()
+            print_message_and_abort(red("\nCould not import required modules for setup.") + green("\nIf you contact us regarding this error, please send the Trace above."))
     else:
-        parser.print_help()
-        # print_message_and_abort is not available yet.
-        sys.stderr.write("\033[0;31m%s\033[0m" % setup_error('usage', False))
-        sys.exit(1)
+        print_message_and_abort(red("Could not locate the videocache directory in bundle.\n%s" % setup_error('usage')))
 
     verify_options(options, args)
 
@@ -293,7 +312,7 @@ if __name__ == '__main__':
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))
 
     if o.halt:
-        print_message_and_abort(red('\nOne or more errors occured in reading configure file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
+        print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
     email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, verbose = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_store_log, options.verbose
     setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, not verbose, working_dir)
