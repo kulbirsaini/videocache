@@ -12,6 +12,7 @@ from optparse import OptionParser
 
 import os
 import pwd
+import re
 import sys
 import traceback
 
@@ -114,11 +115,17 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         config_data = file.read()
         file.close()
         file = open(vcsysconfig_file, 'w')
-        config_data = config_data.replace("\nvideocache_user =", "\nvideocache_user = " + user)
-        config_data = config_data.replace("\nclient_email =", "\nclient_email = " + email)
-        config_data = config_data.replace("\ncache_host =", "\ncache_host = " + cache_host)
-        config_data = config_data.replace("\nthis_proxy =", "\nthis_proxy = " + this_proxy)
-        config_data = config_data.replace("\nsquid_store_log =", "\nsquid_store_log = " + squid_store_log)
+        config_data = re.sub('\nvideocache_user[\ ]+=[^\n]*\n', '\nvideocache_user = %s\n' % user, config_data, count = 0)
+        config_data = re.sub('\nclient_email[\ ]+=[^\n]*\n', '\nclient_email = %s\n' % email, config_data, count = 0)
+        config_data = re.sub('\ncache_host[\ ]+=[^\n]*\n', '\ncache_host = %s\n' % cache_host, config_data, count = 0)
+        config_data = re.sub('\nthis_proxy[\ ]+=[^\n]*\n', '\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
+        config_data = re.sub('\nsquid_store_log[\ ]+=[^\n]*\n', '\nsquid_store_log = %s\n' % squid_store_log, config_data, count = 0)
+        config_data = re.sub('\napache_conf_dir[\ ]+=[^\n]*\n', '\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
+        if apache_conf_dir == '':
+            skip_apache_conf = 1
+        else:
+            skip_apache_conf = 0
+        config_data = re.sub('\nskip_apache_conf[\ ]+=[^\n]*\n', '\nskip_apache_conf = %s\n' % skip_apache_conf, config_data, count = 0)
         file.write(config_data)
         file.close()
 
@@ -151,16 +158,50 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         log_traceback()
         print_message_and_abort(install_error)
 
-    message = """
-Videocache setup has completed successfully.
-Now you must restart Apache web server on your machine by using the following command
-[root@localhost ~]# apachectl -k restart [ENTER]
+    squid_config_lines = "cache_store_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (squid_store_log, get_ip_addresses().replace(',', ' '))
+    msg = """
+Setup has completed successfully. Plesae follow the following steps to start Videocache.
 
-Also, you need to configure squid so that it can use videocache as a url rewriter plugin.
-Check README file for further configurations of squid, apache and videocache.
-In case of any bugs or problems, check http://cachevideos.com/ .
-"""
-    print green(message)
+----------------------------------Step 1-----------------------------------------
+Open the Videocache configuration file located at /etc/videocache.conf and modify
+any options you want. Once you are done, save the file.
+
+----------------------------------Step 2-----------------------------------------
+Run vc-update command to update your installation in accordance with new options.
+[root@localhost ~]# vc-update
+
+----------------------------------Step 3-----------------------------------------
+Restart Apache web server on your machine by using the following command
+[root@localhost ~]# apachectl -k restart
+
+----------------------------------Step 4-----------------------------------------
+Depending on the version of your Squid, open vc_squid_2.conf or vc_squid_3.conf
+in your Videocache bundle. Copy all the lines and paste them at the top of your
+Squid configuration file squid.conf.
+
+Also add the following lines at the top of your Squid config file squid.conf.
+#-----------------CUT FROM HERE-------------------
+%s
+#-----------------CUT TILL HERE-------------------
+
+----------------------------------Step 5-----------------------------------------
+Restart videocache scheduler vc-scheduler using the following command.
+[root@localhost ~]# vc-scheduler -s restart
+
+----------------------------------Step 6-----------------------------------------
+Restart Squid proxy server daemon using the following command.
+[root@localhost ~]# /etc/init.d/squid restart
+
+----------------------------------Step 7-----------------------------------------
+Go the videocache log directory /var/log/videocache/ and check various log files
+to have a look at videocache activity.
+
+Check Manual.pdf file for detailed configurations of squid, apache and videocache.
+In case of any bugs or problems, visit http://cachevideos.com/ and contact us.""" % squid_config_lines
+
+    file = open(os.path.join(working_dir, 'instructions.txt'), 'w')
+    file.write(msg)
+    file.close
     return#}}}
 
 def process_options(parser):#{{{
@@ -176,6 +217,13 @@ def process_options(parser):#{{{
     parser.add_option('--squid-store-log', dest = 'squid_store_log', type='string', help = 'Full path to Squid store.log file. Example : /var/log/squid/store.log')
     return parser.parse_args()#}}}
 
+def is_valid_path(path, file = True):#{{{
+    if file and path.endswith('/'):
+        return False
+    if re.compile('^/([^\/]+\/){1,7}[^\/]+\/?$').match(path):
+        return True
+    return False#}}}
+
 def verify_options(options, args):#{{{
     if os.geteuid() != 0:
         print_message_and_abort(setup_error('uid'))
@@ -190,7 +238,7 @@ def verify_options(options, args):#{{{
     if not is_valid_host_port(options.this_proxy):
         messages += "\n\n" + setup_error('this_proxy')
 
-    if not options.skip_apache_conf and not options.apache_conf_dir.startswith('/'):
+    if not options.skip_apache_conf and not is_valid_path(options.apache_conf_dir, False):
         messages += "\n\n" + setup_error('apache_conf_dir')
 
     if not is_valid_email(options.client_email):
@@ -199,7 +247,7 @@ def verify_options(options, args):#{{{
     if not is_valid_user(options.squid_user):
         messages += "\n\n" + setup_error('squid_user')
 
-    if not options.squid_store_log.startswith('/'):
+    if not is_valid_path(options.squid_store_log):
         messages += "\n\n" + setup_error('squid_store_log')
 
     if messages != '':
@@ -221,6 +269,7 @@ if __name__ == '__main__':
         from vcoptions import VideocacheOptions
         from common import *
         from fsop import *
+        from vcsysinfo import get_ip_addresses
     else:
         parser.print_help()
         # print_message_and_abort is not available yet.

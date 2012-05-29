@@ -98,6 +98,10 @@ class VideocacheOptions:
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
 
+            # Apache
+            self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)
+            self.__class__.apache_conf_dir = mainconf.apache_conf_dir.strip()
+
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
             self.__class__.temp_dir = mainconf.temp_dir

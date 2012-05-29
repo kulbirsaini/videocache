@@ -68,6 +68,10 @@ class VideocacheConf:
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
 
+    # Apache
+    skip_apache_conf = Option(0)
+    apache_conf_dir = Option('')
+
     # Filesystem
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')

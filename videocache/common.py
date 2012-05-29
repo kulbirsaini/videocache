@@ -25,17 +25,20 @@ import urlparse
 
 # Colored messages on terminal
 def red(msg):#{{{
-    return "\033[0;31m%s\033[0m" % msg
+    return "\033[1;31m%s\033[0m" % msg
 
 def blue(msg):
-    return "\033[0;34m%s\033[0m" % msg
+    return "\033[1;36m%s\033[0m" % msg
 
 def green(msg):
-    return "\033[0;32m%s\033[0m" % msg#}}}
+    return "\033[1;32m%s\033[0m" % msg#}}}
 
 def is_valid_ip(ip):
-    if len(filter(lambda x: x.isdigit() and 0 <= int(x) <= 255, ip.split('.'))) == 4:
-        return True
+    try:
+        if len(filter(lambda x: 0 <= int(x) <= 255, ip.split('.'))) == 4:
+            return True
+    except Exception, e:
+        pass
     return False
 
 def is_valid_host_port(host_port, port_optional = False):
