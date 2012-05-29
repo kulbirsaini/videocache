@@ -23,6 +23,47 @@ import urllib
 import urllib2
 import urlparse
 
+# Colored messages on terminal
+def red(msg):#{{{
+    return "\033[1;31m%s\033[0m" % msg
+
+def blue(msg):
+    return "\033[1;36m%s\033[0m" % msg
+
+def green(msg):
+    return "\033[1;32m%s\033[0m" % msg#}}}
+
+def is_valid_ip(ip):
+    try:
+        if len(filter(lambda x: 0 <= int(x) <= 255, ip.split('.'))) == 4:
+            return True
+    except Exception, e:
+        pass
+    return False
+
+def is_valid_host_port(host_port, port_optional = False):
+    if ':' in host_port:
+        ip, port = host_port.split(':')
+        if not port.isdigit():
+            return False
+        port = int(port)
+        if port < 0 or port > 65535:
+            return False
+    elif not port_optional:
+        return False
+    return is_valid_ip(host_port.split(':')[0])
+
+def is_valid_email(email):
+    if re.compile('^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$').match(email):
+        return True
+    return False
+
+def is_valid_user(user):
+    try:
+        pwd.getpwnam(user)
+        return True
+    except:
+        return False
 
 def syslog_msg(msg):
     syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)
@@ -81,13 +122,13 @@ class FakeThread:
 
 # Videocache setup/update specific functions
 def print_message_and_abort(message):
-    sys.stderr.write(message)
+    print >>sys.stderr, message
     sys.exit(1)
 
 def log_traceback():
-    print '\n' + '-' * 25 + 'Traceback Begin' + '-' * 25
+    print blue('\n' + '-' * 25 + 'Traceback Begin' + '-' * 25)
     print traceback.format_exc(),
-    print '-' * 25 + 'Traceback End' + '-' * 27 + '\n'
+    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
 
 def generate_youtube_crossdomain(xdomain_file, quiet = False):
     youtube_crossdomain = """<?xml version="1.0"?>
