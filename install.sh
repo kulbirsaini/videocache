@@ -306,7 +306,7 @@ download() { #{{{
   # $3 -> target file name
   # $4 -> error message
   message_with_padding "Fetching ${1}"
-  output=`wget -q "${2}" -O "${3}" 2>&1`
+  output=`wget --no-check-certificate -q "${2}" -O "${3}" 2>&1`
   if [[ $? == 0 ]]; then
     green 'Done'
   else
