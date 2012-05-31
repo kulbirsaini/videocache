@@ -16,6 +16,8 @@ import subprocess
 def get_dist_details():
     try:
         dist = platform.dist('Unknown', 'Unknown', 'Unknown')
+        if dist[0] == 'Unknown':
+            dist[0] = platform.system()
         return { 'os_name' : dist[0], 'os_version' : dist[1], 'os_id' : dist[2] }
     except Exception, e:
         return { 'os_name' : 'Unknown', 'os_version' : 'Unknown', 'os_id' : 'Unknown' }
@@ -75,22 +77,20 @@ def get_interface_details():
         return { 'ip_addresses' : get_ip_addresses(), 'mac_addresses' : get_mac_addresses() }
 
 def get_ip_addresses():
-    cmd = 'ifconfig'
-    ip_regex = re.compile('(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))', re.I)
+    cmd = "ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -"
 
     for path in ['/sbin/', '', '/bin/']:
         command = os.path.join(path, cmd)
         try:
-            co = subprocess.Popen([command], stdout = subprocess.PIPE)
-            ifconfig = co.stdout.read()
+            co = subprocess.Popen([command], shell = True, stdout = subprocess.PIPE)
+            ifconfig = co.stdout.read().strip()
             if co.poll() is None:
                 co.terminate()
-            ips = ', '.join(filter(lambda x: is_valid_ip(x), [i[0] for i in ip_regex.findall(ifconfig, re.MULTILINE)]))
+            ips = ', '.join(filter(lambda x: is_valid_ip(x), ifconfig.split(' ')))
             if ips != '':
                 return ips
         except Exception, e:
             continue
-
     return ''
 
 def get_mac_addresses():
