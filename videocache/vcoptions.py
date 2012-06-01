@@ -223,7 +223,7 @@ class VideocacheOptions:
                     proxy_parts = urlparse.urlsplit(proxy)
                     self.__class__.proxy = 'http://%s:%s@%s/' % (proxy_username, proxy_password, proxy)
                 else:
-                    self.__class__.proxy = proxy
+                    self.__class__.proxy = 'http://%s/' % proxy
             if this_proxy:
                 self.__class__.this_proxy = 'http://%s/' % (this_proxy)
         except Exception, e:
