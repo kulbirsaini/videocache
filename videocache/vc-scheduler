@@ -1062,7 +1062,12 @@ def is_cached(video_url):
             if head_conn.code == 200:
                 return True
     except Exception, e:
-        trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
+        try:
+            if e.code == 504:
+                return True
+        except Exception, e:
+            pass
+    trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
     return False
 
 def reopen_file(filename, file = None):
