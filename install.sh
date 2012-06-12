@@ -796,7 +796,7 @@ is_valid_host_port() { #{{{
 get_cache_host() { #{{{
   echo; echo
   heading "Cache Host (Web Server)"
-  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -`
+  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
   dark_blue "IP address with optional port. It will be used as a web server to serve"
   dark_blue "cached videos. Examples: 192.168.1.14 or 192.168.1.14:81"
   echo
@@ -826,7 +826,7 @@ get_cache_host() { #{{{
 get_this_proxy() { #{{{
   echo; echo
   heading 'Squid Proxy Server'
-  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -`
+  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
   dark_blue "IP_Address:Port combination for Squid proxy running on this machine."
   dark_blue "Examples: 127.0.0.1:3128 or 192.168.1.1:8080"
   echo

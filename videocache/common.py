@@ -150,7 +150,7 @@ def generate_youtube_crossdomain(xdomain_file, quiet = False):
         return False
     return True
 
-def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
+def generate_httpd_conf(conf_file, base_dir_list, hide_cache_dirs = False, quiet = False):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
     videocache_conf = """##############################################################################
 #                                                                            #
@@ -165,6 +165,10 @@ def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
 #                                                                            #
 ##############################################################################\n\n"""
     videocache_conf += "\nAlias /crossdomain.xml " + os.path.join(base_dir_list[0], "youtube_crossdomain.xml")
+    if hide_cache_dirs:
+        hide = "-Indexes"
+    else:
+        hide = "+Indexes"
     for dir in base_dir_list:
         if len(base_dir_list) == 1:
             videocache_conf += "\nAlias /videocache " + dir
@@ -173,7 +177,7 @@ def generate_httpd_conf(conf_file, base_dir_list, quiet = False):
 
         videocache_conf += """
 <Directory """ + dir + """>
-  Options +Indexes
+  Options """ + hide + """
   Order Allow,Deny
   Allow from all
   <IfModule mod_headers.c>

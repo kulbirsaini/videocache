@@ -101,6 +101,7 @@ class VideocacheOptions:
             # Apache
             self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)
             self.__class__.apache_conf_dir = mainconf.apache_conf_dir.strip()
+            self.__class__.hide_apache_dirs = int(mainconf.hide_apache_dirs)
 
             # Filesystem
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]

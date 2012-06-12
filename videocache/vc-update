@@ -70,7 +70,7 @@ def update_vc(o, root, install_dir, quiet):#{{{
             print_message_and_abort(red("Could not create directory %s" % dir) + error)
 
     # Generate Apache webserver configuration file for videocache.
-    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet):
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, o.hide_cache_dirs, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + error)
 
     print green("Videocache updated successfully. Please follow the following instructions now.\n")

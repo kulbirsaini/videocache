@@ -71,6 +71,7 @@ class VideocacheConf:
     # Apache
     skip_apache_conf = Option(0)
     apache_conf_dir = Option('')
+    hide_cache_dirs = Option(1)
 
     # Filesystem
     base_dir = Option('/var/spool/videocache/')

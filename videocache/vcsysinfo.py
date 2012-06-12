@@ -77,7 +77,7 @@ def get_interface_details():
         return { 'ip_addresses' : get_ip_addresses(), 'mac_addresses' : get_mac_addresses() }
 
 def get_ip_addresses():
-    cmd = "ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | paste -sd ' ' -"
+    cmd = "ifconfig | grep inet | grep -v inet6 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 "
 
     for path in ['/sbin/', '', '/bin/']:
         command = os.path.join(path, cmd)
@@ -86,7 +86,7 @@ def get_ip_addresses():
             ifconfig = co.stdout.read().strip()
             if co.poll() is None:
                 co.terminate()
-            ips = ', '.join(filter(lambda x: is_valid_ip(x), ifconfig.split(' ')))
+            ips = ', '.join(filter(lambda x: is_valid_ip(x.strip()), ifconfig.split("\n")))
             if ips != '':
                 return ips
         except Exception, e:

@@ -23,7 +23,7 @@ def blue(msg):
     return "\033[1;36m%s\033[0m" % msg
 
 def green(msg):
-    return "\033[1;32m%s\033[0m" % msg#}}}
+    return "\033[1;32m%s\033[0m" % msg
 
 def print_message_and_abort(message):
     print >>sys.stderr, message
@@ -32,7 +32,7 @@ def print_message_and_abort(message):
 def log_traceback():
     print blue('\n' + '-' * 25 + 'Traceback Begin' + '-' * 25)
     print traceback.format_exc(),
-    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
+    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')#}}}
 
 # Setup specific functions
 def setup_error(error_code):#{{{
@@ -152,7 +152,7 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         print_message_and_abort(red("Could not copy Videocache scheduler init file to %s" % os.path.join(init_dir, 'vc-scheduler')) + install_error)
 
     # Generate Apache webserver configuration file for videocache.
-    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, quiet):
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, hide_cache_dirs = True, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + install_error)
 
     generate_magnet_http(os.path.join(working_dir, 'videocache', 'vcconfig.py'), os.path.join(install_dir, 'vcconfig.py'))
