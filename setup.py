@@ -152,7 +152,7 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         print_message_and_abort(red("Could not copy Videocache scheduler init file to %s" % os.path.join(init_dir, 'vc-scheduler')) + install_error)
 
     # Generate Apache webserver configuration file for videocache.
-    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, hide_cache_dirs = True, quiet):
+    if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, True, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + install_error)
 
     generate_magnet_http(os.path.join(working_dir, 'videocache', 'vcconfig.py'), os.path.join(install_dir, 'vcconfig.py'))
