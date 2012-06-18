@@ -117,6 +117,7 @@ class VideoPool:
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
     store_log_threshold = 1200
+    cleanup_required = False
 
     scores = {}
     queue = {}
@@ -137,6 +138,13 @@ class VideoPool:
             self.last_sync[website_id] = 0
 
     def ping(self):
+        return True
+
+    def is_cleanup_required(self):
+        return self.cleanup_required
+
+    def cleanup_finished(self):
+        self.cleanup_required = False
         return True
 
     def add_system(self, new_system = {}):
@@ -418,6 +426,7 @@ class VideoPool:
                 self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
                 if space_available < o.disk_avail_threshold:
                     self.disk_space[dir].update({ 'use' : False })
+                    self.cleanup_required = True
         return True
 
     def get_next_cache_dir(self):
@@ -439,7 +448,6 @@ class VideoPool:
                     return dir
 
         warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
-        fork(cleancache)()
         return o.base_dir_list[0]
 
     def start_cache_thread(self, video_id, website_id, params):
@@ -1223,6 +1231,15 @@ def purge_videos(dir, num_videos = 25):
         except Exception, e:
             cent({ 'code' : VIDEO_PURGE_ERR, 'message' : 'Error occured while removing video ' + video_path, 'debug' : str(e) })
 
+def cleaner_heartbeat():
+    while True:
+        try:
+            if video_pool.is_cleanup_required():
+                cleancache()
+        except Exception, e:
+            pass
+        time.sleep(15)
+
 def cleancache():
     global cache_dir_data
 
@@ -1242,6 +1259,8 @@ def cleancache():
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + dir, 'debug' : str(e) })
 
+    video_pool.cleanup_finished()
+
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
     info({ 'code' : CLEANUP_COMPLETED, 'message' : 'Done cleaning up cache directories.' })
 
@@ -1260,16 +1279,19 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info)
+            cleaner_thread = threading.Thread(target = cleaner_heartbeat)
             if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
 
             server_thread.start()
             cache_thread.start()
             sysinfo_thread.start()
+            cleaner_thread.start()
             if o.enable_store_log_monitoring: store_log_watcher_thread.start()
 
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
+            cleaner_thread.join()
             if o.enable_store_log_monitoring: store_log_watcher_thread.join()
         except Exception, e:
             ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
