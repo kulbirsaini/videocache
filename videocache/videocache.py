@@ -153,7 +153,7 @@ def check_apache():
 def check_heartbeat():
     sleep_time = 900
     while True:
-        check_apache()
+        #check_apache()
         if not submit_system_info():
             sleep_time = 1800
 
