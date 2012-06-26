@@ -772,6 +772,7 @@ END
 } #}}}
 
 is_valid_host_port() { #{{{
+  return 0
   if [[ `echo $1 | grep "^[0-9\.]\+:[\ ]*$"` != '' ]]; then
     return 1
   fi
