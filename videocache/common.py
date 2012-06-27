@@ -150,8 +150,14 @@ def generate_youtube_crossdomain(xdomain_file, quiet = False):
         return False
     return True
 
-def generate_httpd_conf(conf_file, base_dir_list, hide_cache_dirs = False, quiet = False):
+def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = False, quiet = False):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
+    cache_host_ip = cache_host.split(':')[0]
+    if hide_cache_dirs:
+        hide = "-Indexes"
+    else:
+        hide = "+Indexes"
+
     videocache_conf = """##############################################################################
 #                                                                            #
 # file : """ + conf_file + " "*(68 - len(conf_file)) + """#
@@ -165,10 +171,6 @@ def generate_httpd_conf(conf_file, base_dir_list, hide_cache_dirs = False, quiet
 #                                                                            #
 ##############################################################################\n\n"""
     videocache_conf += "\nAlias /crossdomain.xml " + os.path.join(base_dir_list[0], "youtube_crossdomain.xml")
-    if hide_cache_dirs:
-        hide = "-Indexes"
-    else:
-        hide = "+Indexes"
     for dir in base_dir_list:
         if len(base_dir_list) == 1:
             videocache_conf += "\nAlias /videocache " + dir
@@ -176,17 +178,18 @@ def generate_httpd_conf(conf_file, base_dir_list, hide_cache_dirs = False, quiet
             videocache_conf += "\nAlias /videocache/" + str(base_dir_list.index(dir)) + " " + dir
 
         videocache_conf += """
-<Directory """ + dir + """>
-  Options """ + hide + """
+<Directory %s>
+  Options %s
   Order Allow,Deny
   Allow from all
   <IfModule mod_headers.c>
     Header add Videocache "2.0.0"
+    Header add X-Cache "HIT from %s"
   </IfModule>
   <IfModule mod_mime.c>
     AddType video/webm .webm
   </IfModule>
-</Directory>\n"""
+</Directory>\n""" % (dir, hide, cache_host_ip)
 
     try:
         file = open(conf_file, 'w')

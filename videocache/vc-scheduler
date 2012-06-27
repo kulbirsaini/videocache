@@ -116,7 +116,7 @@ class VideoPool:
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
-    store_log_threshold = 1200
+    store_log_threshold = 240
     cleanup_required = False
 
     scores = {}
@@ -220,10 +220,11 @@ class VideoPool:
 
     def add_youtube_video(self, video_id, website_id, params):
         fmt = params['format']
+        params['urls'] = []
         if video_id not in self.queue[website_id]:
             params['fmts'] = { fmt : { 'score' : 1, 'access_time' : params['access_time'] } }
             self.queue[website_id][video_id] = params
-            self.queue[website_id][video_id]['first_access'] = time.time()
+            self.queue[website_id][video_id]['first_access'] = params['access_time']
             self.set_score(video_id, website_id, -10)
         else:
             old_data = self.queue[website_id][video_id]
@@ -236,11 +237,12 @@ class VideoPool:
 
     def add_video(self, video_id, params):
         website_id = params['website_id']
+        if website_id == 'youtube': params['urls'] = []
         if self.is_uncacheable_youtube(video_id, website_id): return self.add_youtube_video(video_id, website_id, params)
 
         if video_id not in self.queue[website_id]:
             self.queue[website_id][video_id] = params
-            self.queue[website_id][video_id]['first_access'] = time.time()
+            self.queue[website_id][video_id]['first_access'] = params['access_time']
             self.set_score(video_id, website_id, 1)
         else:
             old_data = self.queue[website_id][video_id]
@@ -679,7 +681,7 @@ def cache_youtube_video(params):
         for count in range(10):
             video_details = video_pool.get_details(alternate_vid, website_id)
             if video_details != False: break
-            time.sleep(5)
+            time.sleep(6)
         else:
             info({ 'code' : FORMAT_INFO_NOT_FOUND, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Format info was not available for the video' })
             return
@@ -724,7 +726,7 @@ def cache_youtube_video(params):
                         shutil.move(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)
                         os.utime(video_path, None)
-                        info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully.' })
+                        info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
                     else:
@@ -736,7 +738,8 @@ def cache_youtube_video(params):
                 video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
                 num_cached_formats += 1
 
-    if len(fmt_scores) == num_cached_formats:
+    video_details = video_pool.get_details(alternate_vid, website_id)
+    if len(video_details['fmts'].keys()) == 0 or len(video_details['fmts'].keys()) == num_cached_formats:
         video_pool.remove(alternate_vid, website_id)
         video_id.remove(video_id, website_id)
         info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' All formats for this video has been cached already.' })
@@ -811,7 +814,7 @@ def cache_dailymotion_video(params):
                 shutil.move(tmp_path, video_path)
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
-                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully.' })
+                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -852,7 +855,7 @@ def cache_megavideo_video(params):
                     shutil.move(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully.' })
+                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -893,7 +896,7 @@ def cache_generalized(params):
                     shutil.move(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully.' })
+                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -1185,7 +1188,7 @@ def watch_store_log():
                                     shutil.move(tmp_path, video_path)
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
-                                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache' })
+                                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 video_pool.remove_conn(video_id, website_id)

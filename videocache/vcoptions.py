@@ -98,6 +98,9 @@ class VideocacheOptions:
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
 
+            if this_proxy == '' or self.__class__.squid_store_log == '':
+                self.__class__.enable_store_log_monitoring = 0
+
             # Apache
             self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)
             self.__class__.apache_conf_dir = mainconf.apache_conf_dir.strip()
