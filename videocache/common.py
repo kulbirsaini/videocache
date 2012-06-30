@@ -33,6 +33,11 @@ def blue(msg):
 def green(msg):
     return "\033[1;32m%s\033[0m" % msg#}}}
 
+def is_valid_domain_port(name):
+    if re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$').match(name):
+        return True
+    return False
+
 def is_valid_ip(ip):
     try:
         if len(filter(lambda x: 0 <= int(x) <= 255, ip.split('.'))) == 4:
@@ -42,6 +47,8 @@ def is_valid_ip(ip):
     return False
 
 def is_valid_host_port(host_port, port_optional = False):
+    if is_valid_domain_port(host_port): return True
+
     if ':' in host_port:
         ip, port = host_port.split(':')
         if not port.isdigit():
