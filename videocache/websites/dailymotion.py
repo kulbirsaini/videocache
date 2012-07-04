@@ -20,7 +20,7 @@ def check_dailymotion_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if host.find('.dailymotion.com') > -1 and (re.compile('/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
+    if host.find('.dailymotion.com') > -1 and (re.compile('^/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
         search = False
         try:
             video_id = urllib.quote(re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1))
