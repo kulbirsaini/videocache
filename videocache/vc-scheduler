@@ -591,11 +591,11 @@ def cache_remote_url(remote_url, target_file, params = {}):
                 if o.force_video_size == 1:
                     info({ 'code' : VIDEO_SIZE_NOT_SUPPLIED, 'message' : 'Video size was not supplied by web server. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
-            elif o.max_video_size != 0 and o.min_video_size != 0:
-                if video_size > o.max_video_size:
+            else:
+                if o.max_video_size != 0 and video_size > o.max_video_size:
                     info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
-                if video_size < o.min_video_size:
+                if o.min_video_size != 0 and if video_size < o.min_video_size:
                     info({ 'code' : VIDEO_TOO_SMALL, 'message' : 'Video size is smaller than the specified min video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
         except Exception, e:
