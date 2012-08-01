@@ -180,7 +180,7 @@ class VideocacheOptions:
                         os.path.isfile(os.path.join(dir, 'youtube_crossdomain.xml')) and os.unlink(os.path.join(dir, 'youtube_crossdomain.xml'))
                 else:
                     for dir in self.__class__.base_dir_list:
-                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), True)
+                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), self.__class__.videocache_user, True)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

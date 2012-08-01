@@ -137,7 +137,7 @@ def log_traceback():
     print traceback.format_exc(),
     print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
 
-def generate_youtube_crossdomain(xdomain_file, quiet = False):
+def generate_youtube_crossdomain(xdomain_file, user, quiet = False):
     youtube_crossdomain = """<?xml version="1.0"?>
 <!DOCTYPE cross-domain-policy SYSTEM "http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd">
 <cross-domain-policy>
@@ -150,6 +150,7 @@ def generate_youtube_crossdomain(xdomain_file, quiet = False):
         file = open(xdomain_file, 'w')
         file.write(youtube_crossdomain)
         file.close()
+        set_permissions_and_ownership(xdomain_file, user)
         if not quiet: print "Generated youtube crossdomain file : " + xdomain_file
     except:
         if not quiet: print "Failed to generate youtube crossdomain file : " + xdomain_file
