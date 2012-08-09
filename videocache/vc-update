@@ -61,7 +61,11 @@ def update_vc(o, root, install_dir, quiet):#{{{
     if o.skip_apache_conf == 0 and o.apache_conf_dir != '':
         apache_conf_dir = apply_install_root(root, o.apache_conf_dir)
 
-    for dir in [etc_dir, usr_sbin_dir, apache_conf_dir, var_dir]:
+    dirs_to_create = [etc_dir, usr_sbin_dir, var_dir]
+    if apache_conf_dir != '':
+        dirs_to_create.append(apache_conf_dir)
+
+    for dir in dirs_to_create:
         if not create_or_update_dir(dir, None, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + error)
 
