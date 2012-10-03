@@ -672,7 +672,7 @@ def cache_youtube_video(params):
 
     try:
         url_map = {}
-        [url_map.update({i['itag'][0] : i['url'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
+        [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
         alternate_vid = get_youtube_video_id(url_map.values()[0])
         if not alternate_vid:
             error({ 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not determine alternate video id' })
