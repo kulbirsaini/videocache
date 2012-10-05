@@ -1243,7 +1243,7 @@ def cleaner_heartbeat():
             pass
         time.sleep(15)
 
-def cleancache():
+def cleancache(independent = False):
     global cache_dir_data
 
     info({ 'code' : CLEANUP_INITIATED, 'message' : 'Initiating Videocache Cleaner because all cache directories are full.' })
@@ -1262,7 +1262,7 @@ def cleancache():
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + dir, 'debug' : str(e) })
 
-    video_pool.cleanup_finished()
+    if not independent: video_pool.cleanup_finished()
 
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
     info({ 'code' : CLEANUP_COMPLETED, 'message' : 'Done cleaning up cache directories.' })
@@ -1343,7 +1343,7 @@ def flush_scheduler_queue():
 
 def independent_cleaner():
     o.set_loggers()
-    cleancache()
+    cleancache(True)
     return
 
 if __name__ == '__main__':
