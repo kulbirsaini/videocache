@@ -46,17 +46,18 @@ def get_filelist(dir, sort_by = 'time', order = 'desc'):
 
     if order == 'desc': cmd += 'r'
 
-    cmd += " | head -5000 | cut -d\\  -f3 2> /dev/null"
-    for path in ['', '/bin/']:
-        command = os.path.join(path, cmd)
-        try:
-            co = subprocess.Popen([command], shell = True, stdout = subprocess.PIPE)
-            filelist = co.stdout.read().strip('\n').split('\n')
-            while '' in filelist:
-                filelist.remove('')
-            if co.poll() is None: co.terminate()
-            return filelist
-        except Exception, e:
-            continue
-    return []
+    cmd += " | head -10000 2> /dev/null"
+    filelist = []
+    try:
+        co = subprocess.Popen([cmd], shell = True, stdout = subprocess.PIPE)
+        output = co.stdout.read().strip('\n').split('\n')
+        for line in output:
+            filename = line.strip().split(' ')[2]
+            if filelist != '':
+                filelist.append(filename)
+        if co.poll() is None: co.terminate()
+        return filelist
+    except Exception, e:
+        pass
+    return filelist
 
