@@ -114,6 +114,10 @@ def min_or_empty(sequence):
     else:
         return min(sequence)
 
+def chunks(l, n):
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
 # Extending urllib2 to support HTTP HEAD requests.
 class HeadRequest(urllib2.Request):
     def get_method(self):
