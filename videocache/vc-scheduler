@@ -1109,6 +1109,10 @@ def watch_file(filename, interval = 3):
             yield line
 
 def watch_store_log():
+    if o.offline_mode:
+        info({ 'code': STORE_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid store.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
+        return
+
     if not o.this_proxy:
         warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
@@ -1165,6 +1169,8 @@ def watch_store_log():
                                 info({ 'code' : STORE_LOG_URL_HIT_CONFIRMATION_FAILED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
                                 continue
 
+                            cache_dir = video_pool.get_next_cache_dir()
+                            if cache_dir == False: continue
                             try:
                                 if not video_pool.is_active(video_id, website_id):
                                     video_pool.add_conn(video_id, website_id, FakeThread())
@@ -1174,9 +1180,6 @@ def watch_store_log():
                                 filename = video_id + format
                                 if website_id == 'youtube':
                                     filename = get_youtube_filename(o, video_id, format, youtube_params)
-                                cache_dir = video_pool.get_next_cache_dir()
-                                if cache_dir == False:
-                                    continue
                                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
