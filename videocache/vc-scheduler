@@ -111,8 +111,6 @@ class VideoPool:
     last_dump = 0
     dump_threshold = 120
     disk_space = {}
-    disk_space_last_update = 0
-    disk_space_update_threshold = 300
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
@@ -420,16 +418,13 @@ class VideoPool:
         else:
             return self.scores_pq
 
-    def update_disk_space(self, now = False):
-        if now or int(time.time() - self.disk_space_last_update) > self.disk_space_update_threshold:
-            self.disk_space_last_update = time.time()
-            for dir in o.base_dir_list:
-                space_available = free_space(dir)
-                self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
-                if space_available < o.disk_avail_threshold:
-                    self.disk_space[dir].update({ 'use' : False })
-                    self.cleanup_required = True
-        return True
+    def update_disk_space(self):
+        for dir in o.base_dir_list:
+            space_available = free_space(dir)
+            self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
+            if space_available < o.disk_avail_threshold:
+                self.disk_space[dir].update({ 'use' : False })
+                self.cleanup_required = True
 
     def get_next_cache_dir(self):
         self.update_disk_space()
@@ -450,7 +445,7 @@ class VideoPool:
                     return dir
 
         warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
-        return o.base_dir_list[0]
+        return False
 
     def start_cache_thread(self, video_id, website_id, params):
         """Start a new thread which will cache the vdieo"""
