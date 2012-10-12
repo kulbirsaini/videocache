@@ -10,7 +10,6 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
-from fork import *
 from store import *
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
