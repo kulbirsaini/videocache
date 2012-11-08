@@ -158,10 +158,6 @@ class VideocacheConf:
     enable_facebook_cache = Option(1)
     facebook_cache_dir = Option('facebook')
 
-    # Megavideos.com Specific Options
-    enable_megavideo_cache = Option(1)
-    megavideo_cache_dir = Option('megavideo')
-
     # Metacafe.com Specific Options
     enable_metacafe_cache = Option(1)
     metacafe_cache_dir = Option('metacafe')

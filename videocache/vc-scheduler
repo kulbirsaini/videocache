@@ -820,46 +820,6 @@ def cache_dailymotion_video(params):
         ent({ 'code' : URL_CACHE_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url })
     return
 
-def cache_megavideo_video(params):
-    # The expected mode of the cached file, so that it is readable by apache
-    # to stream it to the client.
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
-    urls = params.get('urls', [])
-    cur_cache_dir = params.get('cur_cache_dir', None)
-    http_headers = get_random_user_agent()
-    params['http_headers'] = http_headers
-
-    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
-        error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-        return
-
-    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
-    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
-
-    video_path = os.path.join(cache_dir, video_id)
-    tmp_path = os.path.join(tmp_dir, video_id)
-
-    for url in urls:
-        original_url = url
-        try:
-            if not os.path.exists(video_path):
-                if cache_remote_url(url, tmp_path, params):
-                    size = os.path.getsize(tmp_path)
-                    shutil.move(tmp_path, video_path)
-                    os.chmod(video_path, o.file_mode)
-                    os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    return
-                else:
-                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
-            else:
-                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
-            return
-        except Exception, e:
-            ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
-    return
-
 def cache_generalized(params):
     # The expected mode of the cached file, so that it is readable by apache
     # to stream it to the client.
@@ -1107,6 +1067,13 @@ def watch_file(filename, interval = 3):
             last_read = time.time()
             yield line
 
+def arg_drop_exception(website_id, dict, arg):
+    if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
+        return True
+    if website_id == 'dailymotion' and arg == 'seek' and dict['seek'][0] == '0':
+        return True
+    return False
+
 def watch_store_log():
     if o.offline_mode:
         info({ 'code': STORE_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid store.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
@@ -1139,7 +1106,7 @@ def watch_store_log():
                             (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(video_url, host, path, query)')
                             if matched:
                                 for video_seek_arg in o.arg_drop_list[website_id]:
-                                    if video_seek_arg in dict:
+                                    if video_seek_arg in dict and not arg_drop_exception(website_id, dict, video_seek_arg):
                                         matched = False
                                         break
                                 break
