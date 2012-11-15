@@ -67,6 +67,7 @@ class VideocacheConf:
     this_proxy = Option('')
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
+    file_database_path = Option('/var/log/videocache/filedatabase.db')
 
     # Apache
     skip_apache_conf = Option(0)
