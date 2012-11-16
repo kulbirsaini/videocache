@@ -11,8 +11,12 @@ __docformat__ = 'plaintext'
 from vcoptions import VideocacheOptions
 
 import os
+import time
 
 o = VideocacheOptions()
+
+def current_time():
+    return int(time.time())
 
 class DB:
     db_cursor = o.db_cursor
@@ -34,7 +38,7 @@ class DB:
             klass.db_connection.commit()
         return True
 
-class Model:
+class Model(object):
     # Class variables
     # fields
     # db_cursor
@@ -129,7 +133,7 @@ def find_by_%s(klass, value):
         return klass.find_by(params)
 
     @classmethod
-    def create(klass, params = {}):
+    def create(klass, params):
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
@@ -142,6 +146,7 @@ def find_by_%s(klass, value):
 
 class VideoFile(Model):
     fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
+    unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
     db_cursor = o.db_cursor
     db_connection = o.db_connection
     table_name = o.video_file_table_name
@@ -164,4 +169,16 @@ class VideoFile(Model):
         return DB.create_table(klass.table_name, query)
 
     def to_s(self):
-        print (self.id, self.cache_dir_id, self.website_id, self.filename, self.size, self.access_time, self.access_count)
+        print (self.id, self.cache_dir, self.website_id, self.filename, self.size, self.access_time, self.access_count)
+
+    @classmethod
+    def create(klass, params):
+        uniq_key_params = {}
+        map(lambda key: uniq_key_params.update({ key : params[key] }), filter(lambda x: x in klass.unique_fields, params))
+        if len(params) == 0 or len(uniq_key_params) == 0:
+            return False
+        result = klass.first(uniq_key_params)
+        if result:
+            result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
+        else:
+            super(VideoFile, klass).create(params)
