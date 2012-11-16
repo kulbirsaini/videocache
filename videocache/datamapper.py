@@ -8,85 +8,83 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
+from vcoptions import VideocacheOptions
+
 import os
 
+o = VideocacheOptions()
+
 class DB:
+    db_cursor = o.db_cursor
+    db_connection = o.db_connection
     @classmethod
-    def get_table_names(klass, o):
-        return map(lambda row: row[0], o.db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall())
+    def get_table_names(klass):
+        return map(lambda row: row[0], klass.db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall())
 
     @classmethod
-    def table_exists(klass, o, table_name):
-        if table_name in DB.get_table_names(o):
+    def table_exists(klass, table_name):
+        if table_name in klass.get_table_names():
             return True
         return False
 
     @classmethod
-    def create_table(klass, o, table_name, query = 'create table video_files (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)'):
-        if not DB.table_exists(o, table_name):
-            o.db_cursor.execute(query)
-            o.db_connection.commit()
+    def create_table(klass, table_name, query):
+        if not klass.table_exists(table_name):
+            klass.db_cursor.execute(query)
+            klass.db_connection.commit()
         return True
 
-class VideoFile:
-    fields = ['id', 'cache_dir', 'filename', 'size', 'access_time', 'access_count']
+class Model:
+    # Class variables
+    # fields
+    # db_cursor
+    # db_connection
+    # table_name
 
-    def __init__(self, o, id, cache_dir, filename, size, access_time, access_count):
-        self.o = o
-        self.id = id
-        self.cache_dir = cache_dir
-        self.filename = filename
-        self.size = size
-        self.access_time = access_time
-        self.access_count = access_count
-        self.filepath = os.path.join(cache_dir, filename)
+    function_template_find_by = """
+@classmethod
+def find_by_%s(klass, value):
+    return klass.find_by({ '%s' : value })
+    """
 
     @classmethod
     def filter_params(klass, params, drop = []):
-        keys = filter(lambda x: x in VideoFile.fields and x not in drop, params.keys())
+        keys = filter(lambda x: x in klass.fields and x not in drop, params.keys())
         values = map(lambda x: params[x], keys)
         return (keys, values)
 
     def update_attribute(self, attribute, value):
-        if attribute in VideoFile.fields and attribute != 'id':
-            query = "UPDATE %s SET %s = ? WHERE id = ?" % (self.o.video_file_table_name, attribute)
-            self.o.db_cursor.execute(query, [value, self.id])
-            self.o.db_connection.commit()
+        if attribute in self.fields and attribute != 'id':
+            query = "UPDATE %s SET %s = ? WHERE id = ?" % (self.table_name, attribute)
+            self.db_cursor.execute(query, [value, self.id])
+            self.db_connection.commit()
             return True
         return False
 
     def update_attributes(self, params):
-        keys, values = VideoFile.filter_params(params, ['id'])
+        keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
         values.append(self.id)
-        query = "UPDATE %s SET " % self.o.video_file_table_name
+        query = "UPDATE %s SET " % self.table_name
         query += ', '.join(map(lambda x: x + ' = ? ', keys)) + " WHERE id = ? "
-        self.o.db_cursor.execute(query, values)
-        self.o.db_connection.commit()
+        self.db_cursor.execute(query, values)
+        self.db_connection.commit()
         return True
 
     def destroy(self):
-        query = "DELETE FROM %s WHERE id = ?" % self.o.video_file_table_name
-        self.o.db_cursor.execute(query, (self.id, ))
-        self.o.db_connection.commit()
+        query = "DELETE FROM %s WHERE id = ?" % self.table_name
+        self.db_cursor.execute(query, (self.id, ))
+        self.db_connection.commit()
         return True
 
     @classmethod
-    def count(klass, o, params = {}):
-        keys, values = VideoFile.filter_params(params)
-        return o.db_cursor.execute('SELECT COUNT(*) FROM %s' % o.video_file_table_name).fetchone()[0]
+    def count(klass, params = {}):
+        keys, values = klass.filter_params(params)
+        return klass.db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name).fetchone()[0]
 
     @classmethod
-    def find(klass, o, id):
-        query = 'SELECT * FROM %s ' % o.video_file_table_name
-        row = o.db_cursor.execute(query + ' WHERE id = ?', (id,)).fetchone()
-        if row:
-            return VideoFile(o, row[0], row[1], row[2], row[3], row[4], row[5])
-        return None
-
-    @classmethod
-    def find_by(klass, o, params = {}):
+    def find_by(klass, params = {}):
         order = params.get('order', None)
         limit = params.get('limit', None)
         offset = params.get('offset', None)
@@ -94,43 +92,101 @@ class VideoFile:
         if order: query_suffix += " ORDER BY %s" % order
         if limit: query_suffix += " LIMIT %s" % limit
         if offset: query_suffix += " OFFSET %s" % offset
-        keys, values = VideoFile.filter_params(params)
-        query = 'SELECT * FROM %s ' % o.video_file_table_name
+        keys, values = klass.filter_params(params)
+        query = 'SELECT * FROM %s ' % klass.table_name
         if len(keys) != 0:
             query += ' WHERE ' + ' AND '.join(map(lambda x: x + ' = ? ', keys))
         query += query_suffix
-        return map(lambda row: VideoFile(o, row[0], row[1], row[2], row[3], row[4], row[5]), o.db_cursor.execute(query, values).fetchall())
+        return map(lambda row: klass(row), klass.db_cursor.execute(query, values).fetchall())
 
     @classmethod
-    def first(klass, o, params = {}):
+    def find(klass, id):
+        result = klass.find_by({ 'id' : id, 'limit' : 1 })
+        if len(result) == 0:
+            return None
+        return result[0]
+
+    @classmethod
+    def first(klass, params = {}):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id ASC')
-        video_files = VideoFile.find_by(o, params)
-        if len(video_files) == 1:
-            return video_files[0]
-        return video_files
+        results = klass.find_by(params)
+        if len(results) == 1:
+            return results[0]
+        return results
 
     @classmethod
-    def last(klass, o, params = {}):
+    def last(klass, params = {}):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id DESC')
-        video_files = VideoFile.find_by(o, params)
-        if len(video_files) == 1:
-            return video_files[0]
-        return video_files
+        results = klass.find_by(params)
+        if len(results) == 1:
+            return results[0]
+        return results
 
     @classmethod
-    def all(klass, o, params = {}):
-        VideoFile.find_by(o, params)
+    def all(klass,params = {}):
+        return klass.find_by(params)
 
     @classmethod
-    def create(klass, o, params = {}):
-        keys, values = VideoFile.filter_params(params)
+    def create(klass, params = {}):
+        keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
         keys = map(lambda x: '"' + x + '"', keys)
-        query = "INSERT INTO %s " % o.video_file_table_name
+        query = "INSERT INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(['?'] * len(values)) + " ) "
-        o.db_cursor.execute(query, values)
-        o.db_connection.commit()
+        klass.db_cursor.execute(query, values)
+        klass.db_connection.commit()
         return True
+
+class CacheDir(Model):
+    fields = [ 'id', 'path', 'cache_host' ]
+    db_cursor = o.db_cursor
+    db_connection = o.db_connection
+    table_name = o.cache_dir_table_name
+    for field in fields:
+        exec((Model.function_template_find_by % (field, field)).strip())
+
+    def __init__(self, attributes):
+        self.id = attributes[0]
+        self.path = attributes[1]
+        self.cache_host = attributes[2]
+
+    @classmethod
+    def create_table(klass):
+        query = 'CREATE TABLE %s (id INTEGER PRIMARY KEY AUTOINCREMENT, path STRING, cache_host STRING)' % klass.table_name
+        return DB.create_table(klass.table_name, query)
+
+    def to_s(self):
+        print (self.id, self.path, self.cache_host)
+
+class VideoFile(Model):
+    fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
+    db_cursor = o.db_cursor
+    db_connection = o.db_connection
+    table_name = o.video_file_table_name
+    for field in fields:
+        exec((Model.function_template_find_by % (field, field)).strip())
+
+    def __init__(self, attributes):
+        self.id = attributes[0]
+        self.cache_dir_id = attributes[1]
+        self.website_id = attributes[2]
+        self.cache_dir = CacheDir.find(self.cache_dir_id)
+        self.filename = attributes[3]
+        self.size = attributes[4]
+        self.access_time = attributes[5]
+        self.access_count = attributes[6]
+        if self.cache_dir:
+            self.filepath = os.path.join(self.cache_dir.path, self.website_id, self.filename)
+        else:
+            self.filepath = None
+
+    @classmethod
+    def create_table(klass):
+        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir_id INTEGER, website_id STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
+        return DB.create_table(klass.table_name, query)
+
+    def to_s(self):
+        print (self.id, self.cache_dir_id, self.website_id, self.filename, self.size, self.access_time, self.access_count)

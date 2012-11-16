@@ -101,6 +101,7 @@ class VideocacheOptions:
             #FIXME Reset path
             self.__class__.file_database_path = '/home/saini/code/private/videocache/videocache/test.db' # mainconf.file_database_path
             self.__class__.video_file_table_name = 'video_files'
+            self.__class__.cache_dir_table_name = 'cache_dirs'
 
             if this_proxy == '' or self.__class__.squid_store_log == '':
                 self.__class__.enable_store_log_monitoring = 0
