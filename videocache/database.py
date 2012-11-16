@@ -140,27 +140,6 @@ def find_by_%s(klass, value):
         klass.db_connection.commit()
         return True
 
-class CacheDir(Model):
-    fields = [ 'id', 'path', 'cache_host' ]
-    db_cursor = o.db_cursor
-    db_connection = o.db_connection
-    table_name = o.cache_dir_table_name
-    for field in fields:
-        exec((Model.function_template_find_by % (field, field)).strip())
-
-    def __init__(self, attributes):
-        self.id = attributes[0]
-        self.path = attributes[1]
-        self.cache_host = attributes[2]
-
-    @classmethod
-    def create_table(klass):
-        query = 'CREATE TABLE %s (id INTEGER PRIMARY KEY AUTOINCREMENT, path STRING, cache_host STRING)' % klass.table_name
-        return DB.create_table(klass.table_name, query)
-
-    def to_s(self):
-        print (self.id, self.path, self.cache_host)
-
 class VideoFile(Model):
     fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
     db_cursor = o.db_cursor
@@ -171,21 +150,17 @@ class VideoFile(Model):
 
     def __init__(self, attributes):
         self.id = attributes[0]
-        self.cache_dir_id = attributes[1]
+        self.cache_dir = attributes[1]
         self.website_id = attributes[2]
-        self.cache_dir = CacheDir.find(self.cache_dir_id)
         self.filename = attributes[3]
         self.size = attributes[4]
         self.access_time = attributes[5]
         self.access_count = attributes[6]
-        if self.cache_dir:
-            self.filepath = os.path.join(self.cache_dir.path, self.website_id, self.filename)
-        else:
-            self.filepath = None
+        self.filepath = os.path.join(self.cache_dir, self.website_id, self.filename)
 
     @classmethod
     def create_table(klass):
-        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir_id INTEGER, website_id STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
+        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir STRING, website_id STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
         return DB.create_table(klass.table_name, query)
 
     def to_s(self):

@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
+from database import VideoFile
 from error_codes import *
 from store import generalized_cached_url
 from vcoptions import VideocacheOptions
