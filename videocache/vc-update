@@ -77,6 +77,17 @@ def update_vc(o, root, install_dir, quiet):#{{{
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, o.cache_host, o.hide_cache_dirs, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + error)
 
+    # Create tables for filelist database
+    try:
+        if not os.path.isfile(o.filelistdb_path):
+            if not create_file(o.filelistdb_path, o.videocache_user, 0755, quiet):
+                print_message_and_abort(red("Could not create filelist database path %s" % o.filelistdb_path))
+        if not create_tables():
+            print_message_and_abort(red("Could not create database tables for filelist db"))
+    except Exception, e:
+        log_traceback()
+        print_message_and_abort(update_error)
+
     print green("Videocache updated successfully. Please follow the following instructions now.\n")
     print blue("----------------------------------Step 1-----------------------------------------")
     print red("Restart Apache web server on your machine by using the following command")
@@ -113,12 +124,14 @@ if __name__ == '__main__':
             from vcoptions import VideocacheOptions
             from common import *
             from fsop import *
+            from database import create_tables, initialize_database
         elif os.path.isdir('/usr/share/videocache/'):
             install_dir = '/usr/share/videocache/'
             sys.path = [install_dir] + sys.path
             from vcoptions import VideocacheOptions
             from common import *
             from fsop import *
+            from database import create_tables, initialize_database
         else:
             print_message_and_abort(red("Could not locate the videocache source directory.\n%s" % update_error('usage')))
     except Exception, e:
@@ -127,6 +140,7 @@ if __name__ == '__main__':
 
     try:
         o = VideocacheOptions(options.config_file, root)
+        initialize_database(o, '-')
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % options.config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))

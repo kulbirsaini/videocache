@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import report_file_access
+from database import report_file_access, initialize_database
 from error_codes import *
 from store import generalized_cached_url
 from vcoptions import VideocacheOptions
@@ -306,6 +306,8 @@ if __name__ == '__main__':
     for website_id in o.websites:
         exec(website_id + '_cached_url = generalized_cached_url')
         exec('from websites.' + website_id + ' import *')
+
+    initialize_database(o, process_id)
 
     try:
         squid = threading.Thread(target = squid_part)

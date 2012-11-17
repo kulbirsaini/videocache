@@ -98,10 +98,6 @@ class VideocacheOptions:
             self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
-            #FIXME Reset path
-            self.__class__.file_database_path = '/home/saini/code/private/videocache/videocache/test.db' # mainconf.file_database_path
-            self.__class__.video_file_table_name = 'video_files'
-            self.__class__.cache_dir_table_name = 'cache_dirs'
 
             if this_proxy == '' or self.__class__.squid_store_log == '':
                 self.__class__.enable_store_log_monitoring = 0
@@ -147,6 +143,17 @@ class VideocacheOptions:
             self.__class__.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
             self.__class__.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
             self.__class__.magnet = mainconf.magnet
+
+            # Filelist Database
+            self.__class__.filelistdb_path = os.path.join(self.__class__.logdir, mainconf.filelistdb_file)
+            self.__class__.video_file_table_name = 'video_files'
+
+            try:
+                self.__class__.db_connection = sqlite3.connect(self.__class__.filelistdb_path)
+                self.__class__.db_cursor = self.__class__.db_connection.cursor()
+            except Exception, e:
+                syslog_msg('Could not connect to sqlite database use for hashing video files. Debug: ' + traceback.format_exc().replace('\n', ''))
+                return None
 
             # Network
             self.__class__.cache_host = str(mainconf.cache_host).strip()
@@ -237,13 +244,6 @@ class VideocacheOptions:
                 self.__class__.this_proxy = 'http://%s/' % (this_proxy)
         except Exception, e:
             syslog_msg('Could not set proxy for caching videos. Debug: ' + traceback.format_exc().replace('\n', ''))
-            return None
-
-        try:
-            self.__class__.db_connection = sqlite3.connect(self.__class__.file_database_path)
-            self.__class__.db_cursor = self.__class__.db_connection.cursor()
-        except Exception, e:
-            syslog_msg('Could not connect to sqlite database use for hashing video files. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         # HTTP Headers for caching videos

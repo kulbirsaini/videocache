@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import report_file_access
+from database import report_file_access, initialize_database
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -1354,6 +1354,9 @@ if __name__ == '__main__':
         stdout = sys.stdout
         stderr = sys.stderr
         cache_dir_data = {}
+
+        initialize_database(o, process_id)
+
         try:
             import ctypes
             from ctypes.util import find_library

@@ -155,6 +155,17 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, cache_host, True, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + install_error)
 
+    # Create tables for filelist database
+    try:
+        if not os.path.isfile(o.filelistdb_path):
+            if not create_file(o.filelistdb_path, user, 0755, quiet):
+                print_message_and_abort(red("Could not create filelist database path %s" % o.filelistdb_path))
+        if not create_tables():
+            print_message_and_abort(red("Could not create database tables for filelist db"))
+    except Exception, e:
+        log_traceback()
+        print_message_and_abort(install_error)
+
     generate_magnet_http(os.path.join(working_dir, 'videocache', 'vcconfig.py'), os.path.join(install_dir, 'vcconfig.py'))
 
     try:
@@ -289,6 +300,7 @@ if __name__ == '__main__':
             from common import *
             from fsop import *
             from vcsysinfo import get_ip_addresses
+            from database import create_tables, initialize_database
         except Exception, e:
             log_traceback()
             print_message_and_abort(red("\nCould not import required modules for setup.") + green("\nIf you contact us regarding this error, please send the Trace above."))
@@ -307,6 +319,7 @@ if __name__ == '__main__':
 
     try:
         o = VideocacheOptions(config_file)
+        initialize_database(o, '-')
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))

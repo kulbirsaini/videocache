@@ -10,21 +10,23 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
-from vcoptions import VideocacheOptions
 
 import logging
 import os
 import time
 
-o = VideocacheOptions()
-process_id = os.getpid()
+def initialize_database(options, pid):
+    global o, process_id, db_cursor, db_connection
+    o = options
+    process_id = pid
+    db_cursor = options.db_cursor
+    db_connection = options.db_connection
+    VideoFile.set_table_name(options.video_file_table_name)
 
 class DB:
-    db_cursor = o.db_cursor
-    db_connection = o.db_connection
     @classmethod
     def get_table_names(klass):
-        return map(lambda row: row[0], klass.db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall())
+        return map(lambda row: row[0], db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall())
 
     @classmethod
     def table_exists(klass, table_name):
@@ -35,8 +37,8 @@ class DB:
     @classmethod
     def create_table(klass, table_name, query):
         if not klass.table_exists(table_name):
-            klass.db_cursor.execute(query)
-            klass.db_connection.commit()
+            db_cursor.execute(query)
+            db_connection.commit()
         return True
 
 class Model(object):
@@ -86,7 +88,7 @@ def find_by_%s(klass, value):
     @classmethod
     def count(klass, params = {}):
         keys, values = klass.filter_params(params)
-        return klass.db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name).fetchone()[0]
+        return db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name).fetchone()[0]
 
     @classmethod
     def find_by(klass, params = {}):
@@ -102,7 +104,7 @@ def find_by_%s(klass, value):
         if len(keys) != 0:
             query += ' WHERE ' + ' AND '.join(map(lambda x: x + ' = ? ', keys))
         query += query_suffix
-        return map(lambda row: klass(row), klass.db_cursor.execute(query, values).fetchall())
+        return map(lambda row: klass(row), db_cursor.execute(query, values).fetchall())
 
     @classmethod
     def find(klass, id):
@@ -116,8 +118,8 @@ def find_by_%s(klass, value):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id ASC')
         results = klass.find_by(params)
-        if len(results) == 1:
-            return results[0]
+        if params['limit'] == 1 and len(results) == 0: return None
+        if len(results) == 1: return results[0]
         return results
 
     @classmethod
@@ -125,8 +127,8 @@ def find_by_%s(klass, value):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id DESC')
         results = klass.find_by(params)
-        if len(results) == 1:
-            return results[0]
+        if params['limit'] == 1 and len(results) == 0: return None
+        if len(results) == 1: return results[0]
         return results
 
     @classmethod
@@ -141,16 +143,13 @@ def find_by_%s(klass, value):
         keys = map(lambda x: '"' + x + '"', keys)
         query = "INSERT INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(['?'] * len(values)) + " ) "
-        klass.db_cursor.execute(query, values)
-        klass.db_connection.commit()
+        db_cursor.execute(query, values)
+        db_connection.commit()
         return True
 
 class VideoFile(Model):
     fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
     unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
-    db_cursor = o.db_cursor
-    db_connection = o.db_connection
-    table_name = o.video_file_table_name
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 
@@ -163,6 +162,10 @@ class VideoFile(Model):
         self.access_time = attributes[5]
         self.access_count = attributes[6]
         self.filepath = os.path.join(self.cache_dir, self.website_id, self.filename)
+
+    @classmethod
+    def set_table_name(klass, table_name):
+        klass.table_name = table_name
 
     @classmethod
     def create_table(klass):
@@ -216,6 +219,9 @@ def wnt(params = {}):
 
 def current_time():
     return int(time.time())
+
+def create_tables():
+    return VideoFile.create_table()
 
 def report_file_access(cache_dir, website_id, filename, size, access_time = current_time(), access_count = 1):
     try:
