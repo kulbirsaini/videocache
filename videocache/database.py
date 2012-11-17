@@ -8,15 +8,16 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
+from common import *
+from error_codes import *
 from vcoptions import VideocacheOptions
 
+import logging
 import os
 import time
 
 o = VideocacheOptions()
-
-def current_time():
-    return int(time.time())
+process_id = os.getpid()
 
 class DB:
     db_cursor = o.db_cursor
@@ -182,3 +183,42 @@ class VideoFile(Model):
             result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
         else:
             super(VideoFile, klass).create(params)
+
+def info(params = {}):
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        o.vc_logger.info(build_message(params))
+
+def error(params = {}):
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        o.vc_logger.error(build_message(params))
+
+def warn(params = {}):
+    if o.enable_videocache_log:
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        o.vc_logger.debug(build_message(params))
+
+def trace(params = {}):
+    if o.enable_trace_log:
+        params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
+        o.trace_logger.info(build_message(params))
+
+def ent(params = {}):
+    error(params)
+    params.update({ 'message' : traceback.format_exc() })
+    trace(params)
+
+def wnt(params = {}):
+    error(params)
+    params.update({ 'message' : traceback.format_exc() })
+    trace(params)
+
+def current_time():
+    return int(time.time())
+
+def report_file_access(cache_dir, website_id, filename, size, access_time = current_time(), access_count = 1):
+    try:
+        VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time, 'access_count' : access_count })
+    except Exception, e:
+        ent({ 'code' : FILEDB_REPORT_ERR, 'website_id' : website_id, 'video_id' : filename, 'message' : 'Error occurred while registering file access to filelist database.', 'debug' : str(e) })

@@ -9,6 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
+from database import report_file_access
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -614,6 +615,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
 
         if video_size != -1 and os.path.getsize(target_file) / 1024 < 0.97 * video_size / 1024:
             error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(os.path.getsize(target_file)), 'video_id' : video_id, 'website_id' : website_id })
+            os.unlink(target_file)
             return False
     except urllib2.HTTPError, e:
         try:
@@ -723,6 +725,7 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
+                        report_file_access(cur_cache_dir, website_id, filename, size)
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
@@ -809,6 +812,7 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
+                report_file_access(cur_cache_dir, website_id, alternate_vid, size)
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -851,6 +855,7 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
+                    report_file_access(cur_cache_dir, website_id, video_id, size)
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -1155,6 +1160,7 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                                    report_file_access(cache_dir, website_id, filename, size)
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 video_pool.remove_conn(video_id, website_id)
