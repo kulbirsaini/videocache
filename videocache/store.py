@@ -11,6 +11,7 @@ __docformat__ = 'plaintext'
 from error_codes import *
 
 import os
+import stat
 import statvfs
 import subprocess
 
@@ -33,6 +34,10 @@ def generalized_cached_url(o, video_id, website_id, format, params = {}):
 def free_space(dir):
     disk_stat = os.statvfs(dir)
     return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
+
+def get_size_and_time(filename):
+    file_stat = os.stat(filename)
+    return (file_stat[stat.ST_SIZE], file_stat[stat.ST_ATIME])
 
 def get_filelist(dir, sort_by = 'time', order = 'desc'):
     cmd = "find %s -type f ! -iname '*.xml' ! -iname '*.queue' -printf " % dir

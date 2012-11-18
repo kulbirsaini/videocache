@@ -1195,6 +1195,23 @@ def rebuild_cache_dir_filelist(dir, now = False):
             return None
     return True
 
+def build_filelist():
+    initialize_database(o)
+    for cache_dir in o.base_dir_list:
+        for website_id in o.websites:
+            cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
+            if not os.path.isdir(cur_dir):
+                continue
+            all_files = os.listdir(cur_dir)
+            for files in chunks(all_files, 400):
+                try:
+                    files_not_in_db = list(set(files) - set(map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files, 'select' : 'filename' }))))
+                    for filename in files_not_in_db:
+                        size, access_time = get_size_and_time(os.path.join(cur_dir, filename))
+                        report_file_access(cache_dir, website_id, filename, size, access_time })
+                except Exception, e:
+                    ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir })
+
 def purge_videos(dir, num_videos = 25):
     global cache_dir_data
 

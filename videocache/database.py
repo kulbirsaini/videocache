@@ -66,11 +66,34 @@ def find_by_%s(klass, value):
     return klass.find_by({ '%s' : value })
     """
 
+    def __init__(self, attributes):
+        map(lambda field: setattr(self, field, attributes.get(field, None)), self.fields)
+
+    def to_s(self):
+        print map(lambda field: getattr(self, field), self.fields)
+
+    @classmethod
+    def set_table_name(klass, table_name):
+        klass.table_name = table_name
+
     @classmethod
     def filter_params(klass, params, drop = []):
         keys = filter(lambda x: x in klass.fields and x not in drop, params.keys())
         values = map(lambda x: params[x], keys)
         return (keys, values)
+
+    @classmethod
+    def construct_query(klass, keys, values):
+        new_values = []
+        query_strings = []
+        for key, value in zip(keys, values):
+            if isinstance(value, list):
+                query_strings.append(' ' + key + ' IN ( ' + ', '.join(['?'] * len(value)) + ' ) ')
+                map(lambda x: new_values.append(x), value)
+            else:
+                query_strings.append(' ' + key + ' = ? ')
+                new_values.append(value)
+        return ' AND '.join(query_strings), new_values
 
     def update_attribute(self, attribute, value):
         if attribute in self.fields and attribute != 'id':
@@ -107,16 +130,19 @@ def find_by_%s(klass, value):
         order = params.get('order', None)
         limit = params.get('limit', None)
         offset = params.get('offset', None)
+        select = params.get('select', ', '.join(klass.fields))
+        select_keys = map(lambda x: x.strip(), select.split(','))
         query_suffix = ''
         if order: query_suffix += " ORDER BY %s" % order
         if limit: query_suffix += " LIMIT %s" % limit
         if offset: query_suffix += " OFFSET %s" % offset
         keys, values = klass.filter_params(params)
-        query = 'SELECT * FROM %s ' % klass.table_name
+        query = 'SELECT ' + select + ' FROM %s ' % klass.table_name
         if len(keys) != 0:
-            query += ' WHERE ' + ' AND '.join(map(lambda x: x + ' = ? ', keys))
+            where_part, values = klass.construct_query(keys, values)
+            query += ' WHERE ' + where_part
         query += query_suffix
-        return map(lambda row: klass(row), db_cursor.execute(query, values).fetchall())
+        return map(lambda row: klass(dict(zip(select_keys, row))), db_cursor.execute(query, values).fetchall())
 
     @classmethod
     def find(klass, id):
@@ -159,6 +185,10 @@ def find_by_%s(klass, value):
         db_connection.commit()
         return True
 
+    @classmethod
+    def execute(klass, query):
+        return map(lambda row: klass(row), db_cursor.execute(query).fetchall())
+
 class VideoFile(Model):
     fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
     unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
@@ -166,32 +196,22 @@ class VideoFile(Model):
         exec((Model.function_template_find_by % (field, field)).strip())
 
     def __init__(self, attributes):
-        self.id = attributes[0]
-        self.cache_dir = attributes[1]
-        self.website_id = attributes[2]
-        self.filename = attributes[3]
-        self.size = attributes[4]
-        self.access_time = attributes[5]
-        self.access_count = attributes[6]
-        self.filepath = os.path.join(self.cache_dir, self.website_id, self.filename)
-
-    @classmethod
-    def set_table_name(klass, table_name):
-        klass.table_name = table_name
+        Model.__init__(self, attributes)
+        if self.cache_dir and self.website_id and self.filename:
+            self.filepath = os.path.join(self.cache_dir, self.website_id, self.filename)
+        else:
+            self.filepath = None
 
     @classmethod
     def create_table(klass):
         query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir STRING, website_id STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
         return DB.create_table(klass.table_name, query)
 
-    def to_s(self):
-        print (self.id, self.cache_dir, self.website_id, self.filename, self.size, self.access_time, self.access_count)
-
     @classmethod
     def create(klass, params):
         uniq_key_params = {}
         map(lambda key: uniq_key_params.update({ key : params[key] }), filter(lambda x: x in klass.unique_fields, params))
-        if len(params) == 0 or len(uniq_key_params) == 0:
+        if len(params) == 0 or len(uniq_key_params) != len(klass.unique_fields):
             return False
         result = klass.first(uniq_key_params)
         if result:
