@@ -147,13 +147,7 @@ class VideocacheOptions:
             # Filelist Database
             self.__class__.filelistdb_path = os.path.join(self.__class__.logdir, mainconf.filelistdb_file)
             self.__class__.video_file_table_name = 'video_files'
-
-            try:
-                self.__class__.db_connection = sqlite3.connect(self.__class__.filelistdb_path)
-                self.__class__.db_cursor = self.__class__.db_connection.cursor()
-            except Exception, e:
-                syslog_msg('Could not connect to sqlite database use for hashing video files. Debug: ' + traceback.format_exc().replace('\n', ''))
-                return None
+            self.__class__.log_filedb_activity = mainconf.log_filedb_activity
 
             # Network
             self.__class__.cache_host = str(mainconf.cache_host).strip()

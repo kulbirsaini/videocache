@@ -196,6 +196,7 @@ def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
 def squid_part():
+    initialize_database(o)
     global exit
     input = sys.stdin.readline()
     while input:
@@ -306,8 +307,6 @@ if __name__ == '__main__':
     for website_id in o.websites:
         exec(website_id + '_cached_url = generalized_cached_url')
         exec('from websites.' + website_id + ' import *')
-
-    initialize_database(o, process_id)
 
     try:
         squid = threading.Thread(target = squid_part)

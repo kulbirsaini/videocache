@@ -13,14 +13,23 @@ from error_codes import *
 
 import logging
 import os
+import sqlite3
 import time
+import traceback
 
-def initialize_database(options, pid):
+def initialize_database(options, pid = None):
     global o, process_id, db_cursor, db_connection
     o = options
-    process_id = pid
-    db_cursor = options.db_cursor
-    db_connection = options.db_connection
+    if not pid:
+        process_id = os.getpid()
+    else:
+        process_id = pid
+    try:
+        db_connection = sqlite3.connect(options.filelistdb_path)
+        db_cursor = db_connection.cursor()
+    except Exception, e:
+        ent({ 'code' : FILEDB_CONNECT_ERR, 'message' : 'Could not connect to sqlite database used for hashing video files.', 'debug' : str(e) })
+        return None
     VideoFile.set_table_name(options.video_file_table_name)
 
 class DB:
@@ -63,8 +72,8 @@ def find_by_%s(klass, value):
     def update_attribute(self, attribute, value):
         if attribute in self.fields and attribute != 'id':
             query = "UPDATE %s SET %s = ? WHERE id = ?" % (self.table_name, attribute)
-            self.db_cursor.execute(query, [value, self.id])
-            self.db_connection.commit()
+            db_cursor.execute(query, [value, self.id])
+            db_connection.commit()
             return True
         return False
 
@@ -75,14 +84,14 @@ def find_by_%s(klass, value):
         values.append(self.id)
         query = "UPDATE %s SET " % self.table_name
         query += ', '.join(map(lambda x: x + ' = ? ', keys)) + " WHERE id = ? "
-        self.db_cursor.execute(query, values)
-        self.db_connection.commit()
+        db_cursor.execute(query, values)
+        db_connection.commit()
         return True
 
     def destroy(self):
         query = "DELETE FROM %s WHERE id = ?" % self.table_name
-        self.db_cursor.execute(query, (self.id, ))
-        self.db_connection.commit()
+        db_cursor.execute(query, (self.id, ))
+        db_connection.commit()
         return True
 
     @classmethod
@@ -224,6 +233,8 @@ def create_tables():
     return VideoFile.create_table()
 
 def report_file_access(cache_dir, website_id, filename, size, access_time = current_time(), access_count = 1):
+    if o.log_filedb_activity:
+        info({ 'code' : FILEDB_WRITE, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
     try:
         VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time, 'access_count' : access_count })
     except Exception, e:

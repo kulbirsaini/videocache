@@ -921,6 +921,7 @@ def is_caching_time():
     return False
 
 def cache_thread_scheduler():
+    initialize_database(o)
     if o.client_email != '':
         info({ 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' })
         refine_cache_periods()
@@ -997,6 +998,7 @@ def submit_system_info():
         time.sleep(submit_period)
 
 def start_scheduler_server():
+    initialize_database(o)
     server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
     server.register_function(server.shutdown)
     server.register_introspection_functions()
@@ -1095,6 +1097,7 @@ def watch_store_log():
             break
         sleep(300)
 
+    initialize_database(o)
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     try:
         for line in watch_file(o.squid_store_log, 1):
@@ -1216,6 +1219,7 @@ def cleaner_heartbeat():
         time.sleep(15)
 
 def cleancache(independent = False):
+    initialize_database(o)
     global cache_dir_data
 
     info({ 'code' : CLEANUP_INITIATED, 'message' : 'Initiating Videocache Cleaner because all cache directories are full.' })
@@ -1354,8 +1358,6 @@ if __name__ == '__main__':
         stdout = sys.stdout
         stderr = sys.stderr
         cache_dir_data = {}
-
-        initialize_database(o, process_id)
 
         try:
             import ctypes

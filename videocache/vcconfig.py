@@ -68,6 +68,7 @@ class VideocacheConf:
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
     filelistdb_file = Option('filelist.db')
+    log_filedb_activity = Option(1)
 
     # Apache
     skip_apache_conf = Option(0)

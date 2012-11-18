@@ -158,8 +158,12 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
     # Create tables for filelist database
     try:
         if not os.path.isfile(o.filelistdb_path):
-            if not create_file(o.filelistdb_path, user, 0755, quiet):
+            if not create_file(o.filelistdb_path, user, 0711, quiet):
                 print_message_and_abort(red("Could not create filelist database path %s" % o.filelistdb_path))
+        else:
+            if not set_permissions_and_ownership(o.filelistdb_path, user, 0711, quiet):
+                print_message_and_abort(red("Could not set permissions and ownership for filelist database path %s" % o.filelistdb_path))
+        initialize_database(o)
         if not create_tables():
             print_message_and_abort(red("Could not create database tables for filelist db"))
     except Exception, e:
@@ -319,7 +323,6 @@ if __name__ == '__main__':
 
     try:
         o = VideocacheOptions(config_file)
-        initialize_database(o, '-')
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))
