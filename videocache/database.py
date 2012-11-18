@@ -32,6 +32,9 @@ def initialize_database(options, pid = None):
         return None
     VideoFile.set_table_name(options.video_file_table_name)
 
+def close_db_connection():
+    db_connection.close()
+
 class DB:
     @classmethod
     def get_table_names(klass):

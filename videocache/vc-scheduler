@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import report_file_access, initialize_database
+from database import report_file_access, initialize_database, close_db_connection
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -725,7 +725,9 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
+                        initialize_database(o)
                         report_file_access(cur_cache_dir, website_id, filename, size)
+                        close_db_connection()
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
@@ -812,7 +814,9 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
+                initialize_database(o)
                 report_file_access(cur_cache_dir, website_id, alternate_vid, size)
+                close_db_connection()
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -855,7 +859,9 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
+                    initialize_database(o)
                     report_file_access(cur_cache_dir, website_id, video_id, size)
+                    close_db_connection()
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -921,7 +927,6 @@ def is_caching_time():
     return False
 
 def cache_thread_scheduler():
-    initialize_database(o)
     if o.client_email != '':
         info({ 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' })
         refine_cache_periods()
@@ -998,7 +1003,6 @@ def submit_system_info():
         time.sleep(submit_period)
 
 def start_scheduler_server():
-    initialize_database(o)
     server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
     server.register_function(server.shutdown)
     server.register_introspection_functions()
