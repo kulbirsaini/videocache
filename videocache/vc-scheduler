@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import report_file_access, initialize_database, close_db_connection
+from database import report_file_access, initialize_database, close_db_connection, VideoFile
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -1195,7 +1195,8 @@ def rebuild_cache_dir_filelist(dir, now = False):
             return None
     return True
 
-def build_filelist():
+def rebuild_filelist():
+    time.sleep(10)
     initialize_database(o)
     for cache_dir in o.base_dir_list:
         for website_id in o.websites:
@@ -1207,8 +1208,12 @@ def build_filelist():
                 try:
                     files_not_in_db = list(set(files) - set(map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files, 'select' : 'filename' }))))
                     for filename in files_not_in_db:
-                        size, access_time = get_size_and_time(os.path.join(cur_dir, filename))
-                        report_file_access(cache_dir, website_id, filename, size, access_time })
+                        filepath = os.path.join(cur_dir, filename)
+                        if os.path.isfile(filepath):
+                            size, access_time = get_size_and_time(filepath)
+                            report_file_access(cache_dir, website_id, filename, size, access_time)
+                    if len(files_not_in_db) > 100:
+                        time.sleep(5)
                 except Exception, e:
                     ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir })
 
@@ -1280,18 +1285,21 @@ class VideoPoolDaemon(VideocacheDaemon):
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info)
             cleaner_thread = threading.Thread(target = cleaner_heartbeat)
+            filelist_builder_thread = threading.Thread(target = rebuild_filelist)
             if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
 
             server_thread.start()
             cache_thread.start()
             sysinfo_thread.start()
             cleaner_thread.start()
+            filelist_builder_thread.start()
             if o.enable_store_log_monitoring: store_log_watcher_thread.start()
 
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
             cleaner_thread.join()
+            filelist_builder_thread.join()
             if o.enable_store_log_monitoring: store_log_watcher_thread.join()
         except Exception, e:
             ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
