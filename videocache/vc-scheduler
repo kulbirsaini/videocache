@@ -1179,22 +1179,6 @@ def watch_store_log():
     except Exception, e:
         ent({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
 
-def rebuild_cache_dir_filelist(dir, now = False):
-    global cache_dir_data
-
-    sort_by = 'time'
-    if o.disk_cleanup_strategy == o.CLEANUP_MAX_SIZE: sort_by = 'size'
-
-    if now or (time.time() - cache_dir_data[dir]['last_checked']) > o.cache_dir_filelist_rebuild_interval or len(cache_dir_data[dir]['filelist']) < 100:
-        try:
-            cleaner_info({ 'code' : FILELIST_BUILD_START, 'message' : 'Obtaining filelist for cache directory ' + dir })
-            cache_dir_data[dir] = { 'filelist' : get_filelist(dir, sort_by, 'asc'), 'last_checked' : time.time() }
-            cleaner_info({ 'code' : FILELIST_BUILD_FINISH, 'message' : 'Finished building filelist for cache directory ' + dir })
-        except Exception, e:
-            cent({ 'code' : FILELIST_BUILD_ERR, 'message' : 'Error occured while building filelist for cache directory ' + dir, 'debug' : str(e) })
-            return None
-    return True
-
 def rebuild_filelist():
     time.sleep(10)
     initialize_database(o)
@@ -1217,24 +1201,6 @@ def rebuild_filelist():
                 except Exception, e:
                     ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir })
 
-def purge_videos(dir, num_videos = 25):
-    global cache_dir_data
-
-    for i in range(min(num_videos, len(cache_dir_data[dir]['filelist']))):
-        try:
-            video_path = cache_dir_data[dir]['filelist'].pop()
-        except Exception, e:
-            cent({'code' : VIDEO_PURGE_WARN, 'message' : 'Error occured while selecting next video to remove from cache directory' + dir, 'debug' : str(e)})
-            continue
-
-        try:
-            if os.path.isfile(video_path):
-                match = re.compile(os.path.join(dir, '([^/]+)/([^/]+)')).search(video_path).groups()
-                os.unlink(video_path)
-                cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed from ' + os.path.join(dir, match[0]), 'website_id' : match[0], 'video_id' : match[1] })
-        except Exception, e:
-            cent({ 'code' : VIDEO_PURGE_ERR, 'message' : 'Error occured while removing video ' + video_path, 'debug' : str(e) })
-
 def cleaner_heartbeat():
     while True:
         try:
@@ -1244,9 +1210,15 @@ def cleaner_heartbeat():
             pass
         time.sleep(15)
 
+def purge_videos(dir, results):
+    for chunked_results in chunks(results, 10):
+        for result in chunked_results:
+            filepath = os.path.join(dir, result.website_id, result.filename)
+            if os.path.isfile(filepath): os.unlink(filepath)
+        if free_space(dir) > o.disk_avail_threshold + 2000: return
+
 def cleancache(independent = False):
     initialize_database(o)
-    global cache_dir_data
 
     info({ 'code' : CLEANUP_INITIATED, 'message' : 'Initiating Videocache Cleaner because all cache directories are full.' })
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
@@ -1254,12 +1226,13 @@ def cleancache(independent = False):
         try:
             if free_space(dir) < o.disk_avail_threshold:
                 while True:
-                    rebuild_cache_dir_filelist(dir)
-                    if len(cache_dir_data[dir]['filelist']) < 50:
+                    # Fetch 100 files at a time
+                    results = VideoFile.all({ 'limit' : 100, 'order' : o.cleanup_order, 'select' : 'website_id, filename' })
+                    if len(results) < 50:
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         break
-                    purge_videos(dir)
+                    purge_videos(dir, results)
                     if free_space(dir) > o.disk_avail_threshold + 2000: break
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + dir, 'debug' : str(e) })
@@ -1386,7 +1359,6 @@ if __name__ == '__main__':
         process_id = '-'
         stdout = sys.stdout
         stderr = sys.stderr
-        cache_dir_data = {}
 
         try:
             import ctypes
@@ -1396,8 +1368,6 @@ if __name__ == '__main__':
             randomize = libc.rand()
         except Exception, e:
             randomize = int(random.random() * 10**8)
-        for cache_dir in o.base_dir_list:
-            cache_dir_data[cache_dir] = { 'last_checked' : 0, 'filelist' : [] }
 
         # Import website functions
         for website_id in o.websites:
