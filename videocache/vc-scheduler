@@ -1213,8 +1213,12 @@ def cleaner_heartbeat():
 def purge_videos(dir, results):
     for chunked_results in chunks(results, 10):
         for result in chunked_results:
-            filepath = os.path.join(dir, result.website_id, result.filename)
-            if os.path.isfile(filepath): os.unlink(filepath)
+            if os.path.isfile(result.filepath):
+                os.unlink(result.filepath)
+                result.destroy()
+                cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + result.filepath, 'website_id' : result.website_id, 'video_id' : result.filename })
+            else:
+                result.destroy()
         if free_space(dir) > o.disk_avail_threshold + 2000: return
 
 def cleancache(independent = False):
@@ -1227,13 +1231,13 @@ def cleancache(independent = False):
             if free_space(dir) < o.disk_avail_threshold:
                 while True:
                     # Fetch 100 files at a time
-                    results = VideoFile.all({ 'limit' : 100, 'order' : o.cleanup_order, 'select' : 'website_id, filename' })
-                    if len(results) < 50:
+                    results = VideoFile.all({ 'limit' : 100, 'order' : o.cleanup_order, 'select' : 'cache_dir, website_id, filename' })
+                    purge_videos(dir, results)
+                    if free_space(dir) > o.disk_avail_threshold + 2000: break
+                    if len(results) == 0:
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         break
-                    purge_videos(dir, results)
-                    if free_space(dir) > o.disk_avail_threshold + 2000: break
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + dir, 'debug' : str(e) })
 

@@ -131,6 +131,8 @@ def find_by_%s(klass, value):
         limit = params.get('limit', None)
         offset = params.get('offset', None)
         select = params.get('select', ', '.join(klass.fields))
+        if 'id' not in map(lambda x: x.strip(), select.split(',')):
+            select = 'id, ' + select
         select_keys = map(lambda x: x.strip(), select.split(','))
         query_suffix = ''
         if order: query_suffix += " ORDER BY %s" % order
@@ -198,17 +200,19 @@ class VideoFile(Model):
     def __init__(self, attributes):
         Model.__init__(self, attributes)
         if self.cache_dir and self.website_id and self.filename:
-            self.filepath = os.path.join(self.cache_dir, self.website_id, self.filename)
+            self.filepath = os.path.join(self.cache_dir, o.website_cache_dir[self.website_id], self.filename)
         else:
             self.filepath = None
 
     @classmethod
     def create_table(klass):
-        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir STRING, website_id STRING, filename STRING, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
+        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir TEXT, website_id TEXT, filename TEXT, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
         return DB.create_table(klass.table_name, query)
 
     @classmethod
     def create(klass, params):
+        if params.has_key('filename'):
+            params['filename'] = str(params['filename'])
         uniq_key_params = {}
         map(lambda key: uniq_key_params.update({ key : params[key] }), filter(lambda x: x in klass.unique_fields, params))
         if len(params) == 0 or len(uniq_key_params) != len(klass.unique_fields):

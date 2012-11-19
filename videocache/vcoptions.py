@@ -117,7 +117,7 @@ class VideocacheOptions:
                 self.__class__.cleanup_order = 'size DESC, access_count ASC, access_time ASC'
             elif self.__class__.disk_cleanup_strategy == 3:
                 self.__class__.cleanup_order = 'access_time ASC, access_count ASC, size DESC'
-            else self.__class__.disk_cleanup_strategy == 1:
+            else:
                 self.__class__.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
             self.__class__.cache_dir_filelist_rebuild_interval = int(mainconf.cache_dir_filelist_rebuild_interval)
 
