@@ -260,7 +260,7 @@ def create_tables():
     return VideoFile.create_table()
 
 def report_file_access(cache_dir, website_id, filename, size, access_time = current_time(), access_count = 1):
-    if o.log_filedb_activity:
+    if o.log_filedb_activity == 1:
         info({ 'code' : FILEDB_WRITE, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
     try:
         VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time, 'access_count' : access_count })
