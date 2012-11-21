@@ -137,7 +137,7 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
                 size = os.path.getsize(video_path)
                 os.utime(video_path, None)
                 if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
-                return (True, filename, dir.rstrip(website_id), size, index)
+                return (True, filename, dir.rstrip(o.website_cache_dir[website_id]), size, index)
         except Exception, e:
             continue
     return (False, filename, '', '-', '')

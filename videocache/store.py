@@ -26,7 +26,7 @@ def generalized_cached_url(o, video_id, website_id, format, params = {}):
                 os.utime(video_path, None)
                 if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
                 cached_url = o.redirect_code + ':' + os.path.join(o.cache_url, o.cache_alias, index, o.website_cache_dir[website_id], filename)
-                return (True, filename, dir.rstrip(website_id), size, index, cached_url)
+                return (True, filename, dir.rstrip(o.website_cache_dir[website_id]), size, index, cached_url)
         except Exception, e:
             continue
     return (False, filename, '', '-', '', '')
