@@ -78,6 +78,7 @@ class VideocacheOptions:
             # Options not in configuration file
             self.__class__.queue_dump_file = mainconf.queue_dump_file
             self.__class__.version = '2.0.0'
+            self.__class__.revision = 'da2607dfc'
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
             self.__class__.offline_mode = int(mainconf.offline_mode)

@@ -146,7 +146,7 @@ class VideoPool:
         return True
 
     def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version }
+        sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision }
         sys_info.update(get_all_info(o))
         for system in [new_system, sys_info]:
             if system != {}:
