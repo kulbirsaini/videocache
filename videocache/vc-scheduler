@@ -1101,7 +1101,6 @@ def watch_store_log():
             break
         sleep(300)
 
-    initialize_database(o)
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     try:
         for line in watch_file(o.squid_store_log, 1):
@@ -1167,7 +1166,9 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                                    initialize_database(o)
                                     report_file_access(cache_dir, website_id, filename, size)
+                                    close_db_connection
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 video_pool.remove_conn(video_id, website_id)
