@@ -938,12 +938,16 @@ display_instructions() { #{{{
   if [[ -f instructions.txt ]]; then
     green "Setup has completed successfully. A file instructions.txt has been created\nin the bundle which you should follow the complete the installation process."
     echo
-    red_without_newline "Will display instructions.txt here in 10 seconds"
-    for(( i = 0; i < 10; i++)); do
-      sleep 1
-      red_without_newline '.'
-    done
-    less instructions.txt
+    red "Post INSTALL instructions. FOLLOW EACH STEP CAREFULLY."
+    which cat > /dev/null 2> /dev/null
+    if [[ $? == 0 ]]; then
+      cat instructions.txt
+    else
+      which less > /dev/null 2> /dev/null
+      if [[ $? == 0 ]]; then
+        less instructions.txt
+      fi
+    fi
   fi
   echo
 } #}}}
