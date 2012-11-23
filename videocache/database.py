@@ -57,6 +57,7 @@ class Model(object):
     # db_connection
     # table_name
 
+    placeholders = { 'string' : "'%s'", 'integer' : "%s" }
     function_template_find_by = """
 @classmethod
 def find_by_%s(klass, value):
@@ -64,10 +65,10 @@ def find_by_%s(klass, value):
     """
 
     def __init__(self, attributes):
-        map(lambda field: setattr(self, field, attributes.get(field, None)), self.fields)
+        map(lambda field: setattr(self, field, attributes.get(field, None)), self.fields.keys())
 
     def to_s(self):
-        print map(lambda field: getattr(self, field), self.fields)
+        print map(lambda field: getattr(self, field), self.fields.keys())
 
     @classmethod
     def set_table_name(klass, table_name):
@@ -75,7 +76,7 @@ def find_by_%s(klass, value):
 
     @classmethod
     def filter_params(klass, params, drop = []):
-        keys = filter(lambda x: x in klass.fields and x not in drop, params.keys())
+        keys = filter(lambda x: x in klass.fields.keys() and x not in drop, params.keys())
         values = map(lambda x: params[x], keys)
         return (keys, values)
 
@@ -84,22 +85,25 @@ def find_by_%s(klass, value):
         new_values = []
         query_strings = []
         for key, value in zip(keys, values):
+            placeholder = klass.placeholders[klass.fields[key]]
             if isinstance(value, list):
-                query_strings.append(' ' + key + ' IN ( ' + ', '.join(['%s'] * len(value)) + ' ) ')
+                query_strings.append(' ' + key + ' IN ( ' + ', '.join([placeholder] * len(value)) + ' ) ')
                 map(lambda x: new_values.append(x), value)
             else:
-                query_strings.append(' ' + key + ' = %s ')
+                query_strings.append(' ' + key + ' = ' + placeholder + ' ')
                 new_values.append(value)
         return ' AND '.join(query_strings), new_values
 
     def update_attribute(self, attribute, value):
-        if attribute in self.fields and attribute != 'id':
-            query = "UPDATE %s SET %s = %s WHERE id = %s"
+        if attribute in self.fields.keys() and attribute != 'id':
+            query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
+            query = query % (self.table_name, attribute, value, self.id)
             num_tries = 0
             while num_tries < 2:
                 try:
-                    db_cursor.execute(query % (self.table_name, attribute, value, self.id))
+                    db_cursor.execute(query)
                     db_connection.commit()
+                    break
                 except Exception, e:
                     num_tries += 1
                     if db_connection.errno() == 2006:
@@ -115,12 +119,14 @@ def find_by_%s(klass, value):
             return False
         values.append(self.id)
         query = "UPDATE %s SET " % self.table_name
-        query += ', '.join(map(lambda x: x + ' = %s ', keys)) + " WHERE id = %s "
+        query += ', '.join(map(lambda x: x + ' = ' + self.placeholders[self.fields[x]] + ' ', keys)) + " WHERE id = %s "
+        query = query % tuple(values)
         num_tries = 0
         while num_tries < 2:
             try:
-                db_cursor.execute(query % values)
+                db_cursor.execute(query)
                 db_connection.commit()
+                break
             except Exception, e:
                 num_tries += 1
                 if db_connection.errno() == 2006:
@@ -130,12 +136,13 @@ def find_by_%s(klass, value):
         return True
 
     def destroy(self):
-        query = "DELETE FROM %s WHERE id = %s"
+        query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
         num_tries = 0
         while num_tries < 2:
             try:
-                db_cursor.execute(query % (self.table_name, self.id ))
+                db_cursor.execute(query)
                 db_connection.commit()
+                break
             except Exception, e:
                 num_tries += 1
                 if db_connection.errno() == 2006:
@@ -178,11 +185,13 @@ def find_by_%s(klass, value):
             where_part, values = klass.construct_query(keys, values)
             query += ' WHERE ' + where_part
         query += query_suffix
+        query = query % tuple(values)
         num_tries = 0
         while num_tries < 2:
             try:
-                db_cursor.execute(query % values)
+                db_cursor.execute(query)
                 results = db_cursor.fetchall()
+                break
             except Exception, e:
                 results = []
                 num_tries += 1
@@ -227,14 +236,14 @@ def find_by_%s(klass, value):
         if len(keys) == 0:
             return False
         query = "INSERT INTO %s " % klass.table_name
-        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(['%s'] * len(values)) + " ) "
-        print query
-        print values
+        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
+        query = query % tuple(values)
         num_tries = 0
         while num_tries < 2:
             try:
-                db_cursor.execute(query % tuple(values))
+                db_cursor.execute(query)
                 db_connection.commit()
+                break
             except Exception, e:
                 num_tries += 1
                 if db_connection.errno() == 2006:
@@ -250,6 +259,7 @@ def find_by_%s(klass, value):
             try:
                 db_cursor.execute(query)
                 results = db_cursor.fetchall()
+                break
             except Exception, e:
                 results = []
                 num_tries += 1
@@ -260,7 +270,7 @@ def find_by_%s(klass, value):
         return map(lambda row: klass(row), results)
 
 class VideoFile(Model):
-    fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
+    fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'integer', 'access_count' : 'integer' }
     unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
@@ -298,10 +308,8 @@ class VideoFile(Model):
             return False
         result = klass.first(uniq_key_params)
         if result:
-            print 'updateing'
             result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
         else:
-            print 'creating'
             super(VideoFile, klass).create(params)
 
 def info(params = {}):

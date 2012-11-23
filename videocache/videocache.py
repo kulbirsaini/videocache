@@ -299,10 +299,6 @@ def squid_part():
                                     info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                 else:
                                     info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
-                                    #try:
-                                    #    VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                                    #except Exception, e:
-                                    #    ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + dir, 'debug' : str(e) })
                                     add_video_to_db_queue({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                             if new_url == '' and queue:

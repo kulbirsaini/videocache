@@ -213,7 +213,6 @@ class VideoPool:
 
     def add_queries_to_db_queue(self, queries = []):
         self.db_queue_lock.acquire()
-        info({ 'code' : 'VIDEO_HIT_RECEIVED', 'message' : 'Received ' + str(len(queries)) + ' video hits' })
         self.db_queue += queries
         self.db_queue_lock.release()
         return True
@@ -224,20 +223,13 @@ class VideoPool:
         self.db_queue = []
         self.db_queue_lock.release()
 
-        info({ 'code' : 'REPORTING ' + str(len(queries)) + ' VIDEO HITS' })
         for query in queries:
-            website_id = query.get('website_id', '-')
-            video_id = query.get('filename', '-')
-            size = query.get('size', '-')
-            cache_dir = query.get('cache_dir', '-')
-            info({ 'code' : 'DEBUG', 'message' : str(query) })
             try:
                 if o.log_filedb_activity == 1:
-                    info({ 'code' : FILEDB_WRITE, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
-                info({ 'code' : 'REPORT_NOW', 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
+                    info({ 'code' : FILEDB_WRITE, 'message' : str(query) })
                 VideoFile.create(query)
             except Exception, e:
-                ent({ 'code' : FILEDB_REPORT_ERR, 'website_id' : website_id, 'video_id' : filename, 'message' : 'Error occurred while registering file access to filelist database.', 'debug' : str(e) })
+                ent({ 'code' : FILEDB_REPORT_ERR, 'message' : 'Error occurred while registering file access to filelist database. ' + str(query), 'debug' : str(e) })
         return True
 
     def search_files_not_in_db(self, params):
