@@ -33,6 +33,9 @@ def blue(msg):
 def green(msg):
     return "\033[1;32m%s\033[0m" % msg#}}}
 
+def current_time():
+    return int(time.time())
+
 def is_valid_domain_port(name):
     if re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$').match(name):
         return True

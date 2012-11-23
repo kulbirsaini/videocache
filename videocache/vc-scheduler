@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import report_file_access, initialize_database, close_db_connection, VideoFile
+from database import initialize_database, close_db_connection, VideoFile
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -113,6 +113,8 @@ class VideoPool:
     disk_space = {}
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
+    db_queue_lock = threading.Semaphore(value = 1)
+    db_query_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
     store_log_threshold = 240
     cleanup_required = False
@@ -124,6 +126,7 @@ class VideoPool:
     scores_changed = {}
     last_scores_rebuild = {}
     last_sync = {}
+    db_queue = []
 
     def __init__(self):
         for website_id in o.websites:
@@ -134,6 +137,7 @@ class VideoPool:
             self.scores_changed[website_id] = True
             self.last_scores_rebuild[website_id] = 0
             self.last_sync[website_id] = 0
+        initialize_database(o)
 
     def ping(self):
         return True
@@ -205,6 +209,82 @@ class VideoPool:
             for params in videos[video_id]:
                 self.add_video(video_id, params)
         self.sync_lock.release()
+        return True
+
+    def add_queries_to_db_queue(self, queries = []):
+        self.db_queue_lock.acquire()
+        info({ 'code' : 'VIDEO_HIT_RECEIVED', 'message' : 'Received ' + str(len(queries)) + ' video hits' })
+        self.db_queue += queries
+        self.db_queue_lock.release()
+        return True
+
+    def report_db_query(self):
+        self.db_queue_lock.acquire()
+        queries = self.db_queue
+        self.db_queue = []
+        self.db_queue_lock.release()
+
+        info({ 'code' : 'REPORTING ' + str(len(queries)) + ' VIDEO HITS' })
+        for query in queries:
+            website_id = query.get('website_id', '-')
+            video_id = query.get('filename', '-')
+            size = query.get('size', '-')
+            cache_dir = query.get('cache_dir', '-')
+            info({ 'code' : 'DEBUG', 'message' : str(query) })
+            try:
+                if o.log_filedb_activity == 1:
+                    info({ 'code' : FILEDB_WRITE, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
+                info({ 'code' : 'REPORT_NOW', 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
+                VideoFile.create(query)
+            except Exception, e:
+                ent({ 'code' : FILEDB_REPORT_ERR, 'website_id' : website_id, 'video_id' : filename, 'message' : 'Error occurred while registering file access to filelist database.', 'debug' : str(e) })
+        return True
+
+    def search_files_not_in_db(self, params):
+        self.db_query_lock.acquire()
+        #initialize_database(o)
+        try:
+            files_not_in_db = list(set(params['filename']) - set(map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir' : params['cache_dir'], 'website_id' : params['website_id'], 'filename' : params['filename'], 'select' : 'filename' }))))
+        except Exception, e:
+            files_not_in_db = []
+            ent({ 'code' : DB_QUERY_ERR, 'message' : 'Error while querying database', 'debug' : str(e) })
+        #close_db_connection()
+        self.db_query_lock.release()
+        return files_not_in_db
+
+    def destroy_video_from_db(self, video_file):
+        self.db_query_lock.acquire()
+        #initialize_database(o)
+        try:
+            video_file.destroy()
+        except Exception, e:
+            ent({ 'code' : DB_QUERY_ERR, 'message' : 'Error while removing entry from database', 'debug' : str(e) })
+        #close_db_connection()
+        self.db_query_lock.release()
+
+    def purge_videos(self, cache_dir):
+        self.db_query_lock.acquire()
+        #initialize_database(o)
+        try:
+            results = VideoFile.all({ 'limit' : 100, 'order' : o.cleanup_order, 'select' : 'cache_dir, website_id, filename', 'cache_dir' : cache_dir })
+        except Exception, e:
+            results = []
+            ent({ 'code' : DB_QUERY_ERR, 'message' : 'Error while querying database', 'debug' : str(e) })
+        #close_db_connection()
+        self.db_query_lock.release()
+        if len(results) < 5:
+            cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
+            warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
+            return False
+        for chunked_results in chunks(results, 10):
+            for result in chunked_results:
+                if os.path.isfile(result.filepath):
+                    os.unlink(result.filepath)
+                    self.destroy_video_from_db(result)
+                    cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + result.filepath, 'website_id' : result.website_id, 'video_id' : result.filename })
+                else:
+                    self.destroy_video_from_db(result)
+            if free_space(cache_dir) > o.disk_avail_threshold + 2000: return True
         return True
 
     def is_uncacheable_youtube(self, video_id, website_id):
@@ -725,9 +805,11 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                        initialize_database(o)
-                        report_file_access(cur_cache_dir, website_id, filename, size)
-                        close_db_connection()
+                        try:
+                            VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                        except Exception, e:
+                            ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cur_cache_dir, 'debug' : str(e) })
+                        #video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
@@ -814,9 +896,11 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
-                initialize_database(o)
-                report_file_access(cur_cache_dir, website_id, alternate_vid, size)
-                close_db_connection()
+                try:
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
+                except Exception, e:
+                    ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : alternate_vid, 'size' : size, 'message' : 'cache_dir : ' + cur_cache_dir, 'debug' : str(e) })
+                #video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() }])
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -859,9 +943,11 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    initialize_database(o)
-                    report_file_access(cur_cache_dir, website_id, video_id, size)
-                    close_db_connection()
+                    try:
+                        VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
+                    except Exception, e:
+                        ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : video_id, 'size' : size, 'message' : 'cache_dir : ' + cur_cache_dir, 'debug' : str(e) })
+                    #video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() }])
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -930,7 +1016,10 @@ def cache_thread_scheduler():
     if o.client_email != '':
         info({ 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' })
         refine_cache_periods()
-        connection()
+        try:
+            video_pool.ping()
+        except:
+            connection()
         while True:
             try:
                 video_pool.load_queue()
@@ -946,6 +1035,7 @@ def cache_thread_scheduler():
                 while num_tries < 5:
                     try:
                         video_pool.schedule()
+                        video_pool.report_db_query()
                         break
                     except Exception, e:
                         connection()
@@ -1166,9 +1256,11 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    initialize_database(o)
-                                    report_file_access(cache_dir, website_id, filename, size)
-                                    close_db_connection
+                                    try:
+                                        VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                    except Exception, e:
+                                        ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir, 'debug' : str(e) })
+                                    #video_pool.add_queries_to_db_queue([{ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 video_pool.remove_conn(video_id, website_id)
@@ -1181,6 +1273,7 @@ def watch_store_log():
         ent({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
 
 def rebuild_filelist():
+    return #FIXME
     time.sleep(10)
     initialize_database(o)
     for cache_dir in o.base_dir_list:
@@ -1189,20 +1282,24 @@ def rebuild_filelist():
             if not os.path.isdir(cur_dir):
                 continue
             all_files = os.listdir(cur_dir)
-            for files in chunks(all_files, 400):
+            for files in chunks(all_files, 100):
                 try:
                     files_not_in_db = list(set(files) - set(map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files, 'select' : 'filename' }))))
                     for filename in files_not_in_db:
                         filepath = os.path.join(cur_dir, filename)
                         if os.path.isfile(filepath):
                             size, access_time = get_size_and_time(filepath)
-                            report_file_access(cache_dir, website_id, filename, size, access_time)
+                            try:
+                                VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time })
+                            except Exception, e:
+                                ent({ 'code' : DB_QUERY_ERR, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir, 'debug' : str(e) })
                     if len(files_not_in_db) > 100:
                         time.sleep(5)
                 except Exception, e:
                     ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir })
 
 def cleaner_heartbeat():
+    return #FIXME
     while True:
         try:
             if video_pool.is_cleanup_required():
@@ -1211,41 +1308,25 @@ def cleaner_heartbeat():
             pass
         time.sleep(15)
 
-def purge_videos(dir, results):
-    for chunked_results in chunks(results, 10):
-        for result in chunked_results:
-            if os.path.isfile(result.filepath):
-                os.unlink(result.filepath)
-                result.destroy()
-                cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + result.filepath, 'website_id' : result.website_id, 'video_id' : result.filename })
-            else:
-                result.destroy()
-        if free_space(dir) > o.disk_avail_threshold + 2000: return
-
 def cleancache(independent = False):
-    initialize_database(o)
-
-    info({ 'code' : CLEANUP_INITIATED, 'message' : 'Initiating Videocache Cleaner because all cache directories are full.' })
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
-    for dir in o.base_dir_list:
+    try:
+        video_pool.ping()
+    except:
+        connection()
+    for cache_dir in o.base_dir_list:
         try:
-            if free_space(dir) < o.disk_avail_threshold:
+            if free_space(cache_dir) < o.disk_avail_threshold:
                 while True:
-                    # Fetch 100 files at a time
-                    results = VideoFile.all({ 'limit' : 100, 'order' : o.cleanup_order, 'select' : 'cache_dir, website_id, filename' })
-                    purge_videos(dir, results)
-                    if free_space(dir) > o.disk_avail_threshold + 2000: break
-                    if len(results) == 0:
-                        cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
-                        warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
-                        break
+                    if not video_pool.purge_videos(cache_dir): break
+                    if free_space(cache_dir) > o.disk_avail_threshold + 2000: break
+                    time.sleep(3)
         except Exception, e:
-            cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + dir, 'debug' : str(e) })
+            cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
 
     if not independent: video_pool.cleanup_finished()
 
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
-    info({ 'code' : CLEANUP_COMPLETED, 'message' : 'Done cleaning up cache directories.' })
 
 class VideoPoolDaemon(VideocacheDaemon):
 

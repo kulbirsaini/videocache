@@ -13,45 +13,42 @@ from error_codes import *
 
 import logging
 import os
-import sqlite3
+os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
+import MySQLdb
 import time
 import traceback
 
+def connect_db(num_tries = 0):
+    global db_cursor, db_connection
+    if num_tries > 10:
+        error({ 'code' : 'DB_CONNECT_ERR', 'message' : 'Could not connect to database in 10 tries. Giving up.' })
+        return
+    db_connection = MySQLdb.connect('localhost', 'videocache', 'videocache', 'videocache')
+    try:
+        db_cursor = db_connection.cursor()
+        db_connection.ping()
+        return
+    except Exception, e:
+        if db_connection.errno() == 2006:
+            time.sleep(2)
+            connect_db(num_tries + 1)
+
+
 def initialize_database(options, pid = None):
-    global o, process_id, db_cursor, db_connection
+    global o, process_id
     o = options
     if not pid:
         process_id = os.getpid()
     else:
         process_id = pid
     try:
-        db_connection = sqlite3.connect(options.filelistdb_path)
-        db_cursor = db_connection.cursor()
+        connect_db()
     except Exception, e:
-        ent({ 'code' : FILEDB_CONNECT_ERR, 'message' : 'Could not connect to sqlite database used for hashing video files.', 'debug' : str(e) })
-        return None
+        syslog_msg('Could not connect to sqlite database used for hashing video files. Debug: '  + traceback.format_exc().replace('\n', ''))
     VideoFile.set_table_name(options.video_file_table_name)
 
 def close_db_connection():
     db_connection.close()
-
-class DB:
-    @classmethod
-    def get_table_names(klass):
-        return map(lambda row: row[0], db_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall())
-
-    @classmethod
-    def table_exists(klass, table_name):
-        if table_name in klass.get_table_names():
-            return True
-        return False
-
-    @classmethod
-    def create_table(klass, table_name, query):
-        if not klass.table_exists(table_name):
-            db_cursor.execute(query)
-            db_connection.commit()
-        return True
 
 class Model(object):
     # Class variables
@@ -88,18 +85,27 @@ def find_by_%s(klass, value):
         query_strings = []
         for key, value in zip(keys, values):
             if isinstance(value, list):
-                query_strings.append(' ' + key + ' IN ( ' + ', '.join(['?'] * len(value)) + ' ) ')
+                query_strings.append(' ' + key + ' IN ( ' + ', '.join(['%s'] * len(value)) + ' ) ')
                 map(lambda x: new_values.append(x), value)
             else:
-                query_strings.append(' ' + key + ' = ? ')
+                query_strings.append(' ' + key + ' = %s ')
                 new_values.append(value)
         return ' AND '.join(query_strings), new_values
 
     def update_attribute(self, attribute, value):
         if attribute in self.fields and attribute != 'id':
-            query = "UPDATE %s SET %s = ? WHERE id = ?" % (self.table_name, attribute)
-            db_cursor.execute(query, [value, self.id])
-            db_connection.commit()
+            query = "UPDATE %s SET %s = %s WHERE id = %s"
+            num_tries = 0
+            while num_tries < 2:
+                try:
+                    db_cursor.execute(query % (self.table_name, attribute, value, self.id))
+                    db_connection.commit()
+                except Exception, e:
+                    num_tries += 1
+                    if db_connection.errno() == 2006:
+                        connect_db()
+                    else:
+                        break
             return True
         return False
 
@@ -109,21 +115,49 @@ def find_by_%s(klass, value):
             return False
         values.append(self.id)
         query = "UPDATE %s SET " % self.table_name
-        query += ', '.join(map(lambda x: x + ' = ? ', keys)) + " WHERE id = ? "
-        db_cursor.execute(query, values)
-        db_connection.commit()
+        query += ', '.join(map(lambda x: x + ' = %s ', keys)) + " WHERE id = %s "
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query % values)
+                db_connection.commit()
+            except Exception, e:
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
         return True
 
     def destroy(self):
-        query = "DELETE FROM %s WHERE id = ?" % self.table_name
-        db_cursor.execute(query, (self.id, ))
-        db_connection.commit()
+        query = "DELETE FROM %s WHERE id = %s"
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query % (self.table_name, self.id ))
+                db_connection.commit()
+            except Exception, e:
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
         return True
 
     @classmethod
     def count(klass, params = {}):
         keys, values = klass.filter_params(params)
-        return db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name).fetchone()[0]
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                row_count = db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name)
+                return row_count
+            except Exception, e:
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
 
     @classmethod
     def find_by(klass, params = {}):
@@ -144,7 +178,19 @@ def find_by_%s(klass, value):
             where_part, values = klass.construct_query(keys, values)
             query += ' WHERE ' + where_part
         query += query_suffix
-        return map(lambda row: klass(dict(zip(select_keys, row))), db_cursor.execute(query, values).fetchall())
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query % values)
+                results = db_cursor.fetchall()
+            except Exception, e:
+                results = []
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
+        return map(lambda row: klass(dict(zip(select_keys, row))), results)
 
     @classmethod
     def find(klass, id):
@@ -180,16 +226,38 @@ def find_by_%s(klass, value):
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
-        keys = map(lambda x: '"' + x + '"', keys)
         query = "INSERT INTO %s " % klass.table_name
-        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(['?'] * len(values)) + " ) "
-        db_cursor.execute(query, values)
-        db_connection.commit()
+        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(['%s'] * len(values)) + " ) "
+        print query
+        print values
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query % tuple(values))
+                db_connection.commit()
+            except Exception, e:
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
         return True
 
     @classmethod
     def execute(klass, query):
-        return map(lambda row: klass(row), db_cursor.execute(query).fetchall())
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query)
+                results = db_cursor.fetchall()
+            except Exception, e:
+                results = []
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
+        return map(lambda row: klass(row), results)
 
 class VideoFile(Model):
     fields = ['id', 'cache_dir', 'website_id', 'filename', 'size', 'access_time', 'access_count']
@@ -206,11 +274,22 @@ class VideoFile(Model):
 
     @classmethod
     def create_table(klass):
-        query = 'create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT, cache_dir TEXT, website_id TEXT, filename TEXT, size INTEGER, access_time INTEGER, access_count INTEGER)' % klass.table_name
-        return DB.create_table(klass.table_name, query)
+        query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT, access_time INT, access_count INT)' % klass.table_name
+        db_cursor.execute(query)
+        try:
+            db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename)' % klass.table_name)
+            db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
+            db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
+            db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
+            db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
+        except Exception, e:
+            pass
+        return True
 
     @classmethod
     def create(klass, params):
+        params['access_count'] = params.get('access_count', 1)
+        params['access_time'] = params.get('access_time', current_time())
         if params.has_key('filename'):
             params['filename'] = str(params['filename'])
         uniq_key_params = {}
@@ -219,8 +298,10 @@ class VideoFile(Model):
             return False
         result = klass.first(uniq_key_params)
         if result:
+            print 'updateing'
             result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
         else:
+            print 'creating'
             super(VideoFile, klass).create(params)
 
 def info(params = {}):
@@ -253,16 +334,5 @@ def wnt(params = {}):
     params.update({ 'message' : traceback.format_exc() })
     trace(params)
 
-def current_time():
-    return int(time.time())
-
 def create_tables():
     return VideoFile.create_table()
-
-def report_file_access(cache_dir, website_id, filename, size, access_time = current_time(), access_count = 1):
-    if o.log_filedb_activity == 1:
-        info({ 'code' : FILEDB_WRITE, 'website_id' : website_id, 'video_id' : filename, 'size' : size, 'message' : 'cache_dir : ' + cache_dir })
-    try:
-        VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time, 'access_count' : access_count })
-    except Exception, e:
-        ent({ 'code' : FILEDB_REPORT_ERR, 'website_id' : website_id, 'video_id' : filename, 'message' : 'Error occurred while registering file access to filelist database.', 'debug' : str(e) })
