@@ -11,6 +11,7 @@ __docformat__ = 'plaintext'
 from common import *
 from error_codes import *
 
+import datetime
 import logging
 import os
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
@@ -96,6 +97,8 @@ def find_by_%s(klass, value):
 
     def update_attribute(self, attribute, value):
         if attribute in self.fields.keys() and attribute != 'id':
+            if attribute == 'access_time':
+                value = datetime.datetime.fromtimestamp(attribute)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
             num_tries = 0
@@ -114,6 +117,8 @@ def find_by_%s(klass, value):
         return False
 
     def update_attributes(self, params):
+        if params.has_key('access_time'):
+            params['access_time'] = datetime.datetime.fromtimestamp(params['access_time'])
         keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
@@ -137,6 +142,27 @@ def find_by_%s(klass, value):
 
     def destroy(self):
         query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
+        num_tries = 0
+        while num_tries < 2:
+            try:
+                db_cursor.execute(query)
+                db_connection.commit()
+                break
+            except Exception, e:
+                num_tries += 1
+                if db_connection.errno() == 2006:
+                    connect_db()
+                else:
+                    break
+        return True
+
+    @classmethod
+    def destroy(klass, id):
+        params = { 'id' : id }
+        keys, values = klass.filter_params(params)
+        where_part, values = klass.construct_query(keys, values)
+        query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
+        query = query % tuple(values)
         num_tries = 0
         while num_tries < 2:
             try:
@@ -270,13 +296,15 @@ def find_by_%s(klass, value):
         return map(lambda row: klass(row), results)
 
 class VideoFile(Model):
-    fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'integer', 'access_count' : 'integer' }
+    fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'string', 'access_count' : 'integer' }
     unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 
     def __init__(self, attributes):
         Model.__init__(self, attributes)
+        if self.access_time:
+            self.access_time = int(time.mktime(self.access_time.timetuple()))
         if self.cache_dir and self.website_id and self.filename:
             self.filepath = os.path.join(self.cache_dir, o.website_cache_dir[self.website_id], self.filename)
         else:
@@ -284,16 +312,13 @@ class VideoFile(Model):
 
     @classmethod
     def create_table(klass):
-        query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT, access_time INT, access_count INT)' % klass.table_name
+        query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT DEFAULT 0, access_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
         db_cursor.execute(query)
-        try:
-            db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename)' % klass.table_name)
-            db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
-            db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
-            db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
-            db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
-        except Exception, e:
-            pass
+        db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename(192))' % klass.table_name)
+        db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
+        db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
+        db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
+        db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
         return True
 
     @classmethod
@@ -302,10 +327,13 @@ class VideoFile(Model):
         params['access_time'] = params.get('access_time', current_time())
         if params.has_key('filename'):
             params['filename'] = str(params['filename'])
+        if params.has_key('access_time'):
+            params['access_time'] = datetime.datetime.fromtimestamp(params['access_time'])
         uniq_key_params = {}
         map(lambda key: uniq_key_params.update({ key : params[key] }), filter(lambda x: x in klass.unique_fields, params))
         if len(params) == 0 or len(uniq_key_params) != len(klass.unique_fields):
             return False
+        uniq_key_params.update({ 'limit' : 1 })
         result = klass.first(uniq_key_params)
         if result:
             result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
