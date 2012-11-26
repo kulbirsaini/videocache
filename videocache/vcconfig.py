@@ -69,6 +69,10 @@ class VideocacheConf:
     squid_store_log = Option('')
     filelistdb_file = Option('filelist.db')
     log_filedb_activity = Option(0)
+    db_hostname = Option('localhost')
+    db_username = Option('videocache')
+    db_password = Option('videocache')
+    db_database = Option('videocache')
 
     # Apache
     skip_apache_conf = Option(0)

@@ -19,21 +19,22 @@ import MySQLdb
 import time
 import traceback
 
-def connect_db(num_tries = 0):
-    global db_cursor, db_connection
-    if num_tries > 10:
-        error({ 'code' : 'DB_CONNECT_ERR', 'message' : 'Could not connect to database in 10 tries. Giving up.' })
-        return
-    db_connection = MySQLdb.connect('localhost', 'videocache', 'videocache', 'videocache')
+def get_db_connection(num_tries = 0):
+    if num_tries > 3:
+        return (None, None)
     try:
+        db_connection = MySQLdb.connect(o.db_hostname, o.db_username, o.db_password, o.db_database)
         db_cursor = db_connection.cursor()
+        db_connection.autocommit(True)
         db_connection.ping()
-        return
+        return (db_connection, db_cursor)
     except Exception, e:
-        if db_connection.errno() == 2006:
-            time.sleep(2)
-            connect_db(num_tries + 1)
-
+        try:
+            if db_connection.errno() == 2006 or db_connection.errno() == 2013:
+                time.sleep(2)
+                get_db_connection(num_tries + 1)
+        except:
+            return (None, None)
 
 def initialize_database(options, pid = None):
     global o, process_id
@@ -42,20 +43,11 @@ def initialize_database(options, pid = None):
         process_id = os.getpid()
     else:
         process_id = pid
-    try:
-        connect_db()
-    except Exception, e:
-        syslog_msg('Could not connect to sqlite database used for hashing video files. Debug: '  + traceback.format_exc().replace('\n', ''))
     VideoFile.set_table_name(options.video_file_table_name)
-
-def close_db_connection():
-    db_connection.close()
 
 class Model(object):
     # Class variables
     # fields
-    # db_cursor
-    # db_connection
     # table_name
 
     placeholders = { 'string' : "'%s'", 'integer' : "%s" }
@@ -101,18 +93,10 @@ def find_by_%s(klass, value):
                 value = datetime.datetime.fromtimestamp(attribute)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
-            num_tries = 0
-            while num_tries < 2:
-                try:
-                    db_cursor.execute(query)
-                    db_connection.commit()
-                    break
-                except Exception, e:
-                    num_tries += 1
-                    if db_connection.errno() == 2006:
-                        connect_db()
-                    else:
-                        break
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                db_cursor.execute(query)
+                db_connection.close()
             return True
         return False
 
@@ -126,34 +110,18 @@ def find_by_%s(klass, value):
         query = "UPDATE %s SET " % self.table_name
         query += ', '.join(map(lambda x: x + ' = ' + self.placeholders[self.fields[x]] + ' ', keys)) + " WHERE id = %s "
         query = query % tuple(values)
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                db_connection.commit()
-                break
-            except Exception, e:
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            db_connection.close()
         return True
 
     def destroy(self):
         query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                db_connection.commit()
-                break
-            except Exception, e:
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            db_connection.close()
         return True
 
     @classmethod
@@ -163,34 +131,21 @@ def find_by_%s(klass, value):
         where_part, values = klass.construct_query(keys, values)
         query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
         query = query % tuple(values)
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                db_connection.commit()
-                break
-            except Exception, e:
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            db_connection.close()
         return True
 
     @classmethod
     def count(klass, params = {}):
         keys, values = klass.filter_params(params)
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                row_count = db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name)
-                return row_count
-            except Exception, e:
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            result = db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name)
+            db_connection.close()
+            return result
+        return 0
 
     @classmethod
     def find_by(klass, params = {}):
@@ -212,19 +167,13 @@ def find_by_%s(klass, value):
             query += ' WHERE ' + where_part
         query += query_suffix
         query = query % tuple(values)
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                results = db_cursor.fetchall()
-                break
-            except Exception, e:
-                results = []
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            results = db_cursor.fetchall()
+            db_connection.close()
+        else:
+            results = []
         return map(lambda row: klass(dict(zip(select_keys, row))), results)
 
     @classmethod
@@ -264,36 +213,21 @@ def find_by_%s(klass, value):
         query = "INSERT INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                db_connection.commit()
-                break
-            except Exception, e:
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            db_connection.close()
         return True
 
     @classmethod
     def execute(klass, query):
-        num_tries = 0
-        while num_tries < 2:
-            try:
-                db_cursor.execute(query)
-                results = db_cursor.fetchall()
-                break
-            except Exception, e:
-                results = []
-                num_tries += 1
-                if db_connection.errno() == 2006:
-                    connect_db()
-                else:
-                    break
-        return map(lambda row: klass(row), results)
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            db_cursor.execute(query)
+            results = db_cursor.fetchall()
+            db_connection.close()
+            return results
+        return []
 
 class VideoFile(Model):
     fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'string', 'access_count' : 'integer' }
@@ -312,13 +246,26 @@ class VideoFile(Model):
 
     @classmethod
     def create_table(klass):
-        query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT DEFAULT 0, access_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
-        db_cursor.execute(query)
-        db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename(192))' % klass.table_name)
-        db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
-        db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
-        db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
-        db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            # Create Tables
+            db_cursor.execute('SHOW TABLES')
+            tables = map(lambda result: result[0], db_cursor.fetchall())
+            query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT DEFAULT 0, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
+            if klass.table_name not in tables: db_cursor.execute(query)
+
+            # Create indices
+            db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
+            indices = map(lambda result: result[2], db_cursor.fetchall())
+            if 'cwf_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename(192))' % klass.table_name)
+            if 'cache_dir_index' not in indices: db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
+            if 'access_time_index' not in indices: db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
+            if 'access_count_index' not in indices: db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
+            if 'size_index' not in indices: db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
+            db_connection.close()
+        else:
+            print 'Could not connect to database'
+            return False
         return True
 
     @classmethod

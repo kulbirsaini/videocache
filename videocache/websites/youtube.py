@@ -17,14 +17,15 @@ import urlparse
 # Functions related to Youtube video ID and video format
 def get_youtube_video_id_from_query(query):
     dict = cgi.parse_qs(query)
+    regex = re.compile('^[a-zA-Z0-9_\-]+$')
     video_id = ''
-    if 'video_id' in dict:
+    if 'video_id' in dict and regex.match(dict['video_id'][0]) and len(dict['video_id'][0]) <= 24:
         video_id = dict['video_id'][0]
-    elif 'docid' in dict:
+    elif 'docid' in dict and regex.match(dict['docid'][0]) and len(dict['docid'][0]) <= 24:
         video_id = dict['docid'][0]
-    elif 'id' in dict:
+    elif 'id' in dict and regex.match(dict['id'][0]) and len(dict['id'][0]) <= 24:
         video_id = dict['id'][0]
-    elif 'v' in dict:
+    elif 'v' in dict and regex.match(dict['v'][0]) and len(dict['v'][0]) <= 24:
         video_id = dict['v'][0]
 
     video_id = urllib.quote(video_id)
