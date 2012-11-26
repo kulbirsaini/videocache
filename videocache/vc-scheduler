@@ -1230,25 +1230,39 @@ def rebuild_filelist():
             if not os.path.isdir(cur_dir):
                 continue
             all_files = os.listdir(cur_dir)
-            info({ 'code' : 'TOTAL ' + str(len(all_files)) + ' FILES TO HASH' })
-            for files in chunks(all_files, 100):
+            info({ 'message' : str(len(all_files)) + ' FILES IN ' + cur_dir })
+            files_in_db = map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir':cache_dir, 'website_id' : website_id, 'select' : 'filename' }))
+            info({ 'message' : str(len(files_in_db)) + ' FILES IN  DATABASE' })
+            if len(files_in_db) > len(all_files):
+                files_not_in_db = []
+                for file_on_disk in all_files:
+                    if file_on_disk not in files_in_db:
+                        files_not_in_db += [file_on_disk]
+            else:
+                for file_in_db in files_in_db:
+                    try:
+                        all_files.remove(file_in_db)
+                    except:
+                        pass
+                files_not_in_db = all_files
+            # Release memory
+            all_files = []
+            files_in_db = []
+            info({ 'code' : 'TOTAL ' + str(len(files_not_in_db)) + ' FILES TO HASH' })
+            for files in chunks(files_not_in_db, 500):
                 try:
-                    files_not_in_db = list(set(files) - set(map(lambda vf: vf.filename, VideoFile.all({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files, 'select' : 'filename' }))))
-                    if len(files_not_in_db) > 0: info({ 'code' : str(len(files_not_in_db)) + ' FILES NOT IN DB' })
+                    info({ 'code' : str(len(files)) + ' FILES NOT IN DB' })
                     queries = []
-                    for filename in files_not_in_db:
+                    for filename in files:
                         filepath = os.path.join(cur_dir, filename)
                         size, access_time = get_size_and_time(filepath)
-                        #VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time })
-                        queries += [{ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time }]
-                    try:
-                        v_pool.ping()
-                    except:
-                        v_pool = get_connection()
-                    v_pool.add_queries_to_db_queue(queries)
-                    time.sleep(0.5)
-                    if len(files_not_in_db) > 10:
-                        time.sleep(5)
+                        query = { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : access_time }
+                        if o.log_filedb_activity == 1:
+                            info({ 'code' : FILEDB_WRITE, 'message' : str(query) })
+                        try:
+                            VideoFile.create(query)
+                        except:
+                            pass
                 except Exception, e:
                     ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir })
         info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'cache_dir : ' + cache_dir })
@@ -1287,7 +1301,10 @@ def cleancache(independent = False):
                             if os.path.isfile(result.filepath):
                                 os.unlink(result.filepath)
                                 cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + result.filepath, 'website_id' : result.website_id, 'video_id' : result.filename })
-                        VideoFile.destroy(delete_ids)
+                        try:
+                            VideoFile.destroy(delete_ids)
+                        except:
+                            pass
                     if free_space(cache_dir) > o.disk_avail_threshold + 2000: break
                     time.sleep(2)
         except Exception, e:
