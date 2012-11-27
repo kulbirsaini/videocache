@@ -850,7 +850,6 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
-                video_pool = get_connection()
                 video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() }])
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -894,7 +893,6 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    video_pool = get_connection()
                     video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() }])
                     return
                 else:
@@ -1136,6 +1134,7 @@ def watch_store_log():
         sleep(300)
 
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
+    v_pool = get_connection()
     try:
         for line in watch_file(o.squid_store_log, 1):
             if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
@@ -1180,17 +1179,17 @@ def watch_store_log():
                                 continue
 
                             try:
-                                video_pool.ping()
+                                v_pool.ping()
                             except:
-                                connection()
+                                v_pool = get_connection()
                             try:
-                                cache_dir = video_pool.get_next_cache_dir()
+                                cache_dir = v_pool.get_next_cache_dir()
                             except:
                                 cache_dir = False
                             if cache_dir == False: continue
                             try:
-                                if not video_pool.is_active(video_id, website_id):
-                                    video_pool.add_conn(video_id, website_id, FakeThread())
+                                if not v_pool.is_active(video_id, website_id):
+                                    v_pool.add_conn(video_id, website_id, FakeThread())
                                 else:
                                     info({ 'code' : CACHE_IN_PROGRESS, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is being cached already in another thread.' })
                                     continue
@@ -1206,13 +1205,13 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    video_pool.add_queries_to_db_queue([{ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
+                                    v_pool.add_queries_to_db_queue([{ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
-                                video_pool.remove_conn(video_id, website_id)
+                                v_pool.remove_conn(video_id, website_id)
                             except Exception, e:
                                 ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-                                video_pool.remove_conn(video_id, website_id)
+                                v_pool.remove_conn(video_id, website_id)
                 except Exception, e:
                     ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
     except Exception, e:
