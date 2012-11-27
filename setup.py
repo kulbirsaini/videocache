@@ -57,7 +57,7 @@ You must supply either --skip-apache-conf or --apache-conf-dir.
 To see a list of all available options, please run
 $ python setup.py -h
 
-Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --squid-store-log /var/log/squid/store.log --apache-conf-dir /etc/httpd/conf.d install
+Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --squid-store-log /var/log/squid/store.log --apache-conf-dir /etc/httpd/conf.d install --db-hostname localhost --db-username videocache --db-password videocache --db-database videocache
 
 Please see http://cachevideos.com/#install for more information or getting help.
 """
@@ -88,7 +88,7 @@ Please see http://cachevideos.com/#install for more information or getting help.
         return messages[error_code]
     return ''#}}}
 
-def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, quiet, working_dir):#{{{
+def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, quiet, working_dir, hostname, username, password, database):#{{{
     """Perform the setup."""
     install_dir = apply_install_root(root, '/usr/share/videocache/')
     etc_dir = apply_install_root(root, '/etc/')
@@ -133,17 +133,21 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         config_data = file.read()
         file.close()
         file = open(vcsysconfig_file, 'w')
-        config_data = re.sub('\nvideocache_user[\ ]+=[^\n]*\n', '\nvideocache_user = %s\n' % user, config_data, count = 0)
-        config_data = re.sub('\nclient_email[\ ]+=[^\n]*\n', '\nclient_email = %s\n' % email, config_data, count = 0)
-        config_data = re.sub('\ncache_host[\ ]+=[^\n]*\n', '\ncache_host = %s\n' % cache_host, config_data, count = 0)
-        config_data = re.sub('\nthis_proxy[\ ]+=[^\n]*\n', '\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
-        config_data = re.sub('\nsquid_store_log[\ ]+=[^\n]*\n', '\nsquid_store_log = %s\n' % squid_store_log, config_data, count = 0)
-        config_data = re.sub('\napache_conf_dir[\ ]+=[^\n]*\n', '\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
+        config_data = re.sub('\nvideocache_user[\ ]*=[^\n]*\n', '\nvideocache_user = %s\n' % user, config_data, count = 0)
+        config_data = re.sub('\nclient_email[\ ]*=[^\n]*\n', '\nclient_email = %s\n' % email, config_data, count = 0)
+        config_data = re.sub('\ncache_host[\ ]*=[^\n]*\n', '\ncache_host = %s\n' % cache_host, config_data, count = 0)
+        config_data = re.sub('\nthis_proxy[\ ]*=[^\n]*\n', '\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
+        config_data = re.sub('\nsquid_store_log[\ ]*=[^\n]*\n', '\nsquid_store_log = %s\n' % squid_store_log, config_data, count = 0)
+        config_data = re.sub('\napache_conf_dir[\ ]*=[^\n]*\n', '\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
+        config_data = re.sub('\ndb_hostname[\ ]*=[^\n]*\n', '\ndb_hostname = %s\n' % hostname, config_data, count = 0)
+        config_data = re.sub('\ndb_username[\ ]*=[^\n]*\n', '\ndb_username = %s\n' % username, config_data, count = 0)
+        config_data = re.sub('\ndb_password[\ ]*=[^\n]*\n', '\ndb_password = %s\n' % password, config_data, count = 0)
+        config_data = re.sub('\ndb_database[\ ]*=[^\n]*\n', '\ndb_database = %s\n' % database, config_data, count = 0)
         if apache_conf_dir == '':
             skip_apache_conf = 1
         else:
             skip_apache_conf = 0
-        config_data = re.sub('\nskip_apache_conf[\ ]+=[^\n]*\n', '\nskip_apache_conf = %s\n' % skip_apache_conf, config_data, count = 0)
+        config_data = re.sub('\nskip_apache_conf[\ ]*=[^\n]*\n', '\nskip_apache_conf = %s\n' % skip_apache_conf, config_data, count = 0)
         file.write(config_data)
         file.close()
 
@@ -157,12 +161,6 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
 
     # Create tables for filelist database
     try:
-        if not os.path.isfile(o.filelistdb_path):
-            if not create_file(o.filelistdb_path, user, 0711, quiet):
-                print_message_and_abort(red("Could not create filelist database path %s" % o.filelistdb_path))
-        else:
-            if not set_permissions_and_ownership(o.filelistdb_path, user, 0711, quiet):
-                print_message_and_abort(red("Could not set permissions and ownership for filelist database path %s" % o.filelistdb_path))
         initialize_database(o)
         if not create_tables():
             print_message_and_abort(red("Could not create database tables for filelist db"))
@@ -248,6 +246,10 @@ def process_options(parser):#{{{
     parser.add_option('--cache-host', dest = 'cache_host', type='string', help = 'Cache host (IP Address with optional port) to serve cached videos via Apache.')
     parser.add_option('--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).')
     parser.add_option('--squid-store-log', dest = 'squid_store_log', type='string', help = 'Full path to Squid store.log file. Example : /var/log/squid/store.log')
+    parser.add_option('--db-hostname', dest = 'db_hostname', type='string', help = 'Enter hostname for database access')
+    parser.add_option('--db-username', dest = 'db_username', type='string', help = 'Enter username for database access')
+    parser.add_option('--db-password', dest = 'db_password', type='string', help = 'Enter password for database access')
+    parser.add_option('--db-database', dest = 'db_database', type='string', help = 'Enter database name for videocache')
     return parser.parse_args()#}}}
 
 def is_valid_path(path, file = True):#{{{
@@ -330,6 +332,6 @@ if __name__ == '__main__':
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
-    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, verbose = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_store_log, options.verbose
-    setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, not verbose, working_dir)
+    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, verbose, hostname, username, password, database = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_store_log, options.verbose, options.db_hostname, options.db_username, options.db_password, options.db_database
+    setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, not verbose, working_dir, hostname, username, password, database)
 

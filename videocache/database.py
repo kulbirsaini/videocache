@@ -261,25 +261,28 @@ class VideoFile(Model):
 
     @classmethod
     def create_table(klass):
-        db_connection, db_cursor = get_db_connection()
-        if db_connection and db_cursor:
-            # Create Tables
-            db_cursor.execute('SHOW TABLES')
-            tables = map(lambda result: result[0], db_cursor.fetchall())
-            query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT DEFAULT 0, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
-            if klass.table_name not in tables: db_cursor.execute(query)
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                # Create Tables
+                db_cursor.execute('SHOW TABLES')
+                tables = map(lambda result: result[0], db_cursor.fetchall())
+                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, cache_dir VARCHAR(128), website_id VARCHAR(32), filename VARCHAR(512), size INT DEFAULT 0, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
+                if klass.table_name not in tables: db_cursor.execute(query)
 
-            # Create indices
-            db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
-            indices = map(lambda result: result[2], db_cursor.fetchall())
-            if 'cwf_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename(192))' % klass.table_name)
-            if 'cache_dir_index' not in indices: db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
-            if 'access_time_index' not in indices: db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
-            if 'access_count_index' not in indices: db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
-            if 'size_index' not in indices: db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
-            db_connection.close()
-        else:
-            print 'Could not connect to database'
+                # Create indices
+                db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
+                indices = map(lambda result: result[2], db_cursor.fetchall())
+                if 'cwf_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX cwf_index ON %s (cache_dir, website_id, filename(192))' % klass.table_name)
+                if 'cache_dir_index' not in indices: db_cursor.execute('CREATE INDEX cache_dir_index ON %s (cache_dir)' % klass.table_name)
+                if 'access_time_index' not in indices: db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
+                if 'access_count_index' not in indices: db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
+                if 'size_index' not in indices: db_cursor.execute('CREATE INDEX size_index ON %s (size)' % klass.table_name)
+                db_connection.close()
+            else:
+                print 'Could not connect to database'
+                return False
+        except:
             return False
         return True
 

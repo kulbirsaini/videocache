@@ -156,7 +156,6 @@ class VideocacheOptions:
             self.__class__.magnet = mainconf.magnet
 
             # Filelist Database
-            self.__class__.filelistdb_path = os.path.join(self.__class__.logdir, mainconf.filelistdb_file)
             self.__class__.video_file_table_name = 'video_files'
             self.__class__.log_filedb_activity = mainconf.log_filedb_activity
 

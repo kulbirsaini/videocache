@@ -67,7 +67,6 @@ class VideocacheConf:
     this_proxy = Option('')
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
-    filelistdb_file = Option('filelist.db')
     log_filedb_activity = Option(0)
     db_hostname = Option('localhost')
     db_username = Option('videocache')

@@ -13,7 +13,6 @@ setuptools_url='https://github.com/kulbirsaini/videocache-dependencies/blob/mast
 netifaces_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/netifaces.tar.gz?raw=true'
 iniparse_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/iniparse.tar.gz?raw=true'
 ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/ctypes.tar.gz?raw=true'
-sqlite3_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/pysqlite.tar.gz?raw=true'
 MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
 
 # Common Functions
@@ -273,6 +272,8 @@ check_dependencies() { #{{{
   check_command wget 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
   check_command tar 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
   check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
+  check_command mysql 'Download and install MySQL 5.0 or later using package manager for your operating system.'
+  check_command mysql_config 'You need to install libmysqlclient and libmysqlclient-dev or libmysqlclient-devel using package manager for your operating system.'
 } #}}}
 
 # Install and verify python modules
@@ -797,6 +798,145 @@ is_valid_host_port() { #{{{
   return 0
 } #}}}
 
+get_db_hostname() {
+  default_hostname='localhost'
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter hostname ( default: $default_hostname ): "
+    read choice
+    choice=`echo $choice`
+    if [[ $choice == '' ]]; then
+      choice=$default_hostname
+    fi
+    if [[ $choice != '' ]]; then
+      db_hostname=$choice
+      message_with_padding "Selected hostname for database"
+      green $db_hostname
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        red "You didn't enter a hostname in $tries tries. Will exit now."
+        exit 1
+      else
+        red "Please try again."
+      fi
+    fi
+    echo
+  done
+}
+
+get_db_username() {
+  default_username='videocache'
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter username ( default: $default_username ): "
+    read choice
+    choice=`echo $choice`
+    if [[ $choice == '' ]]; then
+      choice=$default_username
+    fi
+    if [[ $choice != '' ]]; then
+      db_username=$choice
+      message_with_padding "Selected username for database"
+      green $db_username
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        red "You didn't enter a username in $tries tries. Will exit now."
+        exit 1
+      else
+        red "Please try again."
+      fi
+    fi
+    echo
+  done
+}
+
+get_db_password() {
+  default_password='videocache'
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter password ( default: $default_password ): "
+    read choice
+    choice=`echo $choice`
+    if [[ $choice == '' ]]; then
+      choice=$default_password
+    fi
+    if [[ $choice != '' ]]; then
+      db_password=$choice
+      message_with_padding "Selected password for database"
+      green $db_password
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        red "You didn't enter a password in $tries tries. Will exit now."
+        exit 1
+      else
+        red "Please try again."
+      fi
+    fi
+    echo
+  done
+}
+
+get_db_database() {
+  default_database='videocache'
+  for((i = 1; i <= $tries; ++i)); do
+    echo -n "Enter database name ( default: $default_database ): "
+    read choice
+    choice=`echo $choice`
+    if [[ $choice == '' ]]; then
+      choice=$default_database
+    fi
+    if [[ $choice != '' ]]; then
+      db_database=$choice
+      message_with_padding "Selected database name"
+      green $db_database
+      return 0
+    else
+      if [[ $i == $tries ]]; then
+        red "You didn't enter a database name in $tries tries. Will exit now."
+        exit 1
+      else
+        red "Please try again."
+      fi
+    fi
+    echo
+  done
+}
+
+check_mysql_access() {
+ message_with_padding 'Checking MySQL access'
+python - <<END
+import MySQLdb, sys
+import traceback
+try:
+  db_connection = MySQLdb.connect('$db_hostname', '$db_username', '$db_password', '$db_database')
+  db_connection.ping()
+except:
+  sys.exit(1)
+sys.exit(0)
+END
+
+  if [[ $? == 0 ]]; then
+    green 'Working'
+  else
+    red 'Failed'
+    red 'Please check if MySQL daemon is running. Follow the instructions in INSTALL file to installing mysql and creating a database which can be used by videocache'
+    exit 1
+  fi
+}
+
+# Get database details
+get_db_details() {
+  echo; echo;
+  heading "Database Details"
+  dark_blue "Provide details to access database to hash cached video files"
+  echo
+  get_db_hostname
+  get_db_username
+  get_db_password
+  get_db_database
+  check_mysql_access
+}
+
 get_cache_host() { #{{{
   echo; echo
   heading "Cache Host (Web Server)"
@@ -878,7 +1018,7 @@ print_info() { #{{{
 
 # Install Videocache
 build_setup_command() { #{{{
-  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log"
+  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database"
   if [[ $skip_apache == 0 ]]; then
     setup_command="$setup_command --apache-conf-dir $apache_config_dir"
   else
@@ -957,6 +1097,7 @@ main() { #{{{
   check_root
   check_dependencies
   python_code
+  get_db_details
   squid_code
   apache_code
   get_client_email
@@ -979,6 +1120,10 @@ client_email=''
 cache_host=''
 this_proxy=''
 setup_command=''
+db_hostname=''
+db_username=''
+db_password=''
+db_database=''
 
 main
 
