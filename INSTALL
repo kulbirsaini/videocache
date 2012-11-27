@@ -5,17 +5,18 @@ Videocache is a product of White Magnet Software Pvt Ltd http://whitemag.net/
 Index
 =====
   1. Requirements
-  2. Installation/Upgrade
-  3. Configuration
+  2. Installing MySQL
+  3. Installation/Upgrade
+  4. Configuration
      I. Videocache
      II. Squid
-  4. Running
+  5. Running
      I. Update Script
      II. Apache Webserver
      III. Videocache Scheduler
      IV. Squid Proxy Server
-  5. Bugs, Suggestions, Comments
-  6. Online Help
+  6. Bugs, Suggestions, Comments
+  7. Online Help
 
 NOTE
 ====
@@ -29,7 +30,16 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   c. python-iniparse
   d. Apache (httpd) or any other Web Server
 
-2. Installation/Upgrade
+2. Installing MySQL
+===================
+  a. Using package manage for your OS, install mysql, libmysqlclient and libmysqlclient-dev or libmysqlclient-devel.
+  b. Start mysql daemon
+  c. Login to mysql as root using command and create database for videocache
+     create database videocache;
+  d. Grant permissions to videocache user on new database using the command
+     grant all on videocache.* to 'videoache'@'localhost' identified by 'videocache';
+
+3. Installation/Upgrade
 =======================
   Installation and upgrade procedure for videocache are same. Installation is as
   simple as explained below. To upgrade, take a backup of your existing configuration
@@ -49,7 +59,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   BINGO!! You are done with installation. In case you get any error while installing videocache,
   there will be proper logging in the console. Install required packages if missing.
 
-3. Configuration
+4. Configuration
 ================
 
   I) Configuring Videocache
@@ -80,7 +90,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
 
   See Readme.txt file or videocache manpage for more configuration options.
 
-4. Running
+5. Running
 ==========
   Running videocache is a three step process. We must start/restart Apache webserver,
   Videocache scheduler and Squid to get Videocache working completely.
@@ -115,11 +125,11 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
 
   Please follow this three step process whenever you want to start or restart Videocache.
 
-5. Bugs, Suggestions, Comments
+6. Bugs, Suggestions, Comments
 ==============================
   File bugs, suggestions or comments at http://cachevideos.com/forum/ .
 
-6. Online Help
+7. Online Help
 ==============
   a. Project Website : http://cachevideos.com/
   b. Squid Proxy Server 3.1: Beginner's Guide : http://tinyurl.com/squidbook
