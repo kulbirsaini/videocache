@@ -80,6 +80,9 @@ def find_by_%s(klass, value):
         for key, value in zip(keys, values):
             placeholder = klass.placeholders[klass.fields[key]]
             if isinstance(value, list):
+                if len(value) == 0:
+                    warn({ 'code' : 'BAD_QUERY', 'message' : 'Empty list supplied as value for one of the parameters', 'debug' : str(keys) + ' ' + str(values) })
+                    return '', []
                 query_strings.append(' ' + key + ' IN ( ' + ', '.join([placeholder] * len(value)) + ' ) ')
                 if klass.fields[key] == 'timestamp':
                     map(lambda x: new_values.append(timestamp_to_datetime(x)), value)
@@ -131,10 +134,11 @@ def find_by_%s(klass, value):
         return True
 
     @classmethod
-    def destroy(klass, id):
-        params = { 'id' : id }
+    def destroy(klass, params = {}):
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
+        if len(values) < 1:
+            return False
         query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
         query = query % tuple(values)
         db_connection, db_cursor = get_db_connection()
@@ -146,9 +150,14 @@ def find_by_%s(klass, value):
     @classmethod
     def count(klass, params = {}):
         keys, values = klass.filter_params(params)
+        where_part, values = klass.construct_query(keys, values)
+        query = "SELECT COUNT(*) FROM %s" % klass.table_name
+        if where_part:
+            query += ' WHERE ' + where_part % tuple(values)
         db_connection, db_cursor = get_db_connection()
         if db_connection and db_cursor:
-            result = db_cursor.execute('SELECT COUNT(*) FROM %s' % klass.table_name)
+            db_cursor.execute(query)
+            result = db_cursor.fetchall()[0][0]
             db_connection.close()
             return result
         return 0

@@ -1275,17 +1275,17 @@ def cleancache(independent = False):
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
                         break
-                    for chunked_results in chunks(results, 20):
+                    for chunked_results in chunks(results, 50):
                         delete_ids = []
                         for result in chunked_results:
-                            delete_ids += [str(result[0])]
+                            delete_ids += [result[0]]
                             website_id, filename = result[1], result[2]
                             filepath = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                             if os.path.isfile(filepath):
                                 os.unlink(filepath)
                                 cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
                         try:
-                            VideoFile.execute(delete_query + '(' + ','.join(delete_ids) + ')')
+                            VideoFile.destroy({ 'id' : delete_ids })
                         except Exception, e:
                             ent({ 'code' : 'FILE_DELETE_ERR', 'website_id' : website_id, 'message' : 'Error in deleting videos from database ' + str(delete_ids), 'debug' : str(e) })
                     if free_space(cache_dir) > o.disk_avail_threshold + 10000: break
