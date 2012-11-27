@@ -50,7 +50,7 @@ class Model(object):
     # fields
     # table_name
 
-    placeholders = { 'string' : "'%s'", 'integer' : "%s" }
+    placeholders = { 'string' : "'%s'", 'integer' : "%s", 'timestamp' : "'%s'" }
     function_template_find_by = """
 @classmethod
 def find_by_%s(klass, value):
@@ -81,16 +81,22 @@ def find_by_%s(klass, value):
             placeholder = klass.placeholders[klass.fields[key]]
             if isinstance(value, list):
                 query_strings.append(' ' + key + ' IN ( ' + ', '.join([placeholder] * len(value)) + ' ) ')
-                map(lambda x: new_values.append(x), value)
+                if klass.fields[key] == 'timestamp':
+                    map(lambda x: new_values.append(timestamp_to_datetime(x)), value)
+                else:
+                    map(lambda x: new_values.append(x), value)
             else:
                 query_strings.append(' ' + key + ' = ' + placeholder + ' ')
-                new_values.append(value)
+                if klass.fields[key] == 'timestamp':
+                    new_values.append(timestamp_to_datetime(value))
+                else:
+                    new_values.append(value)
         return ' AND '.join(query_strings), new_values
 
     def update_attribute(self, attribute, value):
         if attribute in self.fields.keys() and attribute != 'id':
             if attribute == 'access_time':
-                value = datetime.datetime.fromtimestamp(attribute)
+                value = timestamp_to_datetime(value)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
             db_connection, db_cursor = get_db_connection()
@@ -102,7 +108,7 @@ def find_by_%s(klass, value):
 
     def update_attributes(self, params):
         if params.has_key('access_time'):
-            params['access_time'] = datetime.datetime.fromtimestamp(params['access_time'])
+            params['access_time'] = timestamp_to_datetime(params['access_time'])
         keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
@@ -230,7 +236,7 @@ def find_by_%s(klass, value):
         return []
 
 class VideoFile(Model):
-    fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'string', 'access_count' : 'integer' }
+    fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'timestamp', 'access_count' : 'integer' }
     unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
@@ -238,7 +244,7 @@ class VideoFile(Model):
     def __init__(self, attributes):
         Model.__init__(self, attributes)
         if self.access_time:
-            self.access_time = int(time.mktime(self.access_time.timetuple()))
+            self.access_time = datetime_to_timestamp(self.access_time)
         if self.cache_dir and self.website_id and self.filename:
             self.filepath = os.path.join(self.cache_dir, o.website_cache_dir[self.website_id], self.filename)
         else:
@@ -275,17 +281,16 @@ class VideoFile(Model):
         if params.has_key('filename'):
             params['filename'] = str(params['filename'])
         if params.has_key('access_time'):
-            params['access_time'] = datetime.datetime.fromtimestamp(params['access_time'])
-        uniq_key_params = {}
-        map(lambda key: uniq_key_params.update({ key : params[key] }), filter(lambda x: x in klass.unique_fields, params))
-        if len(params) == 0 or len(uniq_key_params) != len(klass.unique_fields):
+            params['access_time'] = timestamp_to_datetime(params['access_time'])
+        keys, values = klass.filter_params(params)
+        if len(keys) == 0:
             return False
-        uniq_key_params.update({ 'limit' : 1 })
-        result = klass.first(uniq_key_params)
-        if result:
-            result.update_attributes({ 'access_count' : result.access_count + 1, 'access_time' : current_time() })
-        else:
-            super(VideoFile, klass).create(params)
+        query = "INSERT INTO %s " % klass.table_name
+        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
+        query = query % tuple(values)
+        query += " ON DUPLICATE KEY UPDATE access_count = access_count + 1, access_time = CURRENT_TIMESTAMP"
+        VideoFile.execute(query)
+        return True
 
 def info(params = {}):
     if o.enable_videocache_log:

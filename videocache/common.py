@@ -11,6 +11,7 @@ __docformat__ = 'plaintext'
 from fsop import *
 
 import cgi
+import datetime
 import os
 import pwd
 import re
@@ -35,6 +36,12 @@ def green(msg):
 
 def current_time():
     return int(time.time())
+
+def datetime_to_timestamp(t):
+    return int(time.mktime(t.timetuple()))
+
+def timestamp_to_datetime(t):
+    return datetime.datetime.fromtimestamp(float(t))
 
 def is_valid_domain_port(name):
     if re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$').match(name):
