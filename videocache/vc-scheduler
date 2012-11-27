@@ -242,6 +242,7 @@ class VideoPool:
                 VideoFile.execute(query_prefix + ','.join(tuples) + query_suffix)
                 time.sleep(0.5)
             except Exception, e:
+                self.add_queries_to_db_queue([query])
                 ent({ 'code' : FILEDB_REPORT_ERR, 'message' : 'Error occurred while registering file access to filelist database. ' + str(query), 'debug' : str(e) })
         return True
 
