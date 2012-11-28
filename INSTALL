@@ -37,7 +37,7 @@ my new book Squid Proxy Server 3.1: Beginner's Guide at http://tinyurl.com/squid
   c. Login to mysql as root using command and create database for videocache
      create database videocache;
   d. Grant permissions to videocache user on new database using the command
-     grant all on videocache.* to 'videoache'@'localhost' identified by 'videocache';
+     grant all on videocache.* to 'videocache'@'localhost' identified by 'videocache';
   e. Flush privileges so that permissions can be granted
      flush privileges
 
