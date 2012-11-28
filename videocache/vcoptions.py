@@ -16,7 +16,6 @@ from vcconfig import VideocacheConfig
 import logging
 import logging.handlers
 import os
-import sqlite3
 import traceback
 import urlparse
 
