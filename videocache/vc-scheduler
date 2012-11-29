@@ -647,7 +647,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
             file.write(block)
 
             downloaded += len(block)
-            while o.max_cache_speed > 0 and downloaded / (time.time() - start_time) > o.max_cache_speed:
+            while max_cache_speed > 0 and downloaded / (time.time() - start_time) > max_cache_speed:
                 time.sleep(0.2)
         if file:
             file.close()
