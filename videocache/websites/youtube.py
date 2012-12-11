@@ -129,18 +129,19 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
     #    params.update({ 'start' : 0, 'end' : 0 })
     #    filenames += [get_youtube_filename(o, video_id, format, params)]
 
-    filename = get_youtube_filename(o, video_id, format, params)
+    filenames = [ get_youtube_filename(o, video_id, format, params), get_youtube_filename(o, video_id, format) ]
 
     for dir in o.base_dirs[website_id]:
-        try:
-            video_path = os.path.join(dir, filename)
-            if os.path.isfile(video_path):
-                size = os.path.getsize(video_path)
-                os.utime(video_path, None)
-                if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
-                return (True, filename, dir.rstrip(o.website_cache_dir[website_id]), size, index)
-        except Exception, e:
-            continue
+        for filename in filenames:
+            try:
+                video_path = os.path.join(dir, filename)
+                if os.path.isfile(video_path):
+                    size = os.path.getsize(video_path)
+                    os.utime(video_path, None)
+                    if len(o.base_dirs[website_id]) > 1: index = str(o.base_dirs[website_id].index(dir))
+                    return (True, filename, dir.rstrip(o.website_cache_dir[website_id]), size, index)
+            except Exception, e:
+                continue
     return (False, filename, '', '-', '')
 
 def check_youtube_video(url, host = None, path = None, query = None):
