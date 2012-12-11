@@ -291,7 +291,7 @@ def squid_part():
                                     youtube_params = {}
                                     if o.enable_youtube_partial_caching:
                                         youtube_params.update(get_youtube_video_range_from_query(query))
-                                        if youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
+                                        if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
                                     (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                 else:
                                     (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
