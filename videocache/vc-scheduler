@@ -995,7 +995,7 @@ def cache_thread_scheduler():
 
 def submit_system_info():
     time.sleep(30)
-    submit_period = 1800
+    submit_period = 7200
     expired_video(o, randomize)
     while True:
         if o.client_email != '':
@@ -1016,22 +1016,15 @@ def submit_system_info():
                 cookie_handler = urllib2.HTTPCookieProcessor()
                 redirect_handler = urllib2.HTTPRedirectHandler()
                 info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-                okay = True
                 for system in systems:
                     new_info = {}
                     for k,v in system.items():
                         new_info['[server][' + k + ']'] = v
 
                     status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
-                    if status != 'OK':
-                        okay = False
-                if okay:
-                    submit_period = 1800
-                else:
-                    submit_period = 600
         else:
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
-            submit_period = 3600
+            submit_period = 14400
 
         time.sleep(submit_period)
 
