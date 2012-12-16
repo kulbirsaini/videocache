@@ -194,7 +194,7 @@ def check_apache():
 def check_heartbeat():
     sleep_time = 3600
     while True:
-        submit_system_info():
+        submit_system_info()
 
         for i in range(1, sleep_time):
             if exit:
