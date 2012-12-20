@@ -16,7 +16,7 @@ ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/c
 MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
 
 # Common Functions
-blue_without_newline() { #{{{
+blue_without_newline() {
   echo -en "\033[1;36m${1}\033[0m"
 }
 
@@ -59,9 +59,9 @@ message_with_padding() {
   str_len=`strlen "${1}"`
   dots=`expr ${MESSAGE_LENGTH} - ${str_len}`
   blue_without_newline "${1}${DOTS:0:${dots}}"
-} #}}}
+}
 
-ask_question() { #{{{
+ask_question() {
   for((i = 1; i <= $tries; ++i)); do
     echo -n "$1"
     read choice
@@ -83,10 +83,10 @@ ask_question() { #{{{
     esac
     echo
   done
-} #}}}
+}
 
 # Check root access
-check_root() { #{{{
+check_root() {
   message_with_padding 'Checking root access'
   if [[ $UID != 0 ]]; then
     red 'Missing'
@@ -96,10 +96,10 @@ check_root() { #{{{
   else
     green 'Granted'
   fi
-} #}}}
+}
 
 # Operating system detection and selection
-detect_os_from_issue_file() { #{{{
+detect_os_from_issue_file() {
   for file in /etc/issue /etc/issue.net; do
     if [[ -f $file ]]; then
       for os_name in Fedora CentOS RedHat Ubuntu Debian; do
@@ -112,9 +112,9 @@ detect_os_from_issue_file() { #{{{
     fi
   done
   return 1
-} #}}}
+}
 
-detect_os_from_release_file() { #{{{
+detect_os_from_release_file() {
   OS=''
   if [[ -f /etc/fedora-release ]]; then
     OS='Fedora'
@@ -145,9 +145,9 @@ detect_os_from_release_file() { #{{{
   if [[ $OS == '' ]]; then
     return 1
   fi
-} #}}}
+}
 
-detect_os_using_python() { #{{{
+detect_os_using_python() {
 python - <<END
 try:
   import sys
@@ -161,9 +161,9 @@ except:
   pass
 sys.exit(1)
 END
-} #}}}
+}
 
-detect_os() { #{{{
+detect_os() {
   OS=$(detect_os_using_python)
   if [[ $? == 0 ]]; then
     return 0
@@ -173,9 +173,9 @@ detect_os() { #{{{
   detect_os_from_issue_file && return 0
   detect_os_from_release_file && return 0
   return 1
-} #}}}
+}
 
-select_os() { #{{{
+select_os() {
   declare -a os=('' 'Fedora' 'RedHat' 'CentOS' 'Ubuntu' 'Debian' 'Gentoo' 'Suse' 'Slackware' 'Mandrake' 'BSD' 'Other')
   menu="
   Select your Operating System.\n
@@ -208,9 +208,9 @@ select_os() { #{{{
     esac
   done
   return 1
-} #}}}
+}
 
-detect_or_select_os() { #{{{
+detect_or_select_os() {
   want_to_select_os=0
   detect_os
   if [[ $? == 0 ]]; then
@@ -233,9 +233,9 @@ detect_or_select_os() { #{{{
     OS=''
     select_os
   fi
-} #}}}
+}
 
-os_detection() { #{{{
+os_detection() {
   echo; echo
   heading 'Operating System Selection'
   detect_or_select_os
@@ -248,10 +248,10 @@ os_detection() { #{{{
     red "Operating System not detected or specified. Will continue with defaults."
   fi
   echo
-} #}}}
+}
 
 # Check dependencies
-check_command() { #{{{
+check_command() {
   message_with_padding "Checking ${1}"
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
@@ -262,9 +262,9 @@ check_command() { #{{{
     red "${2}"
     exit 1
   fi
-} #}}}
+}
 
-check_dependencies() { #{{{
+check_dependencies() {
   echo; echo
   heading 'Dependency Check'
   check_command which 'Download and install `which` utility from http://www.gnu.org/software/which/ or check your operating system manual for installing the same.'
@@ -274,35 +274,35 @@ check_dependencies() { #{{{
   check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
   check_command mysql 'Download and install MySQL 5.0 or later using package manager for your operating system.'
   check_command mysql_config 'You need to install libmysqlclient and libmysqlclient-dev or libmysqlclient-devel using package manager for your operating system.'
-} #}}}
+}
 
 # Install and verify python modules
-remove_file() { #{{{
+remove_file() {
   if [[ $1 != '' && $1 != '/' ]]; then
     if [[ -f $1 ]]; then
       rm -f $1
     fi
   fi
-} #}}}
+}
 
-remove_dir() { #{{{
+remove_dir() {
   if [[ $1 != '' && $1 != '/' ]]; then
     if [[ -d $1 ]]; then
       rm -rf $1
     fi
   fi
-} #}}}
+}
 
-print_error_and_output() { #{{{
+print_error_and_output() {
   if [[ $1 != '' ]]; then
     red "${1}"
   fi
   if [[ $2 != '' ]]; then
     red "${2}"
   fi
-} #}}}
+}
 
-download() { #{{{
+download() {
   # Options
   # $1 -> name
   # $2 -> url
@@ -319,9 +319,9 @@ download() { #{{{
     print_error_and_output "${4}\nWas trying to fetch $url" "${output}"
     exit 1
   fi
-} #}}}
+}
 
-extract_archive() { #{{{
+extract_archive() {
   # options
   # $1 -> target directory path
   # $2 -> archive path
@@ -340,9 +340,9 @@ extract_archive() { #{{{
     print_error_and_output "$3" "$output"
     exit 1
   fi
-} #}}}
+}
 
-verify_python_module() { #{{{
+verify_python_module() {
   # Options
   # $1 -> name
   # $2 -> error message
@@ -357,9 +357,9 @@ verify_python_module() { #{{{
     print_error_and_output "${output}"
     exit 1
   fi
-} #}}}
+}
 
-install_python_module() { #{{{
+install_python_module() {
   # Options
   # $1 -> name
   # $2 -> module directory path
@@ -387,9 +387,9 @@ install_python_module() { #{{{
   if [[ $error == 1 ]]; then
     exit 1
   fi
-} #}}}
+}
 
-check_python_dev() { #{{{
+check_python_dev() {
   message_with_padding "Checking Python.h"
   pythonh=`python -c 'import setuptools; print setuptools.distutils.sysconfig.get_python_inc()' 2>&1`
   if [[ $? != 0 ]]; then
@@ -408,9 +408,9 @@ check_python_dev() { #{{{
     red 'Please install python-dev or python-devel package depending on your operating system.'
   fi
   exit 1
-} #}}}
+}
 
-install_and_verify_python_module() { #{{{
+install_and_verify_python_module() {
   # Options
   # $1 -> Name
   archive=$1.tar.gz
@@ -430,9 +430,9 @@ install_and_verify_python_module() { #{{{
     verify_python_module $1
     echo
   fi
-} #}}}
+}
 
-python_code() { #{{{
+python_code() {
   echo; echo
   heading 'Python Modules And Development Files'
   install_and_verify_python_module setuptools
@@ -441,10 +441,10 @@ python_code() { #{{{
   install_and_verify_python_module netifaces
   install_and_verify_python_module ctypes
   install_and_verify_python_module MySQLdb
-} #}}}
+}
 
 # Squid user
-check_squid_user() { #{{{
+check_squid_user() {
   if [[ $1 == '' ]]; then
     return 1
   fi
@@ -453,18 +453,18 @@ check_squid_user() { #{{{
     return 0
   fi
   return 1
-} #}}}
+}
 
-guess_squid_user() { #{{{
+guess_squid_user() {
   for user in squid proxy nobody; do
     check_squid_user $user
     if [[ $? == 0 ]]; then
       squid_user=$user; return 0
     fi
   done
-} #}}}
+}
 
-get_squid_user() { #{{{
+get_squid_user() {
   guess_squid_user
   default_squid_user=$squid_user
   for((i = 1; i <= $tries; i++)); do
@@ -507,10 +507,10 @@ get_squid_user() { #{{{
   done
   message_with_padding 'Selected user who runs Squid daemon'
   green $squid_user
-} #}}}
+}
 
 # Squid store.log
-is_valid_path() { #{{{
+is_valid_path() {
   if [[ $2 == 'file' ]]; then
     file=True
   else
@@ -524,18 +524,18 @@ if re.compile("^/([^\/]+\/){1,7}[^\/]+\/?$").match("${1}"):
   sys.exit(0)
 sys.exit(1)
 END
-} #}}}
+}
 
-check_squid_store_log() { #{{{
+check_squid_store_log() {
   for file in /var/log/squid/store.log /var/log/squid3/store.log /var/logs/squid/store.log /var/logs/squid3/store.log /usr/local/squid/logs/store.log /usr/local/squid3/store.log ; do
     if [[ -f $file ]]; then
       squid_store_log=$file
       return
     fi
   done
-} #}}}
+}
 
-get_squid_store_log() { #{{{
+get_squid_store_log() {
   check_squid_store_log
   default_squid_store_log=$squid_store_log
   for ((i = 1; i <= $tries; ++i )); do
@@ -579,10 +579,10 @@ get_squid_store_log() { #{{{
   done
   message_with_padding "Selected Squid store.log file"
   green $squid_store_log
-} #}}}
+}
 
 # Squid
-check_squid_with_conf_dir() { #{{{
+check_squid_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
     for config_file in /etc/squid/squid.conf /etc/squid3/squid.conf /usr/local/etc/squid/squid.conf /usr/local/squid/etc/squid.conf /usr/local/squid3/etc/squid.conf; do
@@ -592,9 +592,9 @@ check_squid_with_conf_dir() { #{{{
     done
   fi
   return 1
-} #}}}
+}
 
-check_squid() { #{{{
+check_squid() {
   present=0
   message_with_padding "Checking squid"
   for command in squid squid3 /usr/local/sbin/squid /usr/local/sbin/squid3 /usr/local/squid/sbin/squid /usr/local/squid3/sbin/squid; do
@@ -618,18 +618,18 @@ check_squid() { #{{{
   else
     green 'Installed'
   fi
-} #}}}
+}
 
-squid_code() { #{{{
+squid_code() {
   echo; echo
   heading 'Squid'
   check_squid
   get_squid_store_log
   get_squid_user
-} #}}}
+}
 
 # Apache
-check_apache_with_conf_dir() { #{{{
+check_apache_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
     for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/ /etc/httpd/extra/ /usr/local/etc/apache22/extra/ /etc/apache22/conf.d/ ; do
@@ -640,9 +640,9 @@ check_apache_with_conf_dir() { #{{{
     done
   fi
   return 1
-} #}}}
+}
 
-check_apache() { #{{{
+check_apache() {
   present=0
   message_with_padding "Checking Apache"
   for command in apachectl apache2ctl httpd apache2 apache; do
@@ -665,9 +665,9 @@ check_apache() { #{{{
       exit 1
     fi
   fi
-} #}}}
+}
 
-get_apache_conf_dir() { #{{{
+get_apache_conf_dir() {
   default_apache_config_dir=$apache_config_dir
   for((i = 1; i <= $tries; i++)); do
     echo
@@ -710,9 +710,9 @@ get_apache_conf_dir() { #{{{
   done
   message_with_padding 'Selected Apache conf.d or extra directory'
   green $apache_config_dir
-} #}}}
+}
 
-apache_code() { #{{{
+apache_code() {
   echo; echo
   heading 'Apache Configuration'
   ask_question 'Do you want to skip Apache configuration? (y/n): '
@@ -725,19 +725,19 @@ apache_code() { #{{{
     check_apache
     get_apache_conf_dir
   fi
-} #}}}
+}
 
 # Client Email
-is_valid_email() { #{{{
+is_valid_email() {
 python - <<END
 import re, sys
 if re.compile("^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$").match("$1"):
   sys.exit(0)
 sys.exit(1)
 END
-} #}}}
+}
 
-get_client_email() { #{{{
+get_client_email() {
   echo; echo
   heading "Client Email"
   for((i = 1; i <= $tries; ++i)); do
@@ -760,10 +760,10 @@ get_client_email() { #{{{
     fi
     echo
   done
-} #}}}
+}
 
 # Cache Host
-is_valid_ip() { #{{{
+is_valid_ip() {
 python - <<END
 import sys
 try:
@@ -773,9 +773,9 @@ except Exception, e:
   pass
 sys.exit(1)
 END
-} #}}}
+}
 
-is_valid_host_port() { #{{{
+is_valid_host_port() {
   return 0
   if [[ `echo $1 | grep "^[0-9\.]\+:[\ ]*$"` != '' ]]; then
     return 1
@@ -796,7 +796,30 @@ is_valid_host_port() { #{{{
     return 1
   fi
   return 0
-} #}}}
+}
+
+db_code() {
+  echo; echo
+  heading 'Database Configuration'
+  green 'MySQL database is used for hashing cached files for efficient cleanup'
+  ask_question 'Do you want to skip database configuration? (y/n): '
+  if [[ $? == 1 ]]; then
+    message_with_padding "Database configuration"
+    green "Skipped"
+    skip_db=1
+    db_hostname=''
+    db_username=''
+    db_password=''
+    db_database=''
+  else
+    echo
+    get_db_hostname
+    get_db_username
+    get_db_password
+    get_db_database
+    check_mysql_access
+  fi
+}
 
 get_db_hostname() {
   default_hostname='localhost'
@@ -924,20 +947,7 @@ END
   fi
 }
 
-# Get database details
-get_db_details() {
-  echo; echo;
-  heading "Database Details"
-  dark_blue "Provide details to access database to hash cached video files"
-  echo
-  get_db_hostname
-  get_db_username
-  get_db_password
-  get_db_database
-  check_mysql_access
-}
-
-get_cache_host() { #{{{
+get_cache_host() {
   echo; echo
   heading "Cache Host (Web Server)"
   ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
@@ -964,10 +974,10 @@ get_cache_host() { #{{{
     fi
     echo
   done
-} #}}}
+}
 
 # This Proxy
-get_this_proxy() { #{{{
+get_this_proxy() {
   echo; echo
   heading 'Squid Proxy Server'
   ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
@@ -994,10 +1004,10 @@ get_this_proxy() { #{{{
     fi
     echo
   done
-} #}}}
+}
 
 # Print Information
-print_info() { #{{{
+print_info() {
   echo; echo
   heading 'Collected Information'
 
@@ -1014,20 +1024,25 @@ print_info() { #{{{
   green $cache_host
   message_with_padding "Squid proxy"
   green $this_proxy
-} #}}}
+}
 
 # Install Videocache
-build_setup_command() { #{{{
-  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database"
+build_setup_command() {
+  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log"
   if [[ $skip_apache == 0 ]]; then
     setup_command="$setup_command --apache-conf-dir $apache_config_dir"
   else
     setup_command="$setup_command --skip-apache-conf"
   fi
+  if [[ $skip_db == 0 ]]; then
+    setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database"
+  else
+    setup_command="$setup_command --skip-db"
+  fi
   setup_command="$setup_command install 2>&1"
-} #}}}
+}
 
-install_videocache() { #{{{
+install_videocache() {
   echo; echo
   heading 'Install Videocache'
   build_setup_command
@@ -1035,6 +1050,8 @@ install_videocache() { #{{{
   output=`eval $setup_command`
   if [[ $? == 0 ]]; then
     green 'Installed'
+    echo
+    blue "Command used: $setup_command"
   else
     red 'Failed'
     red "${output}"
@@ -1042,10 +1059,10 @@ install_videocache() { #{{{
     blue "Command used: $setup_command"
     exit 1
   fi
-} #}}}
+}
 
 # Install init.d script
-install_init_script() { #{{{
+install_init_script() {
   echo; echo
   heading 'Install init.d Script'
   message_with_padding "Trying to set default run levels for vc-scheduler"
@@ -1071,9 +1088,9 @@ install_init_script() { #{{{
   red 'Please check the init script related section of your operating system manual.'
   red 'The videocache scheduler init script is located at /etc/init.d/vc-scheduler .'
   return 1
-} #}}}
+}
 
-display_instructions() { #{{{
+display_instructions() {
   echo; echo
   heading 'Post Installation Instructions'
   if [[ -f instructions.txt ]]; then
@@ -1091,13 +1108,13 @@ display_instructions() { #{{{
     fi
   fi
   echo
-} #}}}
+}
 
-main() { #{{{
+main() {
   check_root
   check_dependencies
   python_code
-  get_db_details
+  db_code
   squid_code
   apache_code
   get_client_email
@@ -1107,7 +1124,7 @@ main() { #{{{
   install_videocache
   install_init_script
   display_instructions
-} #}}}
+}
 
 tries=2
 OS=''
@@ -1120,6 +1137,7 @@ client_email=''
 cache_host=''
 this_proxy=''
 setup_command=''
+skip_db=0
 db_hostname=''
 db_username=''
 db_password=''

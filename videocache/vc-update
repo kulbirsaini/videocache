@@ -79,9 +79,10 @@ def update_vc(o, root, install_dir, quiet):#{{{
 
     # Create tables for filelist database
     try:
-        initialize_database(o)
-        if not create_tables():
-            print_message_and_abort(red("Could not create database tables for filelist db"))
+        if o.use_db:
+            initialize_database(o)
+            if not create_tables():
+                print_message_and_abort(red("Could not create database tables for filelist db. Please check options in videocache.conf."))
     except Exception, e:
         log_traceback()
         print_message_and_abort(update_error)

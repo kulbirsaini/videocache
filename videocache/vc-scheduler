@@ -735,7 +735,7 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                        VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                        if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
@@ -822,7 +822,7 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
-                VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
+                if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -865,7 +865,7 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
+                    if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -1169,7 +1169,7 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                    if o.use_db: VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 v_pool.remove_conn(video_id, website_id)
@@ -1199,6 +1199,9 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
                 ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir, 'debug' : str(e) })
 
 def rebuild_filelist():
+    if not o.use_db:
+        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping filelist rebuild. Option use_db is set to zero (0) in videocache.conf.' })
+        return
     time.sleep(3)
     for cache_dir in o.base_dir_list:
         for website_id in o.websites:
@@ -1213,6 +1216,9 @@ def rebuild_filelist():
             info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'cache_dir : ' + cache_dir })
 
 def cleaner_heartbeat():
+    if not o.use_db:
+        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
+        return
     time.sleep(15)
     connection()
     while True:
@@ -1224,6 +1230,9 @@ def cleaner_heartbeat():
         time.sleep(10)
 
 def cleancache(independent = False):
+    if not o.use_db:
+        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
+        return
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
     for cache_dir in o.base_dir_list:
@@ -1389,7 +1398,7 @@ if __name__ == '__main__':
             exec(website_id + '_cached_url = generalized_cached_url')
             exec('from websites.' + website_id + ' import *')
 
-        initialize_database(o)
+        if o.use_db: initialize_database(o)
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':

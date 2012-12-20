@@ -68,6 +68,7 @@ class VideocacheConf:
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
     log_filedb_activity = Option(0)
+    use_db = Option(1)
     db_hostname = Option('localhost')
     db_username = Option('videocache')
     db_password = Option('videocache')

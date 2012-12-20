@@ -77,7 +77,7 @@ class VideocacheOptions:
             # Options not in configuration file
             self.__class__.queue_dump_file = mainconf.queue_dump_file
             self.__class__.version = '2.1'
-            self.__class__.revision = '073614dc'
+            self.__class__.revision = '9f76e62a'
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
             self.__class__.offline_mode = int(mainconf.offline_mode)
@@ -98,6 +98,7 @@ class VideocacheOptions:
             self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
+            self.__class__.use_db = int(mainconf.use_db)
             self.__class__.db_hostname = mainconf.db_hostname
             self.__class__.db_username = mainconf.db_username
             self.__class__.db_password = mainconf.db_password
