@@ -63,57 +63,6 @@ def wnt(params = {}):
     params.update({ 'message' : traceback.format_exc() })
     trace(params)
 
-def sync_video_queue():
-    global local_video_queue
-    queue_lock.acquire()
-    queries = local_video_queue
-    local_video_queue = []
-    queue_lock.release()
-    if len(queries) > 0:
-        num_tries = 0
-        while num_tries < 3:
-            try:
-                video_pool.ping()
-                if video_pool.add_queries_to_db_queue(queries):
-                    break
-            except Exception, e:
-                connection()
-
-            for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
-                if exit:
-                    info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
-                    return
-                time.sleep(0.1)
-            num_tries += 1
-        else:
-            warn({ 'code' : QUEUE_SUBMIT_FAIL, 'message' : 'Could not submit queue information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
-
-def sync_video_pool():
-    global local_video_pool
-    videos = {}
-    thread_pool.acquire()
-    videos.update( local_video_pool )
-    local_video_pool = {}
-    thread_pool.release()
-    if videos:
-        num_tries = 0
-        while num_tries < 3:
-            try:
-                video_pool.ping()
-                if submit_videos(videos):
-                    break
-            except Exception, e:
-                connection()
-
-            for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
-                if exit:
-                    info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
-                    return
-                time.sleep(0.1)
-            num_tries += 1
-        else:
-            warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
-
 def sync_video_info():
     info({ 'code' : VIDEO_SYNC_START, 'message' : 'Starting sync thread to sync video information to RPC server.'})
     sleep_time = 10
@@ -122,26 +71,31 @@ def sync_video_info():
     except:
         connection()
     while True:
-        failed = False
-        if exit: return
-        try:
-            sync_video_pool()
-        except Exception, e:
-            failed = True
-            wnt({ 'code' : VIDEO_SUBMIT_WARN, 'message' : 'Error in updating server with video inforation. Continuing.', 'debug' : str(e)})
-        if exit: return
-        try:
-            sync_video_queue()
-            pass
-        except Exception, e:
-            failed = True
-            wnt({ 'code' : VIDEO_SUBMIT_WARN, 'message' : 'Error in updating server with video queries. Continuing.', 'debug' : str(e)})
+        global local_video_pool
+        videos = {}
+        thread_pool.acquire()
+        videos.update( local_video_pool )
+        local_video_pool = {}
+        thread_pool.release()
+        if videos:
+            num_tries = 0
+            while num_tries < 10:
+                try:
+                    video_pool.ping()
+                    if submit_videos(videos):
+                        break
+                except Exception, e:
+                    connection()
 
-        for i in range(1, int(sleep_time / 0.1)):
-            if exit:
-                info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
-                return
-            time.sleep(0.1)
+                for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
+                    if exit:
+                        info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
+                        return
+                    time.sleep(0.1)
+                num_tries += 1
+            else:
+                warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
+        time.sleep(sleep_time)
 
 def submit_system_info():
     time.sleep(10)
@@ -222,12 +176,6 @@ def connection():
         except Exception, e:
             ent({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
 
-def add_video_to_db_queue(query):
-    global local_video_queue
-    queue_lock.acquire()
-    local_video_queue += [query]
-    queue_lock.release()
-
 def add_video_to_local_pool(video_id, params):
     global local_video_pool
     thread_pool.acquire()
@@ -297,7 +245,7 @@ def squid_part():
                                     info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                 else:
                                     info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
-                                    add_video_to_db_queue({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                    VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                             if new_url == '' and queue:
                                 add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
@@ -334,13 +282,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     local_video_pool = {}
-    local_video_queue = []
     video_pool = None
     thread_pool = threading.Semaphore(value = 1)
-    queue_lock = threading.Semaphore(value = 1)
     process_id = os.getpid()
     exit = False
-    #initialize_database(o)
+    initialize_database(o)
 
     if o.cache_host == '':
         error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )

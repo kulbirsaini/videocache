@@ -123,8 +123,6 @@ class VideoPool:
     disk_space = {}
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
-    db_queue_lock = threading.Semaphore(value = 1)
-    db_query_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
     store_log_threshold = 240
     cleanup_required = False
@@ -136,7 +134,6 @@ class VideoPool:
     scores_changed = {}
     last_scores_rebuild = {}
     last_sync = {}
-    db_queue = []
 
     def __init__(self):
         for website_id in o.websites:
@@ -147,7 +144,6 @@ class VideoPool:
             self.scores_changed[website_id] = True
             self.last_scores_rebuild[website_id] = 0
             self.last_sync[website_id] = 0
-        initialize_database(o)
 
     def ping(self):
         return True
@@ -219,31 +215,6 @@ class VideoPool:
             for params in videos[video_id]:
                 self.add_video(video_id, params)
         self.sync_lock.release()
-        return True
-
-    def add_queries_to_db_queue(self, queries = []):
-        self.db_queue_lock.acquire()
-        self.db_queue += queries
-        self.db_queue_lock.release()
-        return True
-
-    def report_db_query(self):
-        self.db_queue_lock.acquire()
-        queries = self.db_queue
-        self.db_queue = []
-        self.db_queue_lock.release()
-
-        query_prefix = "INSERT INTO %s (cache_dir, website_id, filename, size, access_time, access_count) VALUES " % (VideoFile.table_name)
-        query_suffix = " ON DUPLICATE KEY UPDATE access_count = access_count + 1, access_time = CURRENT_TIMESTAMP"
-        query_body = "('%s','%s','%s',%s,'%s',%s)"
-        for chunked_queries in chunks(queries, 50):
-            tuples = map(lambda query: query_body % (query['cache_dir'], query['website_id'], query['filename'], query['size'], datetime.datetime.fromtimestamp(query['access_time']), query['access_count']), chunked_queries)
-            try:
-                VideoFile.execute(query_prefix + ','.join(tuples) + query_suffix)
-                time.sleep(0.5)
-            except Exception, e:
-                self.add_queries_to_db_queue([query])
-                ent({ 'code' : FILEDB_REPORT_ERR, 'message' : 'Error occurred while registering file access to filelist database. ' + str(query), 'debug' : str(e) })
         return True
 
     def is_uncacheable_youtube(self, video_id, website_id):
@@ -764,7 +735,7 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                        video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
+                        VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
@@ -851,7 +822,7 @@ def cache_dailymotion_video(params):
                 os.chmod(video_path, o.file_mode)
                 os.utime(video_path, None)
                 info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
-                video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() }])
+                VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
             else:
                 if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 return
@@ -894,7 +865,7 @@ def cache_generalized(params):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    video_pool.add_queries_to_db_queue([{ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() }])
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
                     return
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -976,11 +947,10 @@ def cache_thread_scheduler():
         while True:
             try:
                 num_tries = 0
-                while num_tries < 5:
+                while num_tries < 10:
                     try:
-                        video_pool.schedule()
-                        video_pool.report_db_query()
-                        break
+                        if video_pool.schedule():
+                            break
                     except Exception, e:
                         connection()
                     num_tries += 1
@@ -1199,7 +1169,7 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    v_pool.add_queries_to_db_queue([{ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }])
+                                    VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
                                 v_pool.remove_conn(video_id, website_id)
@@ -1213,7 +1183,6 @@ def watch_store_log():
 
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     import glob, datetime
-    initialize_database(o)
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
     query_prefix = 'INSERT IGNORE INTO %s (cache_dir,website_id,filename) VALUES ' % VideoFile.table_name
     query_prefix2 = "('" + cache_dir + "','" + website_id + "','%s')"
@@ -1256,7 +1225,6 @@ def cleaner_heartbeat():
 
 def cleancache(independent = False):
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
-    initialize_database(o)
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
     for cache_dir in o.base_dir_list:
         query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 1000' % (VideoFile.table_name, cache_dir, o.cleanup_order)
@@ -1421,6 +1389,7 @@ if __name__ == '__main__':
             exec(website_id + '_cached_url = generalized_cached_url')
             exec('from websites.' + website_id + ' import *')
 
+        initialize_database(o)
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
