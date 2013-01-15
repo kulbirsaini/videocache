@@ -485,32 +485,32 @@ class VideoPool:
             self.clean_threads()
             self.dump_queue()
             if o.offline_mode or not is_caching_time():
-                return False
+                return True
             if self.get_conn_number() < o.max_cache_processes:
                 popular = self.get_popular()
                 if len(popular) != 1 or len(popular[0]) != 2:
-                    return False
+                    return True
                 video_id, website_id = popular[0]
-                if self.is_uncacheable_youtube(video_id, website_id): return False
+                if self.is_uncacheable_youtube(video_id, website_id): return True
                 if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
                     params = self.get_details(video_id, website_id)
                     if params != False:
                         if o.enable_store_log_monitoring and (time.time() - params.get('first_access', 0)) < self.store_log_threshold:
-                            return False
+                            return True
                         next_cache_dir = self.get_next_cache_dir()
                         if next_cache_dir is False:
-                            return False
+                            return True
                         else:
                             params.update({ 'cur_cache_dir' : next_cache_dir })
                         self.start_cache_thread(video_id, website_id, params)
                         return True
                 elif self.is_active(video_id, website_id) == True:
                     self.set_score(video_id, website_id, 0)
-                    return False
+                    return True
         except Exception, e:
             ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not find out the next video to schedule.', 'debug' : str(e) })
             return False
-        return False
+        return True
 
     # Functions related download scheduling.
     # Have to mess up things in single class because python
