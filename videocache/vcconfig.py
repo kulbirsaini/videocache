@@ -126,6 +126,10 @@ class VideocacheConf:
 
     magnet = Option('0')
 
+    # Android apps
+    enable_android_cache = Option(1)
+    android_cache_dir = Option('android')
+
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)
     enable_youtube_format_support = Option(3)

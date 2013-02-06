@@ -210,6 +210,7 @@ def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = 
   </IfModule>
   <IfModule mod_mime.c>
     AddType video/webm .webm
+    AddType application/vnd.android.package-archive .android
   </IfModule>
 </Directory>\n""" % (dir, hide, cache_host_ip)
 

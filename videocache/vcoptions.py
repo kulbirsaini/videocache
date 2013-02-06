@@ -54,10 +54,10 @@ class VideocacheOptions:
             '102' : {'res': 720,  'ext': '.webm', 'cat': 'webm_3d'},
         }
 
-        self.websites = ['youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
+        self.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        self.arg_drop_list = {'youtube': ['noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
+        self.arg_drop_list = {'android' : [], 'youtube': ['noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
 
         self.CLEANUP_LRU = 1
         self.CLEANUP_MAX_SIZE = 2

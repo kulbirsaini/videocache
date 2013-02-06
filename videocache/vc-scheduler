@@ -876,6 +876,9 @@ def cache_generalized(params):
             ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
     return
 
+def cache_android_video(params):
+    return
+
 cache_aol_video = cache_generalized
 cache_bing_video = cache_generalized
 cache_bliptv_video = cache_generalized
@@ -1101,7 +1104,7 @@ def watch_store_log():
     v_pool = get_connection()
     try:
         for line in watch_file(o.squid_store_log, 1):
-            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0):
+            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0):
                 try:
                     video_url = line.split()[-1]
                     fragments = urlparse.urlsplit(video_url)
