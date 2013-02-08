@@ -26,12 +26,19 @@ def check_xhamster_video(url, host = None, path = None, query = None):
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if is_valid_ip(host) and re.compile('(.*)key=[a-zA-Z0-9]+(.*)\.flv').search(path):
-        try:
-            video_id = urllib.quote(re.compile('.*key=([a-z0-9A-Z]+).*').search(path).groups()[0])
-        except Exception, e:
-            pass
+        queue = False
+    elif host.find('.xhcdn.com') > -1 and re.compile('(.*)key=[a-zA-Z0-9]+(.*)\.flv').search(path):
+        search = False
+    elif host.find('-xh.clients.cdn12.com') > -1 and re.compile('data\/(.*)\.flv').search(path):
+        pass
     else:
         matched = False
+
+    if matched:
+        try:
+            video_id = urllib.quote(urllib.unquote(path).strip('/').split('/')[-1])
+        except Exception, e:
+            pass
 
     return (matched, website_id, video_id, format, search, queue)
 
