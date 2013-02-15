@@ -129,6 +129,8 @@ class VideocacheConf:
     # Android apps
     enable_android_cache = Option(1)
     android_cache_dir = Option('android')
+    min_android_app_size = Option(1024)
+    max_android_app_size = Option(0)
 
     # Youtube.com & Google.com Specific Options
     enable_youtube_cache = Option(1)

@@ -579,6 +579,8 @@ def cache_remote_url(remote_url, target_file, params = {}):
     http_headers = params.get('http_headers', {})
     proxy = params.get('proxy', o.proxy)
     max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
+    min_video_size = params.get('min_video_size', o.min_video_size)
+    max_video_size = params.get('max_video_size', o.max_video_size)
 
     if not http_headers.has_key('User-Agent'):
         http_headers.update(get_random_user_agent())
@@ -597,10 +599,10 @@ def cache_remote_url(remote_url, target_file, params = {}):
                     info({ 'code' : VIDEO_SIZE_NOT_SUPPLIED, 'message' : 'Video size was not supplied by web server. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
             else:
-                if o.max_video_size != 0 and video_size > o.max_video_size:
+                if max_video_size != 0 and video_size > max_video_size:
                     info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
-                if o.min_video_size != 0 and video_size < o.min_video_size:
+                if min_video_size != 0 and video_size < min_video_size:
                     info({ 'code' : VIDEO_TOO_SMALL, 'message' : 'Video size is smaller than the specified min video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
                     return False
         except Exception, e:
@@ -623,7 +625,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         if file:
             file.close()
 
-        if video_size != -1 and os.path.getsize(target_file) / 1024 < 0.97 * video_size / 1024:
+        if video_size != -1 and os.path.getsize(target_file) < 0.97 * video_size:
             error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(os.path.getsize(target_file)), 'video_id' : video_id, 'website_id' : website_id })
             os.unlink(target_file)
             return False
@@ -1166,6 +1168,8 @@ def watch_store_log():
                                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
+                                if website_id == 'android':
+                                    params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                                 if cache_remote_url(video_url, tmp_path, params):
                                     size = os.path.getsize(tmp_path)
                                     shutil.move(tmp_path, video_path)

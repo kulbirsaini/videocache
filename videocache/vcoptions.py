@@ -171,6 +171,9 @@ class VideocacheOptions:
 
             # Other
             self.__class__.pid = os.getpid()
+
+            self.__class__.min_android_app_size = int(mainconf.min_android_app_size)
+            self.__class__.max_android_app_size = int(mainconf.max_android_app_size)
         except Exception, e:
             syslog_msg('Could not load options from configuration file! Debug: '  + traceback.format_exc().replace('\n', ''))
             return None
