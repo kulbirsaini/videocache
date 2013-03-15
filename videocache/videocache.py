@@ -23,6 +23,7 @@ import logging
 import logging.handlers
 import os
 import re
+import signal
 import subprocess
 import sys
 import syslog
@@ -262,6 +263,7 @@ def squid_part():
     else:
         info( { 'code' : VIDEOCACHE_EXIT, 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
         exit = True
+        os.kill(os.getpid(), signal.SIGTERM)
 
 if __name__ == '__main__':
     parser = OptionParser()
