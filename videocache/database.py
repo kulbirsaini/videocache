@@ -15,7 +15,10 @@ import datetime
 import logging
 import os
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
-import MySQLdb
+try:
+    import MySQLdb
+except:
+    pass
 import time
 import traceback
 

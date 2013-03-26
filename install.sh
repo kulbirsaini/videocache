@@ -272,8 +272,14 @@ check_dependencies() {
   check_command wget 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
   check_command tar 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
   check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
+}
+
+check_mysql_dependencies() {
+  echo; echo
+  heading 'MySQL Dependency Check'
   check_command mysql 'Download and install MySQL 5.0 or later using package manager for your operating system.'
   check_command mysql_config 'You need to install libmysqlclient and libmysqlclient-dev or libmysqlclient-devel using package manager for your operating system.'
+  install_and_verify_python_module MySQLdb
 }
 
 # Install and verify python modules
@@ -440,7 +446,6 @@ python_code() {
   check_python_dev
   install_and_verify_python_module netifaces
   install_and_verify_python_module ctypes
-  install_and_verify_python_module MySQLdb
 }
 
 # Squid user
@@ -812,6 +817,7 @@ db_code() {
     db_password=''
     db_database=''
   else
+    check_mysql_dependencies
     echo
     get_db_hostname
     get_db_username
