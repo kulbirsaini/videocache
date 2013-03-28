@@ -192,6 +192,10 @@ def non_ascci_video_id_warning(website_id, video_id, client_ip):
 def squid_part():
     global exit
     input = sys.stdin.readline()
+    try:
+        video_pool.ping()
+    except:
+        connection()
     while input:
         new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
         try:
@@ -239,7 +243,14 @@ def squid_part():
                                     if o.enable_youtube_partial_caching:
                                         youtube_params.update(get_youtube_video_range_from_query(query))
                                         if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
-                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                    cpn = get_youtube_cpn_from_query(query)
+                                    video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                    if video_id == False:
+                                        #FIXME
+                                        time.sleep(2)
+                                        video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                    if video_id:
+                                        (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                 else:
                                     (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
                                 if new_url == '':
@@ -248,7 +259,7 @@ def squid_part():
                                     info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
                                     if o.use_db: VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
-                            if new_url == '' and queue:
+                            if new_url == '' and queue and video_id:
                                 add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
                             break
         else:

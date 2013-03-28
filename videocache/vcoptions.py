@@ -96,6 +96,8 @@ class VideocacheOptions:
             this_proxy = mainconf.this_proxy.strip()
             self.__class__.enable_store_log_monitoring = int(mainconf.enable_store_log_monitoring)
             self.__class__.squid_store_log = mainconf.squid_store_log
+            self.__class__.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
+            self.__class__.squid_access_log = mainconf.squid_access_log
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
             self.__class__.use_db = int(mainconf.use_db)

@@ -19,18 +19,27 @@ def get_youtube_video_id_from_query(query):
     dict = cgi.parse_qs(query)
     regex = re.compile('^[a-zA-Z0-9_\-]+$')
     video_id = ''
-    if 'video_id' in dict and regex.match(dict['video_id'][0]) and len(dict['video_id'][0]) <= 24:
+    if 'video_id' in dict and regex.match(dict['video_id'][0]) and len(dict['video_id'][0]) <= 56:
         video_id = dict['video_id'][0]
-    elif 'docid' in dict and regex.match(dict['docid'][0]) and len(dict['docid'][0]) <= 24:
+    elif 'docid' in dict and regex.match(dict['docid'][0]) and len(dict['docid'][0]) <= 56:
         video_id = dict['docid'][0]
-    elif 'id' in dict and regex.match(dict['id'][0]) and len(dict['id'][0]) <= 24:
+    elif 'id' in dict and regex.match(dict['id'][0]) and len(dict['id'][0]) <= 56:
         video_id = dict['id'][0]
-    elif 'v' in dict and regex.match(dict['v'][0]) and len(dict['v'][0]) <= 24:
+    elif 'v' in dict and regex.match(dict['v'][0]) and len(dict['v'][0]) <= 56:
         video_id = dict['v'][0]
 
     video_id = urllib.quote(video_id)
     if video_id == '': video_id = None
     return video_id
+
+def get_youtube_cpn_from_query(query):
+    dict = cgi.parse_qs(query)
+    cpn = ''
+    if 'cpn' in dict:
+        cpn = dict['cpn'][0]
+
+    if cpn == '': cpn = None
+    return cpn
 
 def get_youtube_video_id(url):
     """Youtube Specific"""
@@ -38,6 +47,20 @@ def get_youtube_video_id(url):
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     return get_youtube_video_id_from_query(query)
+
+def get_youtube_cpn(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+    return get_youtube_cpn_from_query(query)
+
+def get_youtube_video_id_and_cpn(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+    return [ get_youtube_video_id_from_query(query), get_youtube_cpn_from_query(query) ]
 
 def get_youtube_video_format_from_query(query):
     dict = cgi.parse_qs(query)
