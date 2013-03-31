@@ -29,6 +29,7 @@ import pickle
 import pwd
 import random
 import shutil
+import signal
 import socket
 import sys
 import threading
@@ -135,6 +136,7 @@ class VideoPool:
     last_scores_rebuild = {}
     last_sync = {}
     cpn_pool = {}
+    subprocess_list = []
 
     def __init__(self):
         for website_id in o.websites:
@@ -205,6 +207,24 @@ class VideoPool:
         for website_id in o.websites:
             if self.scores_changed[website_id] or self.last_scores_rebuild[website_id] > self.last_dump: return True
         return False
+
+    def add_to_subprocess_list(self, pid):
+        if pid not in self.subprocess_list:
+            self.subprocess_list.append(pid)
+        return True
+
+    def remove_from_subprocess_list(self, pid):
+        if pid in self.subprocess_list:
+            self.subprocess_list.remove(pid)
+        return True
+
+    def stop_subprocesses(self):
+        for pid in self.subprocess_list:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+        return True
 
     def add_to_cpn_pool(self, video_id, cpn):
         if cpn not in self.cpn_pool:
@@ -614,10 +634,10 @@ def cache_remote_url(remote_url, target_file, params = {}):
                     return False
             else:
                 if max_video_size != 0 and video_size > max_video_size:
-                    info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
+                    info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
                     return False
                 if min_video_size != 0 and video_size < min_video_size:
-                    info({ 'code' : VIDEO_TOO_SMALL, 'message' : 'Video size is smaller than the specified min video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
+                    info({ 'code' : VIDEO_TOO_SMALL, 'message' : 'Video size is smaller than the specified min video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
                     return False
         except Exception, e:
             wnt({ 'code' : CONNECTION_INFO_ERR, 'message' : 'Error while getting connection information.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
@@ -1071,27 +1091,24 @@ def reopen_file(filename, file = None):
 
     return None
 
-def watch_file(filename, interval = 3):
-    failed_reopen_wait_time, read_blank_threshold, last_read, must_reopen, file = 180, 60, time.time(), False, None
-    while True:
-        if not file or must_reopen:
-            must_reopen, last_read = False, time.time()
-            file = reopen_file(filename, file)
-            if not file:
-                time.sleep(failed_reopen_wait_time)
-                continue
+def tail_file(filename, regex = None):
+    process = subprocess.Popen(['tail', '-f', filename, '--retry'], stdout = subprocess.PIPE)
+    try:
+        video_pool.ping()
+        video_pool.add_to_subprocess_list(process.pid)
+    except:
+        connection()
+        try:
+            video_pool.ping()
+            video_pool.add_to_subprocess_list(process.pid)
+        except:
+            pass
 
-        where = file.tell()
-        line = file.readline()
-        if not line:
-            if (time.time() - last_read) > read_blank_threshold:
-                must_reopen = True
-                continue
-            time.sleep(interval)
-            file.seek(where)
-        else:
-            last_read = time.time()
+    line = process.stdout.readline()
+    while line:
+        if regex.search(line):
             yield line
+        line = process.stdout.readline()
 
 def watch_access_log():
     if o.offline_mode:
@@ -1111,21 +1128,17 @@ def watch_access_log():
     track_line = re.compile('\.youtube\.com\/ptracking')
     url_regex = re.compile('(http://[^\s]+)')
     try:
-        for line in watch_file(o.squid_access_log, 1):
-            if track_line.search(line):
-                try:
-                    url = re.findall(url_regex, line)[0]
-                    video_id, cpn = get_youtube_video_id_and_cpn(url)
-                    if video_id != None and cpn != None:
-                        v_pool.add_to_cpn_pool(video_id, cpn)
-                        info({ 'code' : time.time() })
-                except Exception, e:
-                    ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
+        for line in tail_file(o.squid_access_log, track_line):
+            try:
+                url = re.findall(url_regex, line)[0]
+                video_id, cpn = get_youtube_video_id_and_cpn(url)
+                if video_id != None and cpn != None:
+                    v_pool.add_to_cpn_pool(video_id, cpn)
+                    info({ 'code' : time.time() })
+            except Exception, e:
+                ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
     except Exception, e:
         ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
-
-def watch_referer_log():
-    pass
 
 def arg_drop_exception(website_id, dict, arg):
     if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
@@ -1153,8 +1166,8 @@ def watch_store_log():
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     v_pool = get_connection()
     try:
-        for line in watch_file(o.squid_store_log, 1):
-            if line and line.find('SWAPOUT') > 0 and line.find('GET') > 0 and (line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0):
+        for line in tail_file(o.squid_store_log, re.compile('SWAPOUT.*GET')):
+            if line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0:
                 try:
                     video_url = line.split()[-1]
                     fragments = urlparse.urlsplit(video_url)
@@ -1363,6 +1376,19 @@ class VideoPoolDaemon(VideocacheDaemon):
         except Exception, e:
             ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
 
+def stop_subprocesses():
+    o.set_loggers()
+    connection()
+    try:
+        video_pool.ping()
+    except Exception, e:
+        running = False
+
+    try:
+        video_pool.stop_subprocesses()
+    except:
+        pass
+
 def flush_scheduler_queue():
     running = True
     o.set_loggers()
@@ -1464,8 +1490,10 @@ if __name__ == '__main__':
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
+            stop_subprocesses()
             daemon.stop()
         elif options.sig == 'restart':
+            stop_subprocesses()
             daemon.restart()
         elif options.sig == 'kill':
             daemon.kill()
