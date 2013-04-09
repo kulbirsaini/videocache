@@ -19,7 +19,7 @@ def check_vimeo_video(url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (host.find('.vimeocdn.com') > -1 or (host.find('.amazonaws.com') > -1 and path.find('.vimeo.com') > -1)) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
+    if (host.find('.vimeo.com') > -1 or host.find('.vimeocdn.com') > -1 or (host.find('.amazonaws.com') > -1 and path.find('.vimeo.com') > -1)) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)').search(path):
         try:
             video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:
