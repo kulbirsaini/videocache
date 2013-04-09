@@ -127,6 +127,7 @@ class VideoPool:
     sync_threshold = 600
     store_log_threshold = 240
     cleanup_required = False
+    cpn_lifetime = 3600
 
     scores = {}
     queue = {}
@@ -238,6 +239,13 @@ class VideoPool:
             self.cpn_pool[cpn]['last_used'] = time.time()
             return self.cpn_pool[cpn]['video_id']
         return False
+
+    def cleanup_cpn_pool(self):
+        now = time.time()
+        for cpn_id in self.cpn_pool.keys():
+            if (now - self.cpn_pool[cpn_id]['last_used']) > self.cpn_lifetime:
+                self.cpn_pool.pop(cpn_id, None)
+        return True
 
     def add_videos(self, videos = {}):
         info({ 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' })
@@ -518,6 +526,7 @@ class VideoPool:
         try:
             self.clean_threads()
             self.dump_queue()
+            self.cleanup_cpn_pool()
             if o.offline_mode or not is_caching_time():
                 return True
             if self.get_conn_number() < o.max_cache_processes:
@@ -1134,7 +1143,6 @@ def watch_access_log():
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
                     v_pool.add_to_cpn_pool(video_id, cpn)
-                    info({ 'code' : time.time() })
             except Exception, e:
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
     except Exception, e:

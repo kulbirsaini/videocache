@@ -243,14 +243,21 @@ def squid_part():
                                     if o.enable_youtube_partial_caching:
                                         youtube_params.update(get_youtube_video_range_from_query(query))
                                         if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
-                                    cpn = get_youtube_cpn_from_query(query)
-                                    video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
-                                    if video_id == False:
-                                        #FIXME
-                                        time.sleep(2)
-                                        video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
-                                    if video_id:
-                                        (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                    if not found:
+                                        old_video_id = video_id
+                                        cpn = get_youtube_cpn_from_query(query)
+                                        try:
+                                            video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                            if video_id == False:
+                                                time.sleep(2)
+                                                video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                            if video_id:
+                                                (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                            else:
+                                                video_id = old_video_id
+                                        except Exception, e:
+                                            video_id = old_video_id
                                 else:
                                     (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
                                 if new_url == '':
