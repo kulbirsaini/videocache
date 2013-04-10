@@ -260,7 +260,7 @@ class VideoPool:
         return True
 
     def is_uncacheable_youtube(self, video_id, website_id):
-        if len(video_id) == 16 and website_id == 'youtube': return True
+        if len(video_id) != 11 and website_id == 'youtube': return True
         return False
 
     def remove_youtube_video_format(self, video_id, website_id, format):
@@ -272,14 +272,18 @@ class VideoPool:
         fmt = params['format']
         params['urls'] = []
         if video_id not in self.queue[website_id]:
-            params['fmts'] = { fmt : { 'score' : 1, 'access_time' : params['access_time'] } }
+            if fmt:
+                params['fmts'] = { fmt : { 'score' : 1, 'access_time' : params['access_time'] } }
+            else:
+                params['fmts'] = {}
             self.queue[website_id][video_id] = params
             self.queue[website_id][video_id]['first_access'] = params['access_time']
-            self.set_score(video_id, website_id, -10)
-        else:
+            self.set_score(video_id, website_id, 1)
+        elif fmt:
             old_data = self.queue[website_id][video_id]
             if old_data['fmts'].has_key(fmt):
                 if old_data['client_ip'] == params['client_ip'] and (params['access_time'] - old_data['fmts'][fmt]['access_time'] > self.hit_time_threshold):
+                    self.inc_score(video_id, website_id, 1)
                     self.queue[website_id][video_id]['fmts'][fmt].update({ 'score' : old_data['fmts'][fmt].get('score', 0) + 1, 'access_time' : params['access_time'] })
             else:
                 self.queue[website_id][video_id]['fmts'][fmt] = { 'score' : 1, 'access_time' : params['access_time'] }
@@ -287,8 +291,9 @@ class VideoPool:
 
     def add_video(self, video_id, params):
         website_id = params['website_id']
-        if website_id == 'youtube': params['urls'] = []
-        if self.is_uncacheable_youtube(video_id, website_id): return self.add_youtube_video(video_id, website_id, params)
+        if website_id == 'youtube':
+            params['urls'] = []
+            return self.add_youtube_video(video_id, website_id, params)
 
         if video_id not in self.queue[website_id]:
             self.queue[website_id][video_id] = params
@@ -725,25 +730,17 @@ def cache_youtube_video(params):
         url_map = {}
         [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
         alternate_vid = get_youtube_video_id(url_map.values()[0])
-        if not alternate_vid:
-            error({ 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not determine alternate video id' })
-            return
-
-        for count in range(10):
-            video_details = video_pool.get_details(alternate_vid, website_id)
-            if video_details != False: break
-            time.sleep(6)
-        else:
-            info({ 'code' : FORMAT_INFO_NOT_FOUND, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Format info was not available for the video' })
-            return
     except Exception, e:
-        ent({ 'code' : ALTERNATE_VIDEO_ID_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting alternate video id.', 'debug' : str(e) })
+        ent({ 'code' : URL_EXTRACTION_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
         return
 
     cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
+    video_details = video_pool.get_details(video_id, website_id)
     fmt_scores = sorted([(video_details['fmts'][itag]['score'], itag) for itag in video_details['fmts']], reverse = True)
+    if len(fmt_scores) == 0:
+        fmt_scores = [(2, '35')]
 
     first = True
     num_cached_formats = 0
@@ -765,9 +762,9 @@ def cache_youtube_video(params):
                 continue
             if o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
                 continue
-            if not youtube_cached_url(o, alternate_vid, website_id, fmt)[0]:
+            if not youtube_cached_url(o, video_id, website_id, fmt)[0] and not youtube_cached_url(o, alternate_vid, website_id, fmt)[0]:
                 video_url = url_map[fmt]
-                filename = get_youtube_filename(o, alternate_vid, fmt)
+                filename = get_youtube_filename(o, video_id, fmt)
                 video_path = os.path.join(cache_dir, filename)
                 tmp_path = os.path.join(tmp_dir, filename)
 
@@ -777,24 +774,23 @@ def cache_youtube_video(params):
                         shutil.move(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)
                         os.utime(video_path, None)
-                        info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
+                        info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
-                        video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
+                        video_pool.remove_youtube_video_format(video_id, website_id, fmt)
                         if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
-                    ent({ 'code' : URL_CACHE_ERR, 'video_id' : video_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Failed to cache video at ' + video_url + '.', 'website_id' : website_id })
+                    ent({ 'code' : URL_CACHE_ERR, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url + '.', 'website_id' : website_id })
             else:
-                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
-                video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
+                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
+                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
                 num_cached_formats += 1
 
-    video_details = video_pool.get_details(alternate_vid, website_id)
+    video_details = video_pool.get_details(video_id, website_id)
     if len(video_details['fmts'].keys()) == 0 or len(video_details['fmts'].keys()) == num_cached_formats:
-        video_pool.remove(alternate_vid, website_id)
-        video_id.remove(video_id, website_id)
-        info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' All formats for this video has been cached already.' })
+        video_pool.remove(video_id, website_id)
+        info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'All formats for this video has been cached already.' })
 
 def cache_dailymotion_video(params):
     video_id = params.get('video_id', '-')

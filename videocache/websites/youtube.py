@@ -194,7 +194,7 @@ def check_youtube_video(url, host = None, path = None, query = None):
     # Actual video content
     elif path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
         video_id = get_youtube_video_id_from_query(query)
-        if get_youtube_video_range_from_query(query)['start'] > 2048: queue = False
+        if get_youtube_video_range_from_query(query)['start'] > 2500000: queue = False
     else:
         matched = False
 
