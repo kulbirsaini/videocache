@@ -673,8 +673,9 @@ def cache_remote_url(remote_url, target_file, params = {}):
         if file:
             file.close()
 
-        if video_size != -1 and os.path.getsize(target_file) < 0.97 * video_size:
-            error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(os.path.getsize(target_file)), 'video_id' : video_id, 'website_id' : website_id })
+        target_file_size = os.path.getsize(target_file)
+        if video_size != -1 and target_file_size < 0.97 * video_size:
+            error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
             os.unlink(target_file)
             return False
     except urllib2.HTTPError, e:
@@ -762,7 +763,22 @@ def cache_youtube_video(params):
                 continue
             if o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
                 continue
-            if not youtube_cached_url(o, video_id, website_id, fmt)[0] and not youtube_cached_url(o, alternate_vid, website_id, fmt)[0]:
+            if youtube_cached_url(o, alternate_vid, website_id, fmt)[0]:
+                filename = get_youtube_filename(o, alternate_vid, fmt)
+                new_filename = get_youtube_filename(o, video_id, fmt)
+                video_path = os.path.join(cache_dir, filename)
+                new_video_path = os.path.join(cache_dir, new_filename)
+                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : alternate_vid, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
+                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+                num_cached_formats += 1
+                if os.path.isfile(video_path) and not os.path.isfile(new_video_path):
+                    shutil.move(video_path, new_video_path)
+                    info({ 'code' : 'VIDEO_MOVED', 'website_id' : website_id, 'video_id' : alternate_vid, 'message' : 'Video ' + video_path + ' moved to ' + new_video_path + '.' })
+            elif youtube_cached_url(o, video_id, website_id, fmt)[0]:
+                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
+                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+                num_cached_formats += 1
+            else:
                 video_url = url_map[fmt]
                 filename = get_youtube_filename(o, video_id, fmt)
                 video_path = os.path.join(cache_dir, filename)
@@ -782,10 +798,6 @@ def cache_youtube_video(params):
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
                     ent({ 'code' : URL_CACHE_ERR, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url + '.', 'website_id' : website_id })
-            else:
-                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
-                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
-                num_cached_formats += 1
 
     video_details = video_pool.get_details(video_id, website_id)
     if len(video_details['fmts'].keys()) == 0 or len(video_details['fmts'].keys()) == num_cached_formats:
