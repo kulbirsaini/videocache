@@ -248,6 +248,10 @@ def squid_part():
                                         old_video_id = video_id
                                         cpn = get_youtube_cpn_from_query(query)
                                         try:
+                                            try:
+                                                video_pool.ping()
+                                            except:
+                                                connection()
                                             video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
                                             if video_id == False:
                                                 time.sleep(2)
