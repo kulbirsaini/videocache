@@ -1213,6 +1213,10 @@ def watch_store_log():
                     if matched:
                         if website_id == 'youtube':
                             cpn = get_youtube_cpn_from_query(query)
+                            try:
+                                v_pool.ping()
+                            except:
+                                v_pool = get_connection()
                             video_id = v_pool.get_youtube_video_id_from_cpn(cpn)
 
                         if video_id == None or video_id == False:
