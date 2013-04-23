@@ -237,7 +237,8 @@ class VideoPool:
     def get_youtube_video_id_from_cpn(self, cpn):
         if cpn in self.cpn_pool:
             self.cpn_pool[cpn]['last_used'] = time.time()
-            return self.cpn_pool[cpn]['video_id']
+            if self.cpn_pool[cpn]['video_id']:
+                return self.cpn_pool[cpn]['video_id']
         return False
 
     def cleanup_cpn_pool(self):
@@ -1141,6 +1142,10 @@ def watch_access_log():
 
     info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid\'s access.log for Youtube video ID extraction.' })
     v_pool = get_connection()
+    try:
+        v_pool.ping()
+    except:
+        v_pool = get_connection()
 
     track_line = re.compile('\.youtube\.com\/ptracking')
     url_regex = re.compile('(http://[^\s]+)')
@@ -1150,6 +1155,10 @@ def watch_access_log():
                 url = re.findall(url_regex, line)[0]
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
+                    try:
+                        v_pool.ping()
+                    except:
+                        v_pool = get_connection()
                     v_pool.add_to_cpn_pool(video_id, cpn)
             except Exception, e:
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
