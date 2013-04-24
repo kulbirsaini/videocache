@@ -1141,6 +1141,7 @@ def watch_access_log():
         sleep(300)
 
     info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid\'s access.log for Youtube video ID extraction.' })
+    time.sleep(30)
     v_pool = get_connection()
     try:
         v_pool.ping()
@@ -1189,6 +1190,7 @@ def watch_store_log():
         sleep(300)
 
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
+    time.sleep(30)
     v_pool = get_connection()
     try:
         for line in tail_file(o.squid_store_log, re.compile('SWAPOUT.*GET')):
