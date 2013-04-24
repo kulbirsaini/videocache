@@ -1148,7 +1148,7 @@ def watch_access_log():
     except:
         v_pool = get_connection()
 
-    track_line = re.compile('\.youtube\.com\/ptracking')
+    track_line = re.compile('\.youtube\.com\/(ptracking|user_watch)')
     url_regex = re.compile('(http://[^\s]+)')
     try:
         for line in tail_file(o.squid_access_log, track_line):
@@ -1219,7 +1219,8 @@ def watch_store_log():
                                 v_pool.ping()
                             except:
                                 v_pool = get_connection()
-                            video_id = v_pool.get_youtube_video_id_from_cpn(cpn)
+                            if cpn and len(video_id) != 16 and len(video_id) != 11:
+                                video_id = v_pool.get_youtube_video_id_from_cpn(cpn)
 
                         if video_id == None or video_id == False:
                             warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf file. Please set it to off. After that restart squid and vc-scheduler.' })
