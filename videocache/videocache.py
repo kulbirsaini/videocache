@@ -65,8 +65,12 @@ def wnt(params = {}):
     trace(params)
 
 def sync_video_info():
+    sysinfo_last_submitted_at = 0
+    sysinfo_submit_interval = 3600
+
     info({ 'code' : VIDEO_SYNC_START, 'message' : 'Starting sync thread to sync video information to RPC server.'})
     sleep_time = 10
+    time.sleep(10)
     try:
         video_pool.ping()
     except:
@@ -80,6 +84,10 @@ def sync_video_info():
         thread_pool.release()
         if videos:
             num_tries = 0
+            if (time.time() - sysinfo_last_submitted_at) > sysinfo_submit_interval:
+                sysinfo_last_submitted_at = time.time()
+                submit_system_info()
+            clean_local_cpn_pool()
             while num_tries < 10:
                 try:
                     video_pool.ping()
@@ -99,7 +107,6 @@ def sync_video_info():
         time.sleep(sleep_time)
 
 def submit_system_info():
-    time.sleep(10)
     expired_video(o)
     try:
         num_tries = 0
@@ -123,38 +130,16 @@ def submit_system_info():
     except Exception, e:
         return False
 
-def check_apache():
-    ret_val = True
-    try:
-        if o.cache_host_ip and o.cache_host_port and not is_port_open(o.cache_host_ip, o.cache_host_port):
-            error({ 'code' : APACHE_CONNECT_ERR, 'message' : 'Could not connect to Apache webserver on ' + o.cache_host_ip + ':' + str(o.cache_host_port) + '. Please check if Apache is running. Also, verify the value of cache_host option in /etc/videocache.conf.' })
-            return False
-        for dir in o.base_dir_list:
-            if len(o.base_dir_list) > 1:
-                index = o.base_dir_list.index(dir)
-            else:
-                index = ''
-            cache_url = os.path.join(o.cache_url, 'videocache', str(index))
-            result = test_url(cache_url)
-            if result == 404:
-                error({ 'code' : APACHE_404_ERR, 'message' : 'HTTP 404 or Not Found error occurred while navigating to ' + cache_url + '. If you changed base_dir option in /etc/videocache.conf, please run vc-update and restart Apache webserver. And finally reload/restart Squid daemon.', 'debug' : 'Videocache Directory: ' + dir })
-            elif result == 403:
-                error({ 'code' : APACHE_403_ERR, 'message' : 'HTTP 403 or Access Denied while navigating to ' + cache_url + '. Please verify that Apache has read access to the following directory ' + dir + '. If you changed base_dir option in /etc/videocache.conf, please run vc-update and restart Apache webserver. And finally reload/restart Squid daemon.' })
-            elif result == False:
-                ret_val = result
-    except Exception, e:
-        return False
-    return ret_val
-
-def check_heartbeat():
-    sleep_time = 3600
-    while True:
-        submit_system_info()
-
-        for i in range(1, sleep_time):
-            if exit:
-                return
-            time.sleep(1)
+def clean_local_cpn_pool():
+    global local_cpn_pool
+    cpn_lifetime = 1800
+    now = time.time()
+    for cpn_id in local_cpn_pool.keys():
+        try:
+            if (now - local_cpn_pool[cpn_id]['last_used']) > cpn_lifetime:
+                local_cpn_pool.pop(cpn_id, None)
+        except:
+            pass
 
 def submit_videos(videos):
     try:
@@ -190,7 +175,7 @@ def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
 def squid_part():
-    global exit
+    global exit, local_cpn_pool
     input = sys.stdin.readline()
     try:
         video_pool.ping()
@@ -252,11 +237,17 @@ def squid_part():
                                                 video_pool.ping()
                                             except:
                                                 connection()
-                                            video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
-                                            if video_id == False:
-                                                time.sleep(2)
+                                            if cpn in local_cpn_pool:
+                                                video_id = local_cpn_pool[cpn]['video_id']
+                                                local_cpn_pool[cpn]['last_used'] = time.time()
+                                            else:
                                                 video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                                if video_id == False:
+                                                    time.sleep(2)
+                                                    video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
                                             if video_id:
+                                                if cpn not in local_cpn_pool:
+                                                    local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
                                                 (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                             else:
                                                 video_id = old_video_id
@@ -306,6 +297,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     local_video_pool = {}
+    local_cpn_pool = {}
     video_pool = None
     thread_pool = threading.Semaphore(value = 1)
     process_id = os.getpid()
@@ -328,13 +320,10 @@ if __name__ == '__main__':
     try:
         squid = threading.Thread(target = squid_part)
         video_info = threading.Thread(target = sync_video_info)
-        system_info = threading.Thread(target = check_heartbeat)
         squid.start()
         video_info.start()
-        system_info.start()
         squid.join()
         video_info.join()
-        system_info.join()
     except Exception, e:
         ent( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
 
