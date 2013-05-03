@@ -24,6 +24,8 @@ from xmlrpclib import ServerProxy
 
 import cgi
 import cookielib
+import datetime
+import glob
 import heapq
 import logging
 import pickle
@@ -265,7 +267,7 @@ class VideoPool:
         return True
 
     def is_uncacheable_youtube(self, video_id, website_id):
-        if len(video_id) != 11 and website_id == 'youtube': return True
+        if video_id and len(video_id) != 11 and website_id == 'youtube': return True
         return False
 
     def remove_youtube_video_format(self, video_id, website_id, format):
@@ -695,6 +697,16 @@ def cache_remote_url(remote_url, target_file, params = {}):
         return False
     return True
 
+def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
+    if not old_video_id or not new_video_id:
+        return
+    for youtube_dir in o.base_dirs[website_id]:
+        for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
+            try:
+                shutil.move(filename, filename.replace(old_video_id, new_video_id))
+            except:
+                pass
+
 def cache_youtube_video(params):
     video_id = params.get('video_id', '-')
     website_id = params.get('website_id', '-')
@@ -736,6 +748,8 @@ def cache_youtube_video(params):
         url_map = {}
         [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
         alternate_vid = get_youtube_video_id(url_map.values()[0])
+        if alternate_vid and len(alternate_vid) == 16:
+            migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
     except Exception, e:
         ent({ 'code' : URL_EXTRACTION_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
         return
@@ -1266,6 +1280,7 @@ def watch_store_log():
 
                     if matched:
                         if website_id == 'youtube':
+                            old_video_id = video_id
                             cpn = get_youtube_cpn_from_query(query)
                             if cpn in local_cpn_pool:
                                 video_id = local_cpn_pool[cpn]['video_id']
@@ -1281,9 +1296,11 @@ def watch_store_log():
                                         video_id = new_video_id
                                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
                                     else:
-                                        if len(video_id) != 16 and len(video_id) != 11:
+                                        if video_id and len(video_id) != 16 and len(video_id) != 11:
                                             warn({ 'code' : 'YOUTUBE_MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesn\'t occur for all the videos.' })
                                             continue
+                            if old_video_id and video_id and len(old_video_id) == 16 and len(video_id) == 11:
+                               migrate_to_new_youtube_video_ids(website_id, old_video_id, video_id)
 
                         if video_id == None or video_id == False:
                             warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf file. Please set it to off. After that restart squid and vc-scheduler.' })
@@ -1361,7 +1378,6 @@ def clean_local_cpn_pool():
             pass
 
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
-    import glob, datetime
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
     query_prefix = 'INSERT IGNORE INTO %s (cache_dir,website_id,filename) VALUES ' % VideoFile.table_name
     query_prefix2 = "('" + cache_dir + "','" + website_id + "','%s')"
