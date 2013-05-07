@@ -352,17 +352,20 @@ class VideoPool:
 
     def get_score(self, video_id, website_id):
         """Get the score of video represented by video_id."""
-        return self.scores[website_id].get(video_id, 0)
+        if website_id in self.scores:
+            return self.scores[website_id].get(video_id, 0)
+        return 0
 
     def set_score(self, video_id, website_id, score = 1):
         """Set the priority score of a video_id."""
-        self.scores[website_id][video_id] = score
-        self.scores_changed[website_id] = True
+        if website_id in self.scores:
+            self.scores[website_id][video_id] = score
+            self.scores_changed[website_id] = True
         return True
 
     def inc_score(self, video_id, website_id, incr = 1):
         """Increase the priority score of video represented by video_id."""
-        if video_id in self.scores[website_id]:
+        if website_id in self.scores and video_id in self.scores[website_id]:
             self.scores[website_id][video_id] += incr
             self.scores_changed[website_id] = True
             return True
@@ -370,7 +373,7 @@ class VideoPool:
 
     def dec_score(self, video_id, website_id, decr = 1):
         """Decrease the priority score of video represented by video_id."""
-        if video_id in self.scores[website_id]:
+        if website_id in self.scores and video_id in self.scores[website_id]:
             self.scores[website_id][video_id] -= decr
             self.scores_changed[website_id] = True
             return True
@@ -403,7 +406,9 @@ class VideoPool:
 
     def get_details(self, video_id, website_id):
         """Return the details of a particular video represented by video_id."""
-        return self.queue[website_id].get(video_id, False)
+        if website_id in self.queue:
+            return self.queue[website_id].get(video_id, { 'fmts' : {} })
+        return { 'fmts' : {} }
 
     def remove_from_queue(self, video_id, website_id):
         """Dequeue a video_id from the download queue."""
@@ -546,7 +551,9 @@ class VideoPool:
                 if len(popular) != 1 or len(popular[0]) != 2:
                     return True
                 video_id, website_id = popular[0]
-                if self.is_uncacheable_youtube(video_id, website_id): return True
+                if self.is_uncacheable_youtube(video_id, website_id):
+                    self.set_score(video_id, website_id, max(self.get_score(video_id, website_id) - 1, 0))
+                    return True
                 if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
                     params = self.get_details(video_id, website_id)
                     if params != False:
@@ -757,8 +764,18 @@ def cache_youtube_video(params):
     cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
     tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
-    video_details = video_pool.get_details(video_id, website_id)
-    fmt_scores = sorted([(video_details['fmts'][itag]['score'], itag) for itag in video_details['fmts']], reverse = True)
+    video_details = video_pool.get_details(video_id, website_id)['fmts']
+    if alternate_vid:
+        video_details_2 = video_pool.get_details(alternate_vid, website_id)['fmts']
+        if len(video_details_2.keys()) > 0:
+            all_keys = list(set(video_details.keys() + video_details_2.keys()))
+            new_details = {}
+            for vd in [video_details, video_details_2]:
+                for fmt_key in vd.keys():
+                    new_details[fmt_key] = { 'score' : vd[fmt_key]['score'] + new_details.get(fmt_key, { 'score' : 0 })['score'] }
+            video_details = new_details
+
+    fmt_scores = sorted([(video_details[itag]['score'], itag) for itag in video_details], reverse = True)
     if len(fmt_scores) == 0:
         fmt_scores = [(2, '35')]
 
@@ -777,7 +794,9 @@ def cache_youtube_video(params):
                 video_pool.remove_conn(video_id, website_id)
                 break
 
-        if url_map.has_key(fmt) and o.youtube_formats[fmt]['res'] <= o.max_youtube_video_quality:
+        if url_map.has_key(fmt):
+            if o.youtube_formats.has_key(fmt) and o.youtube_formats[fmt]['res'] > o.max_youtube_video_quality:
+                continue
             if o.enable_youtube_html5_videos == 0 and o.youtube_formats[fmt]['cat'] in ['webm', 'webm_3d']:
                 continue
             if o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
@@ -789,6 +808,7 @@ def cache_youtube_video(params):
                 new_video_path = os.path.join(cache_dir, new_filename)
                 info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : alternate_vid, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
                 video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+                if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
                 num_cached_formats += 1
                 if os.path.isfile(video_path) and not os.path.isfile(new_video_path):
                     shutil.move(video_path, new_video_path)
@@ -796,6 +816,7 @@ def cache_youtube_video(params):
             elif youtube_cached_url(o, video_id, website_id, fmt)[0]:
                 info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
                 video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+                if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
                 num_cached_formats += 1
             else:
                 video_url = url_map[fmt]
@@ -812,15 +833,21 @@ def cache_youtube_video(params):
                         info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                         num_cached_formats += 1
                         video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+                        if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
                         if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                     else:
                         if os.path.isfile(tmp_path): os.unlink(tmp_path)
                 except Exception, e:
                     ent({ 'code' : URL_CACHE_ERR, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url + '.', 'website_id' : website_id })
+        else:
+            info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
+            video_pool.remove_youtube_video_format(video_id, website_id, fmt)
+            if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
 
     video_details = video_pool.get_details(video_id, website_id)
     if len(video_details['fmts'].keys()) == 0 or len(video_details['fmts'].keys()) == num_cached_formats:
         video_pool.remove(video_id, website_id)
+        if alternate_vid: video_pool.remove(alternate_vid, website_id)
         info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'All formats for this video has been cached already.' })
 
 def cache_dailymotion_video(params):
@@ -1161,7 +1188,7 @@ def remove_pid_from_subprocess_list(pid):
         except:
             pass
 
-def tail_file(filename, regex = None, interval = 120):
+def tail_file(filename, finder_list = [], any_find = True, interval = 120):
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
     q = Queue()
     t = threading.Thread(target = enqueue_output, args = (process.stdout, q))
@@ -1177,8 +1204,14 @@ def tail_file(filename, regex = None, interval = 120):
         except Empty:
             pass
         else:
-            if regex == None or (regex and regex.search(line)):
-                yield line
+            if finder_list == []:
+                shall_yield = True
+            else:
+                if any_find:
+                    shall_yield = any(map(lambda x: line.find(x) > -1, finder_list))
+                else:
+                    shall_yield = all(map(lambda x: line.find(x) > -1, finder_list))
+            if shall_yield: yield line
 
         if (time.time() - last_read) > interval:
             remove_pid_from_subprocess_list(process.pid)
@@ -1212,10 +1245,10 @@ def watch_access_log():
     except:
         v_pool = get_connection()
 
-    track_line = re.compile('\.youtube\.com\/(ptracking|user_watch)')
+    track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?' ]
     url_regex = re.compile('(http://[^\s]+)')
     try:
-        for line in tail_file(o.squid_access_log, track_line):
+        for line in tail_file(o.squid_access_log, track_lines, True):
             try:
                 url = re.findall(url_regex, line)[0]
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
@@ -1259,7 +1292,7 @@ def watch_store_log():
     time.sleep(30)
     v_pool = get_connection()
     try:
-        for line in tail_file(o.squid_store_log, re.compile('SWAPOUT.*GET')):
+        for line in tail_file(o.squid_store_log, ['SWAPOUT'], False):
             if line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0:
                 try:
                     video_url = line.split()[-1]
@@ -1403,12 +1436,11 @@ def rebuild_filelist():
             cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
             if not os.path.isdir(cur_dir):
                 continue
-            info({ 'code' : 'FILELIST_BUILD_START', 'website_id' : website_id, 'message' : 'cache_dir : ' + cache_dir })
             try:
                 rebuild_filelist_for(cache_dir, website_id, cur_dir)
             except Exception, e:
                 ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-            info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'cache_dir : ' + cache_dir })
+            info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'cache_dir : ' + cache_dir })
 
 def cleaner_heartbeat():
     if not o.use_db:
