@@ -291,6 +291,8 @@ class VideoFile(Model):
 
     @classmethod
     def create(klass, params):
+        if params['cache_dir']:
+            params['cache_dir'] = params['cache_dir'].rstrip('/')
         params['access_count'] = params.get('access_count', 1)
         params['access_time'] = params.get('access_time', current_time())
         if params.has_key('filename'):

@@ -1419,37 +1419,117 @@ def clean_local_cpn_pool():
         except:
             pass
 
-def rebuild_filelist_for(cache_dir, website_id, cur_dir):
-    letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
-    query_prefix = 'INSERT IGNORE INTO %s (cache_dir,website_id,filename) VALUES ' % VideoFile.table_name
-    query_prefix2 = "('" + cache_dir + "','" + website_id + "','%s')"
-    os.chdir(cur_dir)
-    for l_1 in letters:
-        all_files = glob.glob(os.path.join(l_1 + '*'))
-        if len(all_files) != 0: info({ 'code' : 'HASH_FILES', 'website_id' : website_id, 'message' : 'Trying to hash ' + str(len(all_files)) + ' files starting with ' + l_1 })
-        for files in chunks(all_files, 100):
-            queries = map(lambda filename: query_prefix2 % (filename), files)
+def need_rest_for():
+    rest_for = 2
+    try:
+        load = os.getloadavg()[1]
+        if load > 4:
+            rest_for = 10
+        elif load > 2:
+            rest_for = 3
+        else:
+            rest_for = 0.1
+    except Exception, e:
+        pass
+    return rest_for
+
+def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
+    for files_to_remove_chunk in chunks(files_to_remove, 25):
+        try:
+            VideoFile.destroy({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
+        except Exception, e:
+            ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+        time.sleep(need_rest_for())
+
+def add_file_entries_to_db(cache_dir, website_id, files_to_create):
+    query_prefix = 'INSERT IGNORE INTO %s (cache_dir,website_id,filename,size,access_time) VALUES ' % VideoFile.table_name
+    query_prefix2 = "('" + cache_dir + "','" + website_id + "','%s', '%s', '%s')"
+
+    for filenames in chunks(files_to_create, 25):
+        queries = []
+        for filename in filenames:
+            stats = os.stat(filename)
+            queries.append(query_prefix2 % (filename, stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))))
+        try:
+            VideoFile.execute(query_prefix + ','.join(queries))
+        except Exception, e:
+            ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while adding file entries to database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+        time.sleep(need_rest_for())
+
+def update_file_entries_in_db(cache_dir, website_id, files_to_update):
+    query_prefix = 'UPDATE %s SET ' % VideoFile.table_name
+    query_prefix2 = ' size = %d, access_time = "%s" WHERE '
+    query_suffix = ' cache_dir = "%s" AND website_id = "%s" ' % (cache_dir, website_id )
+    query_suffix2 = ' AND filename = "%s"; '
+
+    for filenames in chunks(files_to_update, 25):
+        for filename in filenames:
+            stats = os.stat(filename)
+            query = query_prefix + query_prefix2 % (stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))) + query_suffix + query_suffix2 % filename
             try:
-                VideoFile.execute(query_prefix + ','.join(queries))
-                time.sleep(len(queries) / 100)
+                VideoFile.execute(query)
             except Exception, e:
-                ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while hashing files in cache_dir : ' + cache_dir, 'debug' : str(e) })
+                ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while update file entry in database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+        time.sleep(need_rest_for())
+
+def rebuild_filelist_for(cache_dir, website_id, cur_dir):
+    cache_dir = cache_dir.rstrip('/')
+    letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
+    sql_map = { '_' : '\_' }
+    os.chdir(cur_dir)
+    total_files_updated = 0
+    for l_1 in letters:
+        try:
+            results = VideoFile.execute('SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
+        except:
+            results = []
+        files_on_os = set(glob.glob(os.path.join(l_1 + '*')))
+        files_in_db = set(map(lambda x: x[1], results))
+
+        files_to_remove = files_in_db - files_on_os
+        remove_file_entries_from_db(cache_dir, website_id, list(files_to_remove))
+
+        files_to_create = files_on_os - files_in_db
+        add_file_entries_to_db(cache_dir, website_id, list(files_to_create))
+
+        files_to_update = list(set(map(lambda x: x[1], filter(lambda x: x[2] == 0, results))) - files_to_remove)
+        update_file_entries_in_db(cache_dir, website_id, files_to_update)
+
+        total_files_updated += len(files_to_create) + len(files_to_update)
+    return total_files_updated
+
+def remove_rouge_db_entries(cache_dir):
+    try:
+        VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s";' % (VideoFile.table_name, os.path.join(cache_dir, '')))
+    except Exception, e:
+        pass
 
 def rebuild_filelist():
     if not o.use_db:
         info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping filelist rebuild. Option use_db is set to zero (0) in videocache.conf.' })
         return
-    time.sleep(3)
-    for cache_dir in o.base_dir_list:
-        for website_id in o.websites:
-            cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
-            if not os.path.isdir(cur_dir):
-                continue
-            try:
-                rebuild_filelist_for(cache_dir, website_id, cur_dir)
-            except Exception, e:
-                ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-            info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'cache_dir : ' + cache_dir })
+    time.sleep(15)
+    fail_time = 1800
+    pass_time = 10800
+    while True:
+        failed = True
+        for cache_dir in o.base_dir_list:
+            cache_dir = cache_dir.rstrip('/')
+            remove_rouge_db_entries(cache_dir)
+            for website_id in o.websites:
+                cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
+                if not os.path.isdir(cur_dir):
+                    continue
+                try:
+                    total_files_updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
+                    info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in cache_dir : ' + cache_dir })
+                    failed = False
+                except Exception, e:
+                    ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
+        if failed:
+            time.sleep(fail_time)
+        else:
+            time.sleep(pass_time)
 
 def cleaner_heartbeat():
     if not o.use_db:
@@ -1472,7 +1552,7 @@ def cleancache(independent = False):
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
     for cache_dir in o.base_dir_list:
-        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 1000' % (VideoFile.table_name, cache_dir, o.cleanup_order)
+        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 1000' % (VideoFile.table_name, cache_dir.rstrip('/'), o.cleanup_order)
         try:
             if free_space(cache_dir) < o.disk_avail_threshold:
                 while True:
