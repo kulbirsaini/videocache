@@ -1261,11 +1261,11 @@ def watch_access_log():
                 url = re.findall(url_regex, line)[0]
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
+                    local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
                     try:
                         v_pool.ping()
                     except:
                         v_pool = get_connection()
-                    if v_pool: local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
                     v_pool.add_to_cpn_pool(video_id, cpn)
             except Exception, e:
                 v_pool = get_connection()
