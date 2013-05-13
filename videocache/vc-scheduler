@@ -1165,7 +1165,7 @@ def reopen_file(filename, file = None):
 
 def enqueue_output(output, queue):
     try:
-        for line in iter(output.readline, b''):
+        for line in iter(output.readline, ''):
             queue.put(line)
         output.close()
     except:
