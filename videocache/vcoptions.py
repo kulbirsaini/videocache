@@ -30,21 +30,24 @@ class VideocacheOptions:
         self.youtube_res_order = [144, 224, 270, 360, 480, 720, 520, 540, 1080, 2304]
         self.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
         self.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
+        self.youtube_audio_only_itags = [ '140', '141' ]
+        self.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
+        self.youtube_skip_caching = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
         self.youtube_formats = {
-            '5'   : {'res': 224,  'ext': '.flv',      'cat': 'regular'},
-            '6'   : {'res': 270,  'ext': '.flv',      'cat': 'regular'},
+            '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
+            '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},
             '13'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
             '17'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
             '18'  : {'res': 360,  'ext': '.mp4',  'cat': 'mobile'},
-            '34'  : {'res': 360,  'ext': '.flv',      'cat': 'regular'},
-            '35'  : {'res': 480,  'ext': '.flv',      'cat': 'regular'},
-            '22'  : {'res': 720,  'ext': '.mp4',      'cat': 'regular'},
-            '37'  : {'res': 1080, 'ext': '.mp4',      'cat': 'regular'},
-            '38'  : {'res': 2304, 'ext': '.mp4',      'cat': 'regular'},
-            '83'  : {'res': 240,  'ext': '.mp4',      'cat': 'regular_3d'},
-            '82'  : {'res': 360,  'ext': '.mp4',      'cat': 'regular_3d'},
-            '85'  : {'res': 520,  'ext': '.mp4',      'cat': 'regular_3d'},
-            '84'  : {'res': 720,  'ext': '.mp4',      'cat': 'regular_3d'},
+            '34'  : {'res': 360,  'ext': '.flv',  'cat': 'regular'},
+            '35'  : {'res': 480,  'ext': '.flv',  'cat': 'regular'},
+            '22'  : {'res': 720,  'ext': '.mp4',  'cat': 'regular'},
+            '37'  : {'res': 1080, 'ext': '.mp4',  'cat': 'regular'},
+            '38'  : {'res': 2304, 'ext': '.mp4',  'cat': 'regular'},
+            '83'  : {'res': 240,  'ext': '.mp4',  'cat': 'regular_3d'},
+            '82'  : {'res': 360,  'ext': '.mp4',  'cat': 'regular_3d'},
+            '85'  : {'res': 520,  'ext': '.mp4',  'cat': 'regular_3d'},
+            '84'  : {'res': 720,  'ext': '.mp4',  'cat': 'regular_3d'},
             '43'  : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
             '44'  : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
             '45'  : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
@@ -52,6 +55,14 @@ class VideocacheOptions:
             '100' : {'res': 360,  'ext': '.webm', 'cat': 'webm_3d'},
             '101' : {'res': 480,  'ext': '.webm', 'cat': 'webm_3d'},
             '102' : {'res': 720,  'ext': '.webm', 'cat': 'webm_3d'},
+            '133' : {'res': 240,  'ext': '.mp4',  'cat': 'regular'},
+            '134' : {'res': 360,  'ext': '.mp4',  'cat': 'regular'},
+            '135' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
+            '136' : {'res': 720,  'ext': '.mp4',  'cat': 'regular'},
+            '137' : {'res': 1080, 'ext': '.mp4',  'cat': 'regular'},
+            '160' : {'res': 144,  'ext': '.mp4',  'cat': 'regular'},
+            '140' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
+            '141' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
         }
 
         self.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
