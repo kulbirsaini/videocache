@@ -1603,46 +1603,23 @@ def stop_subprocesses():
         pass
 
 def flush_scheduler_queue():
-    running = True
     o.set_loggers()
-    connection()
     try:
-        video_pool.ping()
+        while True:
+            count, results = VideoQueue.execute('DELETE FROM %s LIMIT 1000;' % VideoQueue.table_name)
+            if count == 0:
+                break
+            time.sleep(need_rest_for())
+        info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
     except Exception, e:
-        running = False
-
-    if running:
-        try:
-            video_pool.ping()
-            video_pool.flush()
-            video_pool.dump_queue(True)
-            info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
-            sys.stdout.write('Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.\n')
-            sys.exit(0)
-        except Exception, e:
-            ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while flushing videocache scheduler queue.', 'debug' : str(e) })
-            sys.stderr.write('Error while flushing videocache scheduler queue.\n')
-            sys.exit(1)
-    else:
-        removed = True
-        for dir in o.base_dir_list:
-            queue_file = os.path.join(dir, o.queue_dump_file)
-            if os.path.isfile(queue_file):
-                try:
-                    os.unlink(queue_file)
-                except Exception, e:
-                    ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while remove videocache scheduler queue dump file at ' + queue_file + '.', 'debug' : str(e) })
-                    sys.stderr.write('Error while remove videocache scheduler queue dump file at ' + queue_file + '.\n')
-                    removed = False
-
-        if removed:
-            info({ 'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed.'})
-            sys.stdout.write('Videocache scheduler queue has been flushed.\n')
-            sys.exit(0)
-        else:
-            error({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error while flushing videocache scheduler queue. There might have been a file permission issue.' })
-            sys.stderr.write('Error while flushing videocache scheduler queue. There might have been a file permission issue.\n')
-            sys.exit(1)
+        ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
+    for dir in o.base_dir_list:
+        queue_file = os.path.join(dir, o.queue_dump_file)
+        if os.path.isfile(queue_file):
+            try:
+                os.unlink(queue_file)
+            except Exception, e:
+                pass
 
 def independent_cleaner():
     o.set_loggers()
