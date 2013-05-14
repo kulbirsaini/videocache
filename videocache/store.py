@@ -35,6 +35,14 @@ def free_space(dir):
     disk_stat = os.statvfs(dir)
     return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
 
+def partition_size(dir):
+    disk_stat = os.statvfs(dir)
+    return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BLOCKS] / (1024*1024.0)
+
+def partition_used(dir):
+    disk_stat = os.statvfs(dir)
+    return (disk_stat[statvfs.F_BLOCKS] - disk_stat[statvfs.F_BFREE]) * disk_stat[statvfs.F_FRSIZE] / (1024.0*1024)
+
 def get_size_and_time(filename):
     file_stat = os.stat(filename)
     return (file_stat[stat.ST_SIZE], file_stat[stat.ST_ATIME])

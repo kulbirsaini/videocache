@@ -10,6 +10,7 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
+from store import partition_size
 
 from vcconfig import VideocacheConfig
 
@@ -131,7 +132,6 @@ class VideocacheOptions:
             self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
             self.__class__.temp_dir = mainconf.temp_dir
             self.__class__.base_dir_selection = int(mainconf.base_dir_selection)
-            self.__class__.disk_avail_threshold = int(mainconf.disk_avail_threshold)
             self.__class__.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
             if self.__class__.disk_cleanup_strategy == 2:
                 self.__class__.cleanup_order = 'size DESC, access_count ASC, access_time ASC'
@@ -140,6 +140,14 @@ class VideocacheOptions:
             else:
                 self.__class__.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
             self.__class__.cache_dir_filelist_rebuild_interval = int(mainconf.cache_dir_filelist_rebuild_interval)
+            cache_swap_low = min(max(int(mainconf.cache_swap_low), 85), 98)
+            cache_swap_high = min(max(int(mainconf.cache_swap_high), 90), 99)
+            if cache_swap_low > cache_swap_high:
+                cache_swap_low, cache_swap_high = cache_swap_high, cache_swap_low
+            elif cache_swap_low == cache_swap_high:
+                cache_swap_low -= 1
+            self.__class__.cache_swap_low = cache_swap_low
+            self.__class__.cache_swap_high = cache_swap_high
 
             # Logging
             self.__class__.logdir = mainconf.logdir
@@ -229,6 +237,17 @@ class VideocacheOptions:
             self.__class__.base_dirs = base_dirs
         except Exception, e:
             syslog_msg('Could not build a list of cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
+            return None
+
+        # Set up low and high threshold for disk cleanup
+        try:
+            base_dir_thresholds = {}
+            for cache_dir in self.__class__.base_dir_list:
+                size = partition_size(cache_dir)
+                base_dir_thresholds[cache_dir] = { 'low' : int(size * cache_swap_low / 100.0), 'high' : int(size * cache_swap_high / 100.0) }
+            self.__class__.base_dir_thresholds = base_dir_thresholds
+        except Exception, e:
+            syslog_msg('Could not calculate partition size for cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         try:

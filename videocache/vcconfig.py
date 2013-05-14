@@ -84,7 +84,8 @@ class VideocacheConf:
     base_dir = Option('/var/spool/videocache/')
     temp_dir = Option('tmp')
     base_dir_selection = Option(2)
-    disk_avail_threshold = Option(15000)
+    cache_swap_low = Option(92)
+    cache_swap_high = Option(97)
     disk_cleanup_strategy = Option(1)
     cache_dir_filelist_rebuild_interval = Option(86400)
 

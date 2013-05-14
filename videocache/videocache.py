@@ -68,9 +68,7 @@ def sync_video_info():
     sysinfo_last_submitted_at = 0
     sysinfo_submit_interval = 3600
 
-    info({ 'code' : VIDEO_SYNC_START, 'message' : 'Starting sync thread to sync video information to RPC server.'})
     sleep_time = 10
-
     while True:
         time.sleep(sleep_time)
         try:

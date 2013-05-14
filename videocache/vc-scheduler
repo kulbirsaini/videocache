@@ -137,7 +137,6 @@ class VideoPool:
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
     store_log_threshold = 240
-    cleanup_required = False
 
     scores = {}
     queue = {}
@@ -160,13 +159,6 @@ class VideoPool:
             self.last_sync[website_id] = 0
 
     def ping(self):
-        return True
-
-    def is_cleanup_required(self):
-        return self.cleanup_required
-
-    def cleanup_finished(self):
-        self.cleanup_required = False
         return True
 
     def add_system(self, new_system = {}):
@@ -497,10 +489,10 @@ class VideoPool:
     def update_disk_space(self):
         for dir in o.base_dir_list:
             space_available = free_space(dir)
+            space_used = partition_used(dir)
             self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
-            if space_available < o.disk_avail_threshold:
+            if space_used > o.base_dir_thresholds[dir]['high']:
                 self.disk_space[dir].update({ 'use' : False })
-        self.cleanup_required = all(map(lambda x: not self.disk_space[x]['use'], self.disk_space))
 
     def get_next_cache_dir(self):
         self.update_disk_space()
@@ -1519,33 +1511,30 @@ def cleaner_heartbeat():
     if not o.use_db:
         info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
         return
-    time.sleep(15)
-    connection()
+
+    time.sleep(10)
     while True:
         try:
-            if video_pool.is_cleanup_required():
-                cleancache()
+            cleancache()
         except Exception, e:
-            pass
-        time.sleep(10)
+            wnt({ 'code' : 'CLEANER_ISSUE', 'message' : 'Unknown issue detected with automatic cleaner. Please report if you see this very frequently.', 'debug' : str(e) })
+        time.sleep(120)
 
-def cleancache(independent = False):
-    if not o.use_db:
-        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
-        return
+def cleancache():
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
+
     for cache_dir in o.base_dir_list:
         query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 1000' % (VideoFile.table_name, cache_dir.rstrip('/'), o.cleanup_order)
         try:
-            if free_space(cache_dir) < o.disk_avail_threshold:
+            if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
                 while True:
                     results = VideoFile.execute(query)
                     if len(results) < 5:
-                        cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
-                        warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your disk_avail_threshold option in /etc/videocache.conf accordingly.' })
+                        cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                        warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         break
-                    for chunked_results in chunks(results, 50):
+                    for chunked_results in chunks(results, 25):
                         delete_ids = []
                         for result in chunked_results:
                             delete_ids += [result[0]]
@@ -1558,12 +1547,10 @@ def cleancache(independent = False):
                             VideoFile.destroy({ 'id' : delete_ids })
                         except Exception, e:
                             ent({ 'code' : 'FILE_DELETE_ERR', 'website_id' : website_id, 'message' : 'Error in deleting videos from database ' + str(delete_ids), 'debug' : str(e) })
-                    if free_space(cache_dir) > o.disk_avail_threshold + 10000: break
+                        time.sleep(need_rest_for())
+                    if partition_used(cache_dir) < o.base_dir_thresholds[cache_dir]['low']: break
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
-
-    if not independent: video_pool.cleanup_finished()
-
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
 
 class VideoPoolDaemon(VideocacheDaemon):
@@ -1655,7 +1642,10 @@ def flush_scheduler_queue():
 
 def independent_cleaner():
     o.set_loggers()
-    cleancache(True)
+    if not o.use_db:
+        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
+        return
+    cleancache()
     return
 
 if __name__ == '__main__':
