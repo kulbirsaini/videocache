@@ -47,6 +47,8 @@ def initialize_database(options, pid = None):
     else:
         process_id = pid
     VideoFile.set_table_name(options.video_file_table_name)
+    VideoQueue.set_table_name(options.video_queue_table_name)
+    YoutubeCPN.set_table_name(options.youtube_cpn_table_name)
 
 class Model(object):
     # Class variables
@@ -247,9 +249,112 @@ def find_by_%s(klass, value):
             return results
         return []
 
+class YoutubeCPN(Model):
+    fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }
+    for field in fields:
+        exec((Model.function_template_find_by % (field, field)).strip())
+
+    def __init__(self, attributes):
+        Model.__init__(self, attributes)
+        if self.access_time:
+            self.access_time = datetime_to_timestamp(self.access_time)
+
+    @classmethod
+    def create_table(klass):
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                # Create Tables
+                db_cursor.execute('SHOW TABLES')
+                tables = map(lambda result: result[0], db_cursor.fetchall())
+                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, video_id VARCHAR(128), cpn VARCHAR(128), access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)' % klass.table_name
+                if klass.table_name not in tables: db_cursor.execute(query)
+
+                # Create indices
+                db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
+                indices = map(lambda result: result[2], db_cursor.fetchall())
+                if 'vc_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX vc_index ON %s (video_id, cpn)' % klass.table_name)
+                if 'video_id_index' not in indices: db_cursor.execute('CREATE INDEX video_id_index ON %s (video_id)' % klass.table_name)
+                if 'cpn_index' not in indices: db_cursor.execute('CREATE INDEX cpn_index ON %s (cpn)' % klass.table_name)
+                db_connection.close()
+            else:
+                print 'Could not connect to database'
+                return False
+        except:
+            return False
+        return True
+
+    @classmethod
+    def create(klass, params):
+        params['access_time'] = params.get('access_time', current_time())
+        if params.has_key('access_time'):
+            params['access_time'] = timestamp_to_datetime(params['access_time'])
+        keys, values = klass.filter_params(params)
+        if len(keys) == 0:
+            return False
+        query = "INSERT INTO %s " % klass.table_name
+        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
+        query = query % tuple(values)
+        query += " ON DUPLICATE KEY UPDATE access_time = CURRENT_TIMESTAMP"
+        VideoFile.execute(query)
+        return True
+
+class VideoQueue(Model):
+    fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer' }
+    for field in fields:
+        exec((Model.function_template_find_by % (field, field)).strip())
+
+    def __init__(self, attributes):
+        Model.__init__(self, attributes)
+        if self.access_time:
+            self.access_time = datetime_to_timestamp(self.access_time)
+
+    @classmethod
+    def create_table(klass):
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                # Create Tables
+                db_cursor.execute('SHOW TABLES')
+                tables = map(lambda result: result[0], db_cursor.fetchall())
+                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, website_id VARCHAR(32), video_id VARCHAR(128), format VARCHAR(12), url VARCHAR(1024), client_ip VARCHAR(16), cacheable BOOLEAN DEFAULT 1, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
+                if klass.table_name not in tables: db_cursor.execute(query)
+
+                # Create indices
+                db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
+                indices = map(lambda result: result[2], db_cursor.fetchall())
+                if 'wvf_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX wvf_index ON %s (website_id, video_id, format)' % klass.table_name)
+                if 'website_id_index' not in indices: db_cursor.execute('CREATE INDEX website_id_index ON %s (website_id)' % klass.table_name)
+                if 'access_time_index' not in indices: db_cursor.execute('CREATE INDEX access_time_index ON %s (access_time)' % klass.table_name)
+                if 'access_count_index' not in indices: db_cursor.execute('CREATE INDEX access_count_index ON %s (access_count)' % klass.table_name)
+                if 'video_id_index' not in indices: db_cursor.execute('CREATE INDEX video_id_index ON %s (video_id)' % klass.table_name)
+                if 'client_ip_index' not in indices: db_cursor.execute('CREATE INDEX client_ip_index ON %s (client_ip)' % klass.table_name)
+                if 'cacheable_index' not in indices: db_cursor.execute('CREATE INDEX cacheable_index ON %s (client_ip)' % klass.table_name)
+                db_connection.close()
+            else:
+                print 'Could not connect to database'
+                return False
+        except:
+            return False
+        return True
+
+    @classmethod
+    def create(klass, params):
+        params['access_count'] = params.get('access_count', 1)
+        params['access_time'] = params.get('access_time', current_time())
+        if params.has_key('access_time'):
+            params['access_time'] = timestamp_to_datetime(params['access_time'])
+        keys, values = klass.filter_params(params)
+        if len(keys) == 0:
+            return False
+        query = "INSERT IGNORE INTO %s " % klass.table_name
+        query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
+        query = query % tuple(values)
+        VideoFile.execute(query)
+        return True
+
 class VideoFile(Model):
     fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'timestamp', 'access_count' : 'integer' }
-    unique_fields = [ 'cache_dir', 'website_id', 'filename' ]
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 

@@ -8,7 +8,7 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
-from database import initialize_database, VideoFile
+from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
 from common import *
 from error_codes import *
 from store import generalized_cached_url
@@ -70,41 +70,33 @@ def sync_video_info():
 
     info({ 'code' : VIDEO_SYNC_START, 'message' : 'Starting sync thread to sync video information to RPC server.'})
     sleep_time = 10
-    time.sleep(10)
-    try:
-        video_pool.ping()
-    except:
-        connection()
+
     while True:
-        global local_video_pool
-        videos = {}
-        thread_pool.acquire()
-        videos.update( local_video_pool )
-        local_video_pool = {}
-        thread_pool.release()
-        if videos:
-            num_tries = 0
+        time.sleep(sleep_time)
+        try:
+            global local_video_pool
+            videos = []
+            thread_pool.acquire()
+            videos = local_video_pool
+            local_video_pool = []
+            thread_pool.release()
+
             if (time.time() - sysinfo_last_submitted_at) > sysinfo_submit_interval:
                 sysinfo_last_submitted_at = time.time()
                 submit_system_info()
             clean_local_cpn_pool()
-            while num_tries < 10:
-                try:
-                    video_pool.ping()
-                    if submit_videos(videos):
-                        break
-                except Exception, e:
-                    connection()
 
-                for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
-                    if exit:
-                        info({ 'code' : VIDEO_SYNC_STOP, 'message' : 'Stopping sync thread.'})
-                        return
-                    time.sleep(0.1)
-                num_tries += 1
-            else:
-                warn({ 'code' : VIDEO_SUBMIT_FAIL, 'message' : 'Could not submit video information to videocache scheduler at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.' })
-        time.sleep(sleep_time)
+            for params in videos:
+                try:
+                    result = VideoQueue.first({ 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'format' : params['format'] })
+                    if result and (result.client_ip != params['client_ip'] or (params['access_time'] - result.access_time) > o.hit_time_threshold):
+                        result.update_attributes({ 'client_ip' : params['client_ip'], 'access_time' : params['access_time'], 'access_count' : result.access_count + 1 })
+                    else:
+                        VideoQueue.create(params)
+                except Exception, e:
+                    wnt({ 'code' : 'VIDEO_SUBMIT_WARN', 'message' : 'Could not submit video information to mysql. Please check if mysql is still running. ' + str(params), 'debug' : str(e) })
+        except Exception, e:
+            ent({ 'code' : 'VIDEO_SUBMIT_FAIL', 'message' : 'Could not submit video information to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
 
 def submit_system_info():
     expired_video(o)
@@ -132,23 +124,13 @@ def submit_system_info():
 
 def clean_local_cpn_pool():
     global local_cpn_pool
-    cpn_lifetime = 1800
     now = time.time()
     for cpn_id in local_cpn_pool.keys():
         try:
-            if (now - local_cpn_pool[cpn_id]['last_used']) > cpn_lifetime:
+            if (now - local_cpn_pool[cpn_id]['last_used']) > o.cpn_lifetime:
                 local_cpn_pool.pop(cpn_id, None)
         except:
             pass
-
-def submit_videos(videos):
-    try:
-        video_pool.add_videos(videos)
-        info({ 'code' : VIDEO_SUBMIT, 'message' : 'Submitted ' + str(len(videos)) + ' videos to videocache scheduler.'})
-        return True
-    except Exception, e:
-        ent({ 'code' : VIDEO_SUBMIT_ERR, 'message' : 'Could not submit video information to videocache scheduler.', 'debug' : str(e)})
-    return False
 
 def connection():
     global video_pool
@@ -158,17 +140,13 @@ def connection():
         try:
             video_pool = ServerProxy(o.rpc_url)
             video_pool.ping()
-            info({ 'code' : RPC_CONNECT, 'message' : 'Connected to RPC server.'})
         except Exception, e:
             ent({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
 
-def add_video_to_local_pool(video_id, params):
+def add_video_to_local_pool(params):
     global local_video_pool
     thread_pool.acquire()
-    if video_id in local_video_pool:
-        local_video_pool[video_id].append(params)
-    else:
-        local_video_pool[video_id] = [params]
+    local_video_pool.append(params)
     thread_pool.release()
 
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
@@ -176,11 +154,8 @@ def non_ascci_video_id_warning(website_id, video_id, client_ip):
 
 def squid_part():
     global exit, local_cpn_pool
+
     input = sys.stdin.readline()
-    try:
-        video_pool.ping()
-    except:
-        connection()
     while input:
         new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
         try:
@@ -233,18 +208,22 @@ def squid_part():
                                         old_video_id = video_id
                                         cpn = get_youtube_cpn_from_query(query)
                                         try:
-                                            try:
-                                                video_pool.ping()
-                                            except:
-                                                connection()
                                             if cpn in local_cpn_pool:
                                                 video_id = local_cpn_pool[cpn]['video_id']
                                                 local_cpn_pool[cpn]['last_used'] = time.time()
                                             else:
-                                                video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                                result = YoutubeCPN.first({ 'cpn' : cpn })
+                                                if result:
+                                                    video_id = result.video_id
+                                                else:
+                                                    video_id = False
                                                 if video_id == False:
                                                     time.sleep(2)
-                                                    video_id = video_pool.get_youtube_video_id_from_cpn(cpn)
+                                                    result = YoutubeCPN.first({ 'cpn' : cpn })
+                                                    if result:
+                                                        video_id = result.video_id
+                                                    else:
+                                                        video_id = False
                                             if video_id:
                                                 if cpn not in local_cpn_pool:
                                                     local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
@@ -262,7 +241,8 @@ def squid_part():
                                     if o.use_db: VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                             if new_url == '' and queue and video_id:
-                                add_video_to_local_pool(video_id, {'video_id' : video_id, 'client_ip' : client_ip, 'urls' : [url], 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
+                                if website_id == 'youtube' : url = ''
+                                add_video_to_local_pool({'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
@@ -296,7 +276,7 @@ if __name__ == '__main__':
         syslog_msg(halt_message)
         sys.exit(1)
 
-    local_video_pool = {}
+    local_video_pool = []
     local_cpn_pool = {}
     video_pool = None
     thread_pool = threading.Semaphore(value = 1)

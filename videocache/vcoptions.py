@@ -116,6 +116,8 @@ class VideocacheOptions:
             self.__class__.db_username = mainconf.db_username
             self.__class__.db_password = mainconf.db_password
             self.__class__.db_database = mainconf.db_database
+            self.__class__.cpn_lifetime = 1800
+            self.__class__.hit_time_threshold = 30
 
             if this_proxy == '' or self.__class__.squid_store_log == '':
                 self.__class__.enable_store_log_monitoring = 0
@@ -170,7 +172,8 @@ class VideocacheOptions:
 
             # Filelist Database
             self.__class__.video_file_table_name = 'video_files'
-            self.__class__.log_filedb_activity = mainconf.log_filedb_activity
+            self.__class__.video_queue_table_name = 'video_queue'
+            self.__class__.youtube_cpn_table_name = 'youtube_cpns'
 
             # Network
             self.__class__.cache_host = str(mainconf.cache_host).strip()

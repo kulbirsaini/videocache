@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import initialize_database, VideoFile
+from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
 from error_codes import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -138,7 +138,6 @@ class VideoPool:
     sync_threshold = 600
     store_log_threshold = 240
     cleanup_required = False
-    cpn_lifetime = 1800
 
     scores = {}
     queue = {}
@@ -258,7 +257,7 @@ class VideoPool:
     def cleanup_cpn_pool(self):
         now = time.time()
         for cpn_id in self.cpn_pool.keys():
-            if (now - self.cpn_pool[cpn_id]['last_used']) > self.cpn_lifetime:
+            if (now - self.cpn_pool[cpn_id]['last_used']) > o.cpn_lifetime:
                 self.cpn_pool.pop(cpn_id, None)
         return True
 
@@ -1262,11 +1261,7 @@ def watch_access_log():
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
                     local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                    try:
-                        v_pool.ping()
-                    except:
-                        v_pool = get_connection()
-                    v_pool.add_to_cpn_pool(video_id, cpn)
+                    YoutubeCPN.create({ 'video_id' : video_id, 'cpn' : cpn })
             except Exception, e:
                 v_pool = get_connection()
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
@@ -1410,11 +1405,10 @@ def watch_store_log():
 
 def clean_local_cpn_pool():
     global local_cpn_pool
-    cpn_lifetime = 1800
     now = time.time()
     for cpn_id in local_cpn_pool.keys():
         try:
-            if (now - local_cpn_pool[cpn_id]['last_used']) > cpn_lifetime:
+            if (now - local_cpn_pool[cpn_id]['last_used']) > o.cpn_lifetime:
                 local_cpn_pool.pop(cpn_id, None)
         except:
             pass
