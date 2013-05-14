@@ -1456,7 +1456,7 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     total_files_updated = 0
     for l_1 in letters:
         try:
-            results = VideoFile.execute('SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
+            count, results = VideoFile.execute('SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
         except:
             results = []
         files_on_os = set(glob.glob(os.path.join(l_1 + '*')))
@@ -1476,7 +1476,11 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
 
 def remove_rouge_db_entries(cache_dir):
     try:
-        VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s";' % (VideoFile.table_name, os.path.join(cache_dir, '')))
+        while True:
+            count, results = VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s" LIMIT 1000;' % (VideoFile.table_name, os.path.join(cache_dir, '')))
+            if count == 0:
+                return
+            time.sleep(need_rest_for())
     except Exception, e:
         pass
 
@@ -1529,7 +1533,7 @@ def cleancache():
         try:
             if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
                 while True:
-                    results = VideoFile.execute(query)
+                    count, results = VideoFile.execute(query)
                     if len(results) < 5:
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })

@@ -243,11 +243,11 @@ def find_by_%s(klass, value):
     def execute(klass, query):
         db_connection, db_cursor = get_db_connection()
         if db_connection and db_cursor:
-            db_cursor.execute(query)
+            count = db_cursor.execute(query)
             results = db_cursor.fetchall()
             db_connection.close()
-            return results
-        return []
+            return (count, results)
+        return (0, [])
 
 class YoutubeCPN(Model):
     fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }
