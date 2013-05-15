@@ -55,7 +55,7 @@ class Model(object):
     # fields
     # table_name
 
-    placeholders = { 'string' : "'%s'", 'integer' : "%s", 'timestamp' : "'%s'" }
+    placeholders = { 'string' : "'%s'", 'integer' : "%s", 'timestamp' : "'%s'", 'boolean' : '%d' }
     function_template_find_by = """
 @classmethod
 def find_by_%s(klass, value):
@@ -300,7 +300,7 @@ class YoutubeCPN(Model):
         return True
 
 class VideoQueue(Model):
-    fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer' }
+    fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer', 'active' : 'boolean', 'activated_at' : 'timestamp' }
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 
@@ -317,7 +317,7 @@ class VideoQueue(Model):
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
                 tables = map(lambda result: result[0], db_cursor.fetchall())
-                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, website_id VARCHAR(32), video_id VARCHAR(128), format VARCHAR(12), url VARCHAR(1024), client_ip VARCHAR(16), cacheable BOOLEAN DEFAULT 1, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1)' % klass.table_name
+                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, website_id VARCHAR(32), video_id VARCHAR(128), format VARCHAR(12), url VARCHAR(1024), client_ip VARCHAR(16), cacheable BOOLEAN DEFAULT 1, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1, active BOOLEAN DEFAULT 0, activated_at TIMESTAMP NULL)' % klass.table_name
                 if klass.table_name not in tables: db_cursor.execute(query)
 
                 # Create indices
@@ -330,6 +330,8 @@ class VideoQueue(Model):
                 if 'video_id_index' not in indices: db_cursor.execute('CREATE INDEX video_id_index ON %s (video_id)' % klass.table_name)
                 if 'client_ip_index' not in indices: db_cursor.execute('CREATE INDEX client_ip_index ON %s (client_ip)' % klass.table_name)
                 if 'cacheable_index' not in indices: db_cursor.execute('CREATE INDEX cacheable_index ON %s (client_ip)' % klass.table_name)
+                if 'active_index' not in indices: db_cursor.execute('CREATE INDEX active_index ON %s (active)' % klass.table_name)
+                if 'activated_at_index' not in indices: db_cursor.execute('CREATE INDEX activated_at_index ON %s (activated_at)' % klass.table_name)
                 db_connection.close()
             else:
                 print 'Could not connect to database'

@@ -229,30 +229,6 @@ class VideoPool:
                 pass
         return True
 
-    def add_to_cpn_pool(self, video_id, cpn):
-        if cpn not in self.cpn_pool:
-            self.cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-        else:
-            self.cpn_pool[cpn]['last_used'] = time.time()
-        return True
-
-    def get_youtube_video_id_from_cpn(self, cpn):
-        if cpn in self.cpn_pool:
-            self.cpn_pool[cpn]['last_used'] = time.time()
-            if self.cpn_pool[cpn]['video_id']:
-                return self.cpn_pool[cpn]['video_id']
-        return False
-
-    def get_cpn_pool(self):
-        return self.cpn_pool
-
-    def cleanup_cpn_pool(self):
-        now = time.time()
-        for cpn_id in self.cpn_pool.keys():
-            if (now - self.cpn_pool[cpn_id]['last_used']) > o.cpn_lifetime:
-                self.cpn_pool.pop(cpn_id, None)
-        return True
-
     def add_videos(self, videos = {}):
         info({ 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' })
 
@@ -542,7 +518,6 @@ class VideoPool:
         try:
             self.clean_threads()
             self.dump_queue()
-            self.cleanup_cpn_pool()
             if o.offline_mode or not is_caching_time():
                 return True
             if self.get_conn_number() < o.max_cache_processes:
@@ -1036,14 +1011,6 @@ def cache_thread_scheduler():
         info({ 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' })
         refine_cache_periods()
         connection()
-        while True:
-            try:
-                video_pool.load_queue()
-                break
-            except Exception, e:
-                wnt({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Error in loading video queue.', 'debug' : str(e)})
-                time.sleep(5)
-                connection()
 
         while True:
             try:
@@ -1279,7 +1246,6 @@ def watch_store_log():
 
     info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
     time.sleep(10)
-    v_pool = get_connection()
     try:
         for line in tail_file(o.squid_store_log, ['SWAPOUT'], False):
             if line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0:
@@ -1342,21 +1308,9 @@ def watch_store_log():
                                 info({ 'code' : STORE_LOG_HIT_CONFIRMATION_FAILED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
                                 continue
 
-                            try:
-                                v_pool.ping()
-                            except:
-                                v_pool = get_connection()
-                            try:
-                                cache_dir = v_pool.get_next_cache_dir()
-                            except:
-                                cache_dir = False
+                            cache_dir = get_next_cache_dir()
                             if cache_dir == False: continue
                             try:
-                                if not v_pool.is_active(video_id, website_id):
-                                    v_pool.add_conn(video_id, website_id, FakeThread())
-                                else:
-                                    info({ 'code' : CACHE_IN_PROGRESS, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is being cached already in another thread.' })
-                                    continue
                                 filename = video_id + format
                                 if website_id == 'youtube':
                                     filename = get_youtube_filename(o, video_id, format, youtube_params)
@@ -1374,15 +1328,57 @@ def watch_store_log():
                                     if o.use_db: VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                                 elif os.path.isfile(tmp_path):
                                     os.unlink(tmp_path)
-                                v_pool.remove_conn(video_id, website_id)
                             except Exception, e:
                                 ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-                                v_pool.remove_conn(video_id, website_id)
                 except Exception, e:
                     ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
     except Exception, e:
         ent({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
 
+
+def update_disk_space():
+    global base_dir_disk_space
+    for cache_dir in o.base_dir_list:
+        space_available = free_space(cache_dir)
+        space_used = partition_used(cache_dir)
+        base_dir_disk_space[cache_dir] = { 'free_space' : space_available, 'use' : True }
+        if space_used > o.base_dir_thresholds[cache_dir]['high']:
+            base_dir_disk_space[cache_dir].update({ 'use' : False })
+
+def get_next_cache_dir():
+    global last_base_dir_used
+    update_disk_space()
+    if o.base_dir_selection == 1:
+        for cache_dir in o.base_dir_list:
+            if base_dir_disk_space[cache_dir]['use']:
+                return cache_dir
+    elif o.base_dir_selection == 2:
+        for cache_dir in o.base_dir_list[(last_base_dir_used + 1):] + o.base_dir_list[:(last_base_dir_used + 1)]:
+            if base_dir_disk_space[cache_dir]['use']:
+                last_base_dir_used = o.base_dir_list.index(cache_dir)
+                return cache_dir
+    elif o.base_dir_selection == 3:
+        vk = [(v['free_space'], k) for k, v in base_dir_disk_space.items()]
+        for v, cache_dir in sorted(vk, reverse = True):
+            if base_dir_disk_space[cache_dir]['use']:
+                last_base_dir_used = o.base_dir_list.index(cache_dir)
+                return cache_dir
+
+    warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
+    return False
+
+def clean_video_queue():
+    cut_off_time = time.time() - o.video_lifetime
+    active_cut_off_time = time.time() - 3600
+    try:
+        while True:
+            count, results = VideoQueue.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 1000;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time)))
+            if count < 1000:
+                break
+            time.sleep(need_rest_for())
+        VideoQueue.execute('UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at = NULL OR activated_at < "%s");' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)))
+    except Exception, e:
+        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def clean_cpn_pool():
     global local_cpn_pool
@@ -1518,21 +1514,24 @@ def rebuild_filelist():
         else:
             time.sleep(pass_time)
 
-def cleaner_heartbeat():
-    if not o.use_db:
-        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
-        return
-
+def cleanup_process():
     time.sleep(10)
     while True:
         try:
+            clean_cpn_pool()
+        except Exception, e:
+            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
+        try:
+            clean_video_queue()
+        except Exception, e:
+            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
+        try:
             cleancache()
         except Exception, e:
-            wnt({ 'code' : 'CLEANER_ISSUE', 'message' : 'Unknown issue detected with automatic cleaner. Please report if you see this very frequently.', 'debug' : str(e) })
+            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
         time.sleep(120)
 
 def cleancache():
-    clean_cpn_pool()
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
@@ -1580,7 +1579,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
             cache_thread = threading.Thread(target = cache_thread_scheduler)
             sysinfo_thread = threading.Thread(target = submit_system_info)
-            cleaner_thread = threading.Thread(target = cleaner_heartbeat)
+            cleanup_thread = threading.Thread(target = cleanup_process)
             filelist_builder_thread = threading.Thread(target = rebuild_filelist)
             if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
             if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
@@ -1588,7 +1587,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread.start()
             cache_thread.start()
             sysinfo_thread.start()
-            cleaner_thread.start()
+            cleanup_thread.start()
             filelist_builder_thread.start()
             if o.enable_store_log_monitoring: store_log_watcher_thread.start()
             if o.enable_access_log_monitoring: access_log_watcher_thread.start()
@@ -1596,7 +1595,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             server_thread.join()
             cache_thread.join()
             sysinfo_thread.join()
-            cleaner_thread.join()
+            cleanup_thread.join()
             filelist_builder_thread.join()
             if o.enable_store_log_monitoring: store_log_watcher_thread.join()
             if o.enable_access_log_monitoring: access_log_watcher_thread.join()
@@ -1667,6 +1666,8 @@ if __name__ == '__main__':
 
         daemon = VideoPoolDaemon(o, uid = uid)
 
+        base_dir_disk_space = {}
+        last_base_dir_used = 0
         local_cpn_pool = {}
         video_pool = None
         exit = False

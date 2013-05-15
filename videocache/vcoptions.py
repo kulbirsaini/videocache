@@ -118,6 +118,7 @@ class VideocacheOptions:
             self.__class__.db_password = mainconf.db_password
             self.__class__.db_database = mainconf.db_database
             self.__class__.cpn_lifetime = 1800
+            self.__class__.video_lifetime = 3600 * 24 * 3
             self.__class__.hit_time_threshold = 30
 
             if this_proxy == '' or self.__class__.squid_store_log == '':

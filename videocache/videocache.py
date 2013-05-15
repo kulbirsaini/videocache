@@ -123,9 +123,10 @@ def submit_system_info():
 def clean_local_cpn_pool():
     global local_cpn_pool
     now = time.time()
+    cut_off_time = time.time() - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
         try:
-            if (now - local_cpn_pool[cpn_id]['last_used']) > o.cpn_lifetime:
+            if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
                 local_cpn_pool.pop(cpn_id, None)
         except:
             pass
@@ -239,8 +240,11 @@ def squid_part():
                                     if o.use_db: VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                             if new_url == '' and queue and video_id:
-                                if website_id == 'youtube' : url = ''
-                                add_video_to_local_pool({'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'format' : format})
+                                params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'format' : format}
+                                if website_id == 'youtube':
+                                    params.update({ 'url' : ''})
+                                    if len(video_id) != 11: params.update({ 'cacheable' : False })
+                                add_video_to_local_pool(params)
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
