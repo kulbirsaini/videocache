@@ -1110,16 +1110,6 @@ def is_cached(video_url):
     trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
     return False
 
-def reopen_file(filename, file = None):
-    try:
-        file = open(filename, 'r')
-        file.seek(0, 2)
-        return file
-    except Exception, e:
-        wnt({ 'code' : STORE_LOG_OPEN_ERR, 'message' : 'Error while openning squid store log file. Check if file is present and is readable by squid' })
-
-    return None
-
 def enqueue_output(output, queue):
     try:
         for line in iter(output.readline, ''):

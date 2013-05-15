@@ -244,7 +244,7 @@ def squid_part():
                                 if website_id == 'youtube':
                                     params.update({ 'url' : ''})
                                     if len(video_id) != 11: params.update({ 'cacheable' : False })
-                                add_video_to_local_pool(params)
+                                if website_id != 'android': add_video_to_local_pool(params)
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
