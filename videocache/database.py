@@ -63,10 +63,20 @@ def find_by_%s(klass, value):
     """
 
     def __init__(self, attributes):
-        map(lambda field: setattr(self, field, attributes.get(field, None)), self.fields.keys())
+        for key in self.fields.keys():
+            if self.fields[key] == 'timestamp':
+                value = attributes.get(key, None)
+                if value:
+                    setattr(self, key, datetime_to_timestamp(value))
+                else:
+                    setattr(self, key, None)
+            else:
+                setattr(self, key, attributes.get(key, None))
 
-    def to_s(self):
-        print map(lambda field: getattr(self, field), self.fields.keys())
+    def to_params(self):
+        attributes = {}
+        [attributes.update({ key : getattr(self, key)}) for key in self.fields.keys()]
+        return attributes
 
     @classmethod
     def set_table_name(klass, table_name):
@@ -75,7 +85,12 @@ def find_by_%s(klass, value):
     @classmethod
     def filter_params(klass, params, drop = []):
         keys = filter(lambda x: x in klass.fields.keys() and x not in drop, params.keys())
-        values = map(lambda x: params[x], keys)
+        values = []
+        for key in keys:
+            if klass.fields[key] == 'timestamp':
+                values.append(timestamp_to_datetime(params[key]))
+            else:
+                values.append(params[key])
         return (keys, values)
 
     @classmethod
@@ -103,7 +118,7 @@ def find_by_%s(klass, value):
 
     def update_attribute(self, attribute, value):
         if attribute in self.fields.keys() and attribute != 'id':
-            if attribute == 'access_time':
+            if self.fields[attribute] == 'timestamp':
                 value = timestamp_to_datetime(value)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
@@ -115,8 +130,6 @@ def find_by_%s(klass, value):
         return False
 
     def update_attributes(self, params):
-        if params.has_key('access_time'):
-            params['access_time'] = timestamp_to_datetime(params['access_time'])
         keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
@@ -139,7 +152,7 @@ def find_by_%s(klass, value):
         return True
 
     @classmethod
-    def destroy(klass, params = {}):
+    def destroy_by(klass, params = {}):
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
         if len(values) < 1:
@@ -215,7 +228,7 @@ def find_by_%s(klass, value):
     @classmethod
     def last(klass, params = {}):
         params['limit'] = params.get('limit', 1)
-        params['order'] = params.get('order', 'id DESC')
+        params['order'] = params.get('order', 'id') + ' DESC'
         results = klass.find_by(params)
         if params['limit'] == 1 and len(results) == 0: return None
         if len(results) == 1: return results[0]
@@ -247,17 +260,12 @@ def find_by_%s(klass, value):
             results = db_cursor.fetchall()
             db_connection.close()
             return (count, results)
-        return (0, [])
+        return (0, ())
 
 class YoutubeCPN(Model):
     fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
-
-    def __init__(self, attributes):
-        Model.__init__(self, attributes)
-        if self.access_time:
-            self.access_time = datetime_to_timestamp(self.access_time)
 
     @classmethod
     def create_table(klass):
@@ -287,8 +295,6 @@ class YoutubeCPN(Model):
     @classmethod
     def create(klass, params):
         params['access_time'] = params.get('access_time', current_time())
-        if params.has_key('access_time'):
-            params['access_time'] = timestamp_to_datetime(params['access_time'])
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
@@ -300,14 +306,9 @@ class YoutubeCPN(Model):
         return True
 
 class VideoQueue(Model):
-    fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer', 'active' : 'boolean', 'activated_at' : 'timestamp' }
+    fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer', 'active' : 'boolean', 'activated_at' : 'timestamp', 'first_access' : 'timestamp' }
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
-
-    def __init__(self, attributes):
-        Model.__init__(self, attributes)
-        if self.access_time:
-            self.access_time = datetime_to_timestamp(self.access_time)
 
     @classmethod
     def create_table(klass):
@@ -317,7 +318,7 @@ class VideoQueue(Model):
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
                 tables = map(lambda result: result[0], db_cursor.fetchall())
-                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, website_id VARCHAR(32), video_id VARCHAR(128), format VARCHAR(12), url VARCHAR(1024), client_ip VARCHAR(16), cacheable BOOLEAN DEFAULT 1, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1, active BOOLEAN DEFAULT 0, activated_at TIMESTAMP NULL)' % klass.table_name
+                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, website_id VARCHAR(32), video_id VARCHAR(128), format VARCHAR(12), url VARCHAR(1024), client_ip VARCHAR(16), cacheable BOOLEAN DEFAULT 1, access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, access_count INT DEFAULT 1, active BOOLEAN DEFAULT 0, activated_at TIMESTAMP NULL, first_access TIMESTAMP NULL)' % klass.table_name
                 if klass.table_name not in tables: db_cursor.execute(query)
 
                 # Create indices
@@ -344,8 +345,6 @@ class VideoQueue(Model):
     def create(klass, params):
         params['access_count'] = params.get('access_count', 1)
         params['access_time'] = params.get('access_time', current_time())
-        if params.has_key('access_time'):
-            params['access_time'] = timestamp_to_datetime(params['access_time'])
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
@@ -362,8 +361,6 @@ class VideoFile(Model):
 
     def __init__(self, attributes):
         Model.__init__(self, attributes)
-        if self.access_time:
-            self.access_time = datetime_to_timestamp(self.access_time)
         if self.cache_dir and self.website_id and self.filename:
             self.filepath = os.path.join(self.cache_dir, o.website_cache_dir[self.website_id], self.filename)
         else:
@@ -404,8 +401,6 @@ class VideoFile(Model):
         params['access_time'] = params.get('access_time', current_time())
         if params.has_key('filename'):
             params['filename'] = str(params['filename'])
-        if params.has_key('access_time'):
-            params['access_time'] = timestamp_to_datetime(params['access_time'])
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False

@@ -120,6 +120,7 @@ class VideocacheOptions:
             self.__class__.cpn_lifetime = 1800
             self.__class__.video_lifetime = 3600 * 24 * 3
             self.__class__.hit_time_threshold = 30
+            self.__class__.store_log_threshold = 300
 
             if this_proxy == '' or self.__class__.squid_store_log == '':
                 self.__class__.enable_store_log_monitoring = 0

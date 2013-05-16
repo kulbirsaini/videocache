@@ -240,7 +240,7 @@ def squid_part():
                                     if o.use_db: VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                             if new_url == '' and queue and video_id:
-                                params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'format' : format}
+                                params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}
                                 if website_id == 'youtube':
                                     params.update({ 'url' : ''})
                                     if len(video_id) != 11: params.update({ 'cacheable' : False })

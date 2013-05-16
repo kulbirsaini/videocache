@@ -96,6 +96,18 @@ def wnt(params = {}):
     params.update({ 'message' : traceback.format_exc() })
     trace(params)
 
+class LoggingThread(threading.Thread):
+    def __init__(self, *args, **kwargs):
+        threading.Thread.__init__(self, *args, **kwargs)
+        self._real_run = self.run
+        self.run = self._wrap_run
+
+    def _wrap_run(self):
+        try:
+            self._real_run()
+        except Exception, e:
+            ent({'code' : CACHE_THREAD_ERR, 'message' : 'Error in cache thread.', 'debug' : str(e)})
+
 def get_connection():
     global video_pool
     try:
@@ -597,22 +609,46 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
         while not self.finished:
             self.handle_request()
 
-def cache(params):
-    """This function caches the remote file."""
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
+def cache(video):
+    info({ 'code' : CACHE_THREAD_START, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
+    eval('cache_' + video.website_id + '_video(video)')
+    info({ 'code' : CACHE_THREAD_REMOVE, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
+
+def schedule():
     try:
-        eval('cache_' + website_id + '_video(params)')
+        if o.offline_mode or not is_caching_time(): return
+        if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
+
+        video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
+        if not video: return
+
+        if not (video.video_id and video.website_id):
+            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Unable to locate video_id or website_id. Removing from queue. ' + str(video.to_params()) })
+            video.destroy()
+            return
+
+        if video.access_count < o.hit_threshold: return
+
+        if o.enable_store_log_monitoring:
+            cut_off_time = time.time() - o.store_log_threshold
+            if cut_off_time < video.first_access: return
+
+        video.update_attributes({ 'access_count' : 0, 'active' : True, 'activated_at' : time.time() })
+        cache_thread = LoggingThread(target = cache, name = str(video.video_id), args = (video,))
+        cache_thread.start()
     except Exception, e:
-        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error in cache thread.'})
+        ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
 
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
 
 def cache_remote_url(remote_url, target_file, params = {}):
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
-    http_headers = params.get('http_headers', {})
+    video = params.get('video', None)
+    if video:
+        video_id, website_id = video.video_id, video.website_id
+    else:
+        video_id, website_id = '-', '-'
+    http_headers = params.get('http_headers', get_random_user_agent())
     proxy = params.get('proxy', o.proxy)
     max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
     min_video_size = params.get('min_video_size', o.min_video_size)
@@ -644,22 +680,22 @@ def cache_remote_url(remote_url, target_file, params = {}):
         except Exception, e:
             wnt({ 'code' : CONNECTION_INFO_ERR, 'message' : 'Error while getting connection information.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
 
-        file = None
+        filedesc = None
         start_time = time.time()
         downloaded = 0
         while True:
             block = connection.read(16384)
             if len(block) == 0:
                 break
-            if not file:
-                file = open(target_file, 'wb')
-            file.write(block)
+            if not filedesc:
+                filedesc = open(target_file, 'wb')
+            filedesc.write(block)
 
             downloaded += len(block)
             while max_cache_speed > 0 and downloaded / (time.time() - start_time) > max_cache_speed:
                 time.sleep(0.2)
-        if file:
-            file.close()
+        if filedesc:
+            filedesc.close()
 
         target_file_size = os.path.getsize(target_file)
         if video_size != -1 and target_file_size < 0.97 * video_size:
@@ -824,130 +860,122 @@ def cache_youtube_video(params):
         if alternate_vid: video_pool.remove(alternate_vid, website_id)
         info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'All formats for this video has been cached already.' })
 
-def cache_dailymotion_video(params):
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
-    format = params.get('format', '')
-    urls = params.get('urls', [])
-    cur_cache_dir = params.get('cur_cache_dir', None)
-    proxy = params.get('proxy', o.proxy)
-    http_headers = get_random_user_agent()
-    params['http_headers'] = http_headers
-
-    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
-        error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-        return
-
-    video_url = None
-    alternate_vid = None
-
-    if proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
-
+def cache_dailymotion_video(video):
     try:
-        request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, http_headers)
-        urllib2.urlopen(request).read()
-    except Exception, e:
-        wnt({ 'code' : DAILYMOTION_FF_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not disable family filter for dailymotion.com.', 'debug' : str(e) })
+        video_id, website_id, format, url = video.video_id, video.website_id, video.format, video.url
+        proxy = o.proxy
+        cur_cache_dir = get_next_cache_dir()
+        http_headers = get_random_user_agent()
+        video_url, alternate_vid = None, None
 
-    request = urllib2.Request(urls[0], None, http_headers)
+        if not (url and cur_cache_dir):
+            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
+            video.destroy()
+            return
 
-    try:
-        page_data = urllib2.urlopen(request).read()
-        if page_data:
-            page_data = urllib2.unquote(page_data).replace('\\/', '/')
-            search_sdurl = re.compile('"sdURL":"([^"]*)"').search(page_data)
-            if search_sdurl:
-                video_url = search_sdurl.group(1)
+        if proxy:
+            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
+
+        try:
+            request = urllib2.Request('http://www.dailymotion.com/family_filter?enable=false', None, http_headers)
+            urllib2.urlopen(request).read()
+        except Exception, e:
+            wnt({ 'code' : DAILYMOTION_FF_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not disable family filter for dailymotion.com.', 'debug' : str(e) })
+
+        request = urllib2.Request(url, None, http_headers)
+
+        stop = False
+        try:
+            page_data = urllib2.urlopen(request).read()
+            if page_data:
+                page_data = urllib2.unquote(page_data).replace('\\/', '/')
+                search_sdurl = re.compile('"sdURL":"([^"]*)"').search(page_data)
+                if search_sdurl:
+                    video_url = search_sdurl.group(1)
+                else:
+                    search_hqurl = re.compile('"hqURL":"([^"]*)"').search(page_data)
+                    if search_hqurl:
+                        video_url = search_hqurl.group(1)
+
+            if video_url:
+                request = urllib2.Request(video_url, None, http_headers)
+                webpage = urllib2.urlopen(request)
+                if webpage and webpage.url != '':
+                    a, b, alternate_vid, format, d, e = check_dailymotion_video(webpage.url)
+                    if generalized_cached_url(o, alternate_vid, website_id, format)[0]:
+                        info({ 'code' : VIDEO_EXISTS, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists', 'website_id' : website_id, 'video_id' : video_id })
+                        stop = True
             else:
-                search_hqurl = re.compile('"hqURL":"([^"]*)"').search(page_data)
-                if search_hqurl:
-                    video_url = search_hqurl.group(1)
+                error({ 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not determine video URL.' })
+                stop = True
+        except Exception, e:
+            ent({ 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while fetching video webpage.', 'debug' : str(e) })
+            stop = True
 
-        if video_url:
-            request = urllib2.Request(video_url, None, http_headers)
-            webpage = urllib2.urlopen(request)
-            if webpage and webpage.url != '':
-                a, b, alternate_vid, format, d, e = check_dailymotion_video(webpage.url)
-                if generalized_cached_url(o, alternate_vid, website_id, format)[0]:
-                    info({ 'code' : VIDEO_EXISTS, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists', 'website_id' : website_id, 'video_id' : video_id })
-                    return
+        if stop:
+            video.destroy()
+            return
 
-    except Exception, e:
-        ent({ 'code' : VIDEO_PAGE_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while fetching video webpage.', 'debug' : str(e) })
-        return
+        cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
+        tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
-    if not video_url:
-        error({ 'code' : VIDEO_URL_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not determine video URL.' })
-        return
+        video_path = os.path.join(cache_dir, alternate_vid)
+        tmp_path = os.path.join(tmp_dir, alternate_vid)
 
-    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
-    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
-
-    video_path = os.path.join(cache_dir, alternate_vid)
-    tmp_path = os.path.join(tmp_dir, alternate_vid)
-
-    try:
-        if not os.path.exists(video_path):
-            if cache_remote_url(video_url, tmp_path, params):
-                size = os.path.getsize(tmp_path)
-                shutil.move(tmp_path, video_path)
-                os.chmod(video_path, o.file_mode)
-                os.utime(video_path, None)
-                info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
-                if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
+        try:
+            if os.path.exists(video_path):
+                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists at ' + video_path })
             else:
-                if os.path.isfile(tmp_path): os.unlink(tmp_path)
-                return
-        else:
-            info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video already exists at ' + video_path })
-
-        return
+                if cache_remote_url(video_url, tmp_path, { 'proxy' : proxy, 'http_headers' : http_headers }):
+                    size = os.path.getsize(tmp_path)
+                    shutil.move(tmp_path, video_path)
+                    os.chmod(video_path, o.file_mode)
+                    os.utime(video_path, None)
+                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'ALTERNATE_VIDEO_ID ' + alternate_vid + ' Video was cached successfully at ' + video_path })
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : alternate_vid, 'size' : size, 'access_time' : current_time() })
+                else:
+                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
+            video.destroy()
+        except Exception, e:
+            ent({ 'code' : URL_CACHE_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url })
     except Exception, e:
-        ent({ 'code' : URL_CACHE_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url })
-    return
+        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
 
-def cache_generalized(params):
-    # The expected mode of the cached file, so that it is readable by apache
-    # to stream it to the client.
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
-    urls = params.get('urls', [])
-    cur_cache_dir = params.get('cur_cache_dir', None)
-    http_headers = get_random_user_agent()
-    params['http_headers'] = http_headers
+def cache_generalized(video):
+    try:
+        video_id, website_id, url = video.video_id, video.website_id, video.url
+        cur_cache_dir = get_next_cache_dir()
 
-    if video_id == '-' or website_id == '-' or cur_cache_dir == None or len(urls) == 0:
-        error({ 'code' : VIDEO_INFO2_ERR, 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-        return
+        if not (url and cur_cache_dir):
+            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
+            video.destroy()
+            return
 
-    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
-    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
+        cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
+        tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
+        video_path = os.path.join(cache_dir, video_id)
+        tmp_path = os.path.join(tmp_dir, video_id)
 
-    video_path = os.path.join(cache_dir, video_id)
-    tmp_path = os.path.join(tmp_dir, video_id)
-
-    for url in urls:
         original_url = url
         url = refine_url(url, o.arg_drop_list[website_id])
         try:
-            if not os.path.exists(video_path):
-                if cache_remote_url(url, tmp_path, params):
+            if os.path.exists(video_path):
+                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
+            else:
+                if cache_remote_url(url, tmp_path):
                     size = os.path.getsize(tmp_path)
                     shutil.move(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
-                    return
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
-            else:
-                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
-            return
+            video.destroy()
         except Exception, e:
             ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
-    return
+    except Exception, e:
+        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
 
 def cache_android_video(params):
     return
@@ -1405,7 +1433,7 @@ def need_rest_for():
 def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
     for files_to_remove_chunk in chunks(files_to_remove, 25):
         try:
-            VideoFile.destroy({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
+            VideoFile.destroy_by({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
         except Exception, e:
             ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
@@ -1507,6 +1535,10 @@ def rebuild_filelist():
 def cleanup_process():
     time.sleep(10)
     while True:
+        #try:
+        #    schedule()
+        #except Exception, e:
+        #    pass
         try:
             clean_cpn_pool()
         except Exception, e:
@@ -1545,7 +1577,7 @@ def cleancache():
                                 os.unlink(filepath)
                                 cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
                         try:
-                            VideoFile.destroy({ 'id' : delete_ids })
+                            VideoFile.destroy_by({ 'id' : delete_ids })
                         except Exception, e:
                             ent({ 'code' : 'FILE_DELETE_ERR', 'website_id' : website_id, 'message' : 'Error in deleting videos from database ' + str(delete_ids), 'debug' : str(e) })
                         time.sleep(need_rest_for())
