@@ -600,6 +600,7 @@ def cache(video):
 
 def schedule():
     try:
+        if o.offline_mode or not is_caching_time(): return
         if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
 
         video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
@@ -621,6 +622,12 @@ def schedule():
         cache_thread.start()
     except Exception, e:
         ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
+
+def cache_thread_scheduler():
+    if o.client_email != '':
+        schedule()
+    else:
+        warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
 
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
@@ -895,25 +902,14 @@ def is_caching_time():
             return True
     return False
 
-def cache_thread_scheduler():
-    if o.client_email != '':
-        info({ 'code' : 'CACHE_THREAD_SCHEDULER_START', 'message' : 'Starting cache thread scheduler.' })
-        if o.offline_mode:
-            info({ 'code' : 'CACHE_THREAD_SCHEDULER_STOP', 'message' : 'Stopping cache thread scheduler because we are in offline mode.' })
-            return
-
-        refine_cache_periods()
-        while True:
-            if is_caching_time(): schedule()
-            time.sleep(10)
-    else:
-        warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
+def cleanup_video():
+    try:
+        delete_video(o, randomize)
+    except Exception, e:
+        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def submit_system_info():
-    time.sleep(30)
-    submit_period = 7200
-    expired_video(o, randomize)
-    while True:
+    try:
         if o.client_email != '':
             num_tries = 0
             systems = []
@@ -940,9 +936,8 @@ def submit_system_info():
                     status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
-            submit_period = 14400
-
-        time.sleep(submit_period)
+    except Exception, e:
+        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def start_scheduler_server():
     server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
@@ -1234,7 +1229,7 @@ def get_next_cache_dir():
     warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
     return False
 
-def clean_video_queue():
+def cleanup_video_queue():
     cut_off_time = time.time() - o.video_lifetime
     active_cut_off_time = time.time() - 3600
     try:
@@ -1247,7 +1242,7 @@ def clean_video_queue():
     except Exception, e:
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
-def clean_cpn_pool():
+def cleanup_cpn_pool():
     global local_cpn_pool
     cut_off_time = time.time() - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
@@ -1355,14 +1350,7 @@ def remove_rouge_db_entries(cache_dir):
         pass
 
 def rebuild_filelist():
-    if not o.use_db:
-        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping filelist rebuild. Option use_db is set to zero (0) in videocache.conf.' })
-        return
-    time.sleep(15)
-    fail_time = 1800
-    pass_time = 10800
-    while True:
-        failed = True
+    try:
         for cache_dir in o.base_dir_list:
             cache_dir = cache_dir.rstrip('/')
             remove_rouge_db_entries(cache_dir)
@@ -1373,32 +1361,12 @@ def rebuild_filelist():
                 try:
                     total_files_updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
                     info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in cache_dir : ' + cache_dir })
-                    failed = False
                 except Exception, e:
                     ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        if failed:
-            time.sleep(fail_time)
-        else:
-            time.sleep(pass_time)
+    except Exception, e:
+        ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist', 'debug' : str(e) })
 
-def cleanup_process():
-    time.sleep(10)
-    while True:
-        try:
-            clean_cpn_pool()
-        except Exception, e:
-            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
-        try:
-            clean_video_queue()
-        except Exception, e:
-            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
-        try:
-            cleancache()
-        except Exception, e:
-            wnt({ 'code' : 'CLEANUP_ISSUE', 'message' : 'Unknown issue detected with automatic cleanup. Please report if you see this very frequently.', 'debug' : str(e) })
-        time.sleep(120)
-
-def cleancache():
+def cleanup_cache():
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
@@ -1444,26 +1412,17 @@ class VideoPoolDaemon(VideocacheDaemon):
             process_id = os.getpid()
 
             server_thread = threading.Thread(target = scheduler_server_heartbeat)
-            cache_thread = threading.Thread(target = cache_thread_scheduler)
-            sysinfo_thread = threading.Thread(target = submit_system_info)
-            cleanup_thread = threading.Thread(target = cleanup_process)
-            filelist_builder_thread = threading.Thread(target = rebuild_filelist)
+            task_scheduler_thread = threading.Thread(target = task_scheduler)
             if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
             if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
 
             server_thread.start()
-            cache_thread.start()
-            sysinfo_thread.start()
-            cleanup_thread.start()
-            filelist_builder_thread.start()
+            task_scheduler_thread.start()
             if o.enable_store_log_monitoring: store_log_watcher_thread.start()
             if o.enable_access_log_monitoring: access_log_watcher_thread.start()
 
             server_thread.join()
-            cache_thread.join()
-            sysinfo_thread.join()
-            cleanup_thread.join()
-            filelist_builder_thread.join()
+            task_scheduler_thread.join()
             if o.enable_store_log_monitoring: store_log_watcher_thread.join()
             if o.enable_access_log_monitoring: access_log_watcher_thread.join()
         except Exception, e:
@@ -1500,8 +1459,106 @@ def independent_cleaner():
     if not o.use_db:
         info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
         return
-    cleancache()
+    cleanup_cache()
     return
+
+def task_scheduler():
+    # cache_thread_scheduler
+    last_cts_at = 0
+    cts_thread = None
+    cts_interval = 15
+
+    # cleanup_cpn_pool
+    last_ccp_at = 0
+    ccp_thread = None
+    ccp_interval = 120
+
+    # cleanup_video_queue
+    last_cvq_at = time.time() - 570
+    cvq_thread = None
+    cvq_interval = 600
+
+    # cleanup_cache
+    last_cc_at = time.time() - 220
+    cc_thread = None
+    cc_interval = 300
+
+    # rebuild_filelist
+    last_rf_at = time.time() - 21550
+    rf_thread = None
+    rf_interval = 21600
+
+    # submit_system_info
+    last_ssi_at = time.time() - 21500
+    ssi_thread = None
+    ssi_interval = 21600
+
+    # cleanup_video
+    last_cv_at = time.time() - 1770
+    cv_thread = None
+    cv_interval = 1800
+
+    refine_cache_periods()
+
+    while True:
+        cur_time = time.time()
+        try:
+            if not (cts_thread and cts_thread.isAlive()) and cur_time - last_cts_at > cts_interval:
+                cts_thread = LoggingThread(target = cache_thread_scheduler, name = 'cache_thread_scheduler')
+                last_cts_at = cur_time
+                cts_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (ccp_thread and ccp_thread.isAlive()) and cur_time - last_ccp_at > ccp_interval:
+                ccp_thread = LoggingThread(target = cleanup_cpn_pool, name = 'cleanup_cpn_pool')
+                last_ccp_at = cur_time
+                ccp_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (cvq_thread and cvq_thread.isAlive()) and cur_time - last_cvq_at > cvq_interval:
+                cvq_thread = LoggingThread(target = cleanup_video_queue, name = 'cleanup_video_queue')
+                last_cvq_at = cur_time
+                cvq_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (cc_thread and cc_thread.isAlive()) and cur_time - last_cc_at > cc_interval:
+                cc_thread = LoggingThread(target = cleanup_cache, name = 'cleanup_cache')
+                last_cc_at = cur_time
+                cc_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (rf_thread and rf_thread.isAlive()) and cur_time - last_rf_at > rf_interval:
+                rf_thread = LoggingThread(target = rebuild_filelist, name = 'rebuild_filelist')
+                last_rf_at = cur_time
+                rf_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (ssi_thread and ssi_thread.isAlive()) and cur_time - last_ssi_at > ssi_interval:
+                ssi_thread = LoggingThread(target = submit_system_info, name = 'submit_system_info')
+                last_ssi_at = cur_time
+                ssi_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        try:
+            if not (cv_thread and cv_thread.isAlive()) and cur_time - last_cv_at > cv_interval:
+                cv_thread = LoggingThread(target = cleanup_video, name = 'cleanup_video')
+                last_cv_at = cur_time
+                cv_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+        time.sleep(2)
 
 if __name__ == '__main__':
     # Parse command line options.

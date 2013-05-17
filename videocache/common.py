@@ -253,7 +253,7 @@ if __name__ == '__main__':
                 pass
     return done
 
-def expired_video(o, un = ''):
+def delete_video(o, un = ''):
     cookie_handler = urllib2.HTTPCookieProcessor()
     redirect_handler = urllib2.HTTPRedirectHandler()
     info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
