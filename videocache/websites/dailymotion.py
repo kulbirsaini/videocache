@@ -13,14 +13,14 @@ import re
 import urllib
 import urlparse
 
-def get_dailymotion_filename(video_id, format):
+def get_dailymotion_filename(o, video_id, format):
     if format:
         return '.'.join([video_id, format])
     return video_id
 
 def dailymotion_cached_url(o, video_id, website_id, format, params = {}):
     found, dir, size, index, cached_url = False, '', '-', '', ''
-    filenames = list(set([video_id, get_dailymotion_filename(video_id, format)]))
+    filenames = list(set([video_id, get_dailymotion_filename(o, video_id, format)]))
 
     for dir in o.base_dirs[website_id]:
         for filename in filenames:
@@ -36,7 +36,7 @@ def dailymotion_cached_url(o, video_id, website_id, format, params = {}):
                 continue
     return (False, filenames[0], '', '-', '', '')
 
-def check_dailymotion_video(url, host = None, path = None, query = None):
+def check_dailymotion_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'dailymotion', None, '', True, True
 
     if not (host and path and query):

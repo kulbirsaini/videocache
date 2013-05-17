@@ -12,7 +12,7 @@ import re
 import urllib
 import urlparse
 
-def check_spankwire_video(url, host = None, path = None, query = None):
+def check_spankwire_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'spankwire', None, '', True, True
 
     if not (host and path and query):

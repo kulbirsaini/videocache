@@ -12,7 +12,7 @@ import re
 import urllib
 import urlparse
 
-def check_keezmovies_video(url, host = None, path = None, query = None):
+def check_keezmovies_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'keezmovies', None, '', True, True
 
     if not (host and path and query):

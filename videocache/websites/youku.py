@@ -18,7 +18,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 sys.path.insert(0, root_dir)
 from common import is_valid_ip
 
-def check_youku_video(url, host = None, path = None, query = None):
+def check_youku_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'youku', None, '', True, True
 
     if not (host and path and query):

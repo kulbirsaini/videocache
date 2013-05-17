@@ -185,9 +185,9 @@ def squid_part():
             if not skip and o.enable_videocache:
                 for website_id in o.websites:
                     if eval('o.enable_' + website_id + '_cache'):
-                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(url, host, path, query)')
+                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(o, url, host, path, query)')
                         if matched:
-                            if video_id == None or video_id == '':
+                            if not video_id:
                                 warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
                                 break
 
@@ -204,33 +204,37 @@ def squid_part():
                                         if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
                                     (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                     if not found:
-                                        old_video_id = video_id
                                         cpn = get_youtube_cpn_from_query(query)
-                                        try:
-                                            if cpn in local_cpn_pool:
-                                                video_id = local_cpn_pool[cpn]['video_id']
-                                                local_cpn_pool[cpn]['last_used'] = time.time()
-                                            else:
-                                                result = YoutubeCPN.first({ 'cpn' : cpn })
-                                                if result:
-                                                    video_id = result.video_id
+                                        if len(video_id) == 11:
+                                            if cpn not in local_cpn_pool:
+                                                local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+                                        else:
+                                            old_video_id = video_id
+                                            try:
+                                                if cpn in local_cpn_pool:
+                                                    video_id = local_cpn_pool[cpn]['video_id']
+                                                    local_cpn_pool[cpn]['last_used'] = time.time()
                                                 else:
-                                                    video_id = False
-                                                if video_id == False:
-                                                    time.sleep(2)
                                                     result = YoutubeCPN.first({ 'cpn' : cpn })
                                                     if result:
                                                         video_id = result.video_id
                                                     else:
                                                         video_id = False
-                                            if video_id:
-                                                if cpn not in local_cpn_pool:
-                                                    local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                                                (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
-                                            else:
+                                                    if video_id == False:
+                                                        time.sleep(2)
+                                                        result = YoutubeCPN.first({ 'cpn' : cpn })
+                                                        if result:
+                                                            video_id = result.video_id
+                                                        else:
+                                                            video_id = False
+                                                if video_id:
+                                                    if cpn not in local_cpn_pool:
+                                                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+                                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                                else:
+                                                    video_id = old_video_id
+                                            except Exception, e:
                                                 video_id = old_video_id
-                                        except Exception, e:
-                                            video_id = old_video_id
                                 else:
                                     (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
                                 if new_url == '':
@@ -243,8 +247,10 @@ def squid_part():
                                 params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}
                                 if website_id == 'youtube':
                                     params.update({ 'url' : ''})
-                                    if len(video_id) != 11: params.update({ 'cacheable' : False })
-                                if website_id != 'android': add_video_to_local_pool(params)
+                                    if len(video_id) == 11:
+                                        add_video_to_local_pool(params)
+                                elif website_id != 'android':
+                                    add_video_to_local_pool(params)
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )

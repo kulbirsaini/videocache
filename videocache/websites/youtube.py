@@ -164,7 +164,7 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
                 continue
     return (False, filename, '', '-', '')
 
-def check_youtube_video(url, host = None, path = None, query = None):
+def check_youtube_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'youtube', None, '', True, True
 
     if not (host and path and query):
@@ -174,7 +174,10 @@ def check_youtube_video(url, host = None, path = None, query = None):
     format = get_youtube_video_format_from_query(query)
 
     # Normal youtube videos in web browser
-    if (path.find('get_video') > -1 or path.find('watch') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
+    if host.find('.youtube.com') > -1 and path.find('stream_204') > -1 and 'view=' in query:
+        video_id = get_youtube_video_id_from_query(query)
+        search = False
+    elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):
         video_id = get_youtube_video_id_from_query(query)
         search = False
     # Embedded youtube videos
@@ -198,5 +201,7 @@ def check_youtube_video(url, host = None, path = None, query = None):
     else:
         matched = False
 
+    if format in o.youtube_skip_caching_itags:
+        queue = False
     return (matched, website_id, video_id, format, search, queue)
 

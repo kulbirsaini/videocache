@@ -15,7 +15,7 @@ import stat
 import statvfs
 import subprocess
 
-def get_generalized_filename(video_id, format):
+def get_generalized_filename(o, video_id, format):
     return video_id + format
 
 def generalized_cached_url(o, video_id, website_id, format, params = {}):

@@ -33,7 +33,7 @@ class VideocacheOptions:
         self.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
         self.youtube_audio_only_itags = [ '140', '141' ]
         self.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
-        self.youtube_skip_caching = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
+        self.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
         self.youtube_formats = {
             '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
             '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},

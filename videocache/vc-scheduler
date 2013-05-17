@@ -642,26 +642,32 @@ def schedule():
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
 
-def cache_remote_url(remote_url, target_file, params = {}):
-    video = params.get('video', None)
-    if video:
-        video_id, website_id = video.video_id, video.website_id
-    else:
-        video_id, website_id = '-', '-'
-    http_headers = params.get('http_headers', get_random_user_agent())
-    proxy = params.get('proxy', o.proxy)
-    max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
-    min_video_size = params.get('min_video_size', o.min_video_size)
-    max_video_size = params.get('max_video_size', o.max_video_size)
-
-    if not http_headers.has_key('User-Agent'):
-        http_headers.update(get_random_user_agent())
-
-    if proxy:
-        urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
-    request = urllib2.Request(remote_url, None, http_headers)
-
+def remove_file(filename):
     try:
+        if os.path.isfile(target_file): os.unlink(target_file)
+    except Exception, e:
+        pass
+
+def cache_remote_url(remote_url, target_file, params = {}):
+    try:
+        video = params.get('video', None)
+        if video:
+            video_id, website_id = video.video_id, video.website_id
+        else:
+            video_id, website_id = '-', '-'
+        http_headers = params.get('http_headers', get_random_user_agent())
+        proxy = params.get('proxy', o.proxy)
+        max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
+        min_video_size = params.get('min_video_size', o.min_video_size)
+        max_video_size = params.get('max_video_size', o.max_video_size)
+
+        if not http_headers.has_key('User-Agent'):
+            http_headers.update(get_random_user_agent())
+
+        if proxy:
+            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
+        request = urllib2.Request(remote_url, None, http_headers)
+
         connection = urllib2.urlopen(request)
         try:
             conn_info = connection.info()
@@ -700,9 +706,10 @@ def cache_remote_url(remote_url, target_file, params = {}):
         target_file_size = os.path.getsize(target_file)
         if video_size != -1 and target_file_size < 0.97 * video_size:
             error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
-            os.unlink(target_file)
+            remove_file(target_file)
             return False
     except urllib2.HTTPError, e:
+        remove_file(target_file)
         try:
             ent({ 'code' : CACHE_HTTP_ERR, 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
@@ -710,6 +717,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
             ent({ 'code' : CACHE_HTTP_ERR, 'message' : 'HTTP error. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
     except Exception, e:
+        remove_file(target_file)
         ent({ 'code' : CACHE_ERR, 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
         return False
     return True
@@ -724,141 +732,91 @@ def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
             except:
                 pass
 
-def cache_youtube_video(params):
-    video_id = params.get('video_id', '-')
-    website_id = params.get('website_id', '-')
-    format = params.get('format', '')
-    cur_cache_dir = params.get('cur_cache_dir', None)
-    proxy = params.get('proxy', o.proxy)
-    http_headers = get_random_user_agent()
-    params['http_headers'] = http_headers
-
-    if video_id == '-' or website_id == '-' or cur_cache_dir == None:
-        error({ 'code' : VIDEO_INFO2_ERR, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Enough video info not available in thread' })
-        return
-
-    if proxy: urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
-
-    video_info = None
-    for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
-        info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
-        request = urllib2.Request(info_url, None, http_headers)
-        try:
-            video_info = cgi.parse_qs(urllib2.urlopen(request).read())
-            try:
-                view_count = int(video_info.get('view_count', [0])[0])
-            except Exception, e:
-                view_count = o.min_youtube_views + 100
-
-            if view_count < o.min_youtube_views:
-                info({ 'code' : VIEW_COUNT_LOW, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
-                return
-            if 'url_encoded_fmt_stream_map' in video_info:
-                break
-        except Exception, e:
-            ent({'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info', 'debug' : str(e) })
-    else:
-        error({ 'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not fetch required info to cache video' })
-        return
-
+def cache_youtube_video(video):
     try:
-        url_map = {}
-        [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
-        alternate_vid = get_youtube_video_id(url_map.values()[0])
-        if alternate_vid and len(alternate_vid) == 16:
-            migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
-    except Exception, e:
-        ent({ 'code' : URL_EXTRACTION_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
-        return
+        video_id, website_id, fmt = video.video_id, video.website_id, video.format
+        if not fmt:
+            fmt = '34'
+        cur_cache_dir = get_next_cache_dir()
+        proxy = o.proxy
+        http_headers = get_random_user_agent()
 
-    cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
-    tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
+        if not cur_cache_dir:
+            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
+            video.destroy()
+            return
 
-    video_details = video_pool.get_details(video_id, website_id)['fmts']
-    if alternate_vid:
-        video_details_2 = video_pool.get_details(alternate_vid, website_id)['fmts']
-        if len(video_details_2.keys()) > 0:
-            all_keys = list(set(video_details.keys() + video_details_2.keys()))
-            new_details = {}
-            for vd in [video_details, video_details_2]:
-                for fmt_key in vd.keys():
-                    new_details[fmt_key] = { 'score' : vd[fmt_key]['score'] + new_details.get(fmt_key, { 'score' : 0 })['score'] }
-            video_details = new_details
+        if proxy: urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
 
-    fmt_scores = sorted([(video_details[itag]['score'], itag) for itag in video_details], reverse = True)
-    if len(fmt_scores) == 0:
-        fmt_scores = [(2, '35')]
+        video_info = None
+        for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
+            info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
+            request = urllib2.Request(info_url, None, http_headers)
+            try:
+                video_info = cgi.parse_qs(urllib2.urlopen(request).read())
+                try:
+                    if int(video_info.get('view_count', [0])[0]) < o.min_youtube_views:
+                        info({ 'code' : VIEW_COUNT_LOW, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
+                        video.destroy()
+                        return
+                except Exception, e:
+                    pass
 
-    first = True
-    num_cached_formats = 0
-    for score, fmt in fmt_scores:
-        if first:
-            first = False
+                if 'url_encoded_fmt_stream_map' in video_info:
+                    break
+            except Exception, e:
+                ent({'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info from ' + info_url, 'debug' : str(e) })
         else:
-            popular = video_pool.get_popular(1)
-            if len(popular) != 1 and len(popular[0]) != 2:
-                continue
-            pop_video_id, pop_web_id = popular[0]
-            if score < video_pool.get_score(pop_video_id, pop_web_id):
-                video_pool.set_score(video_id, website_id, score)
-                video_pool.remove_conn(video_id, website_id)
-                break
+            warn({ 'code' : 'VIDEO_INFO_FETCH_WARN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not fetch required info to cache video. Please report this if it happens very frequently.' })
+            video.destroy()
+            return
+
+        try:
+            url_map = {}
+            [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
+            alternate_vid = get_youtube_video_id(url_map.values()[0])
+            if alternate_vid and len(alternate_vid) == 16:
+                migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
+        except Exception, e:
+            ent({ 'code' : URL_EXTRACTION_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
+            video.destroy()
+            return
+
+        cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
+        tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
 
         if url_map.has_key(fmt):
+            stop = False
             if o.youtube_formats.has_key(fmt) and o.youtube_formats[fmt]['res'] > o.max_youtube_video_quality:
-                continue
-            if o.enable_youtube_html5_videos == 0 and o.youtube_formats[fmt]['cat'] in ['webm', 'webm_3d']:
-                continue
-            if o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
-                continue
-            if youtube_cached_url(o, alternate_vid, website_id, fmt)[0]:
-                filename = get_youtube_filename(o, alternate_vid, fmt)
-                new_filename = get_youtube_filename(o, video_id, fmt)
-                video_path = os.path.join(cache_dir, filename)
-                new_video_path = os.path.join(cache_dir, new_filename)
-                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : alternate_vid, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
-                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
-                if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                num_cached_formats += 1
-                if os.path.isfile(video_path) and not os.path.isfile(new_video_path):
-                    shutil.move(video_path, new_video_path)
-                    info({ 'code' : 'VIDEO_MOVED', 'website_id' : website_id, 'video_id' : alternate_vid, 'message' : 'Video ' + video_path + ' moved to ' + new_video_path + '.' })
-            elif youtube_cached_url(o, video_id, website_id, fmt)[0]:
-                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path + '.' })
-                video_pool.remove_youtube_video_format(video_id, website_id, fmt)
-                if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                num_cached_formats += 1
+                stop = True
+            if not stop and o.enable_youtube_html5_videos == 0 and o.youtube_formats[fmt]['cat'] in ['webm', 'webm_3d']:
+                stop = True
+            if not stop and o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
+                stop = True
+            if stop:
+                video.destroy()
+                return
+
+            if youtube_cached_url(o, video_id, website_id, fmt)[0]:
+                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path })
             else:
                 video_url = url_map[fmt]
                 filename = get_youtube_filename(o, video_id, fmt)
                 video_path = os.path.join(cache_dir, filename)
                 tmp_path = os.path.join(tmp_dir, filename)
 
-                try:
-                    if cache_remote_url(video_url, tmp_path, params):
-                        size = os.path.getsize(tmp_path)
-                        shutil.move(tmp_path, video_path)
-                        os.chmod(video_path, o.file_mode)
-                        os.utime(video_path, None)
-                        info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
-                        num_cached_formats += 1
-                        video_pool.remove_youtube_video_format(video_id, website_id, fmt)
-                        if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-                        if o.use_db: VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                    else:
-                        if os.path.isfile(tmp_path): os.unlink(tmp_path)
-                except Exception, e:
-                    ent({ 'code' : URL_CACHE_ERR, 'video_id' : video_id, 'message' : 'Failed to cache video at ' + video_url + '.', 'website_id' : website_id })
+                if cache_remote_url(video_url, tmp_path, {'http_headers' : http_headers}):
+                    size = os.path.getsize(tmp_path)
+                    shutil.move(tmp_path, video_path)
+                    os.chmod(video_path, o.file_mode)
+                    os.utime(video_path, None)
+                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
         else:
             info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
-            video_pool.remove_youtube_video_format(video_id, website_id, fmt)
-            if alternate_vid: video_pool.remove_youtube_video_format(alternate_vid, website_id, fmt)
-
-    video_details = video_pool.get_details(video_id, website_id)
-    if len(video_details['fmts'].keys()) == 0 or len(video_details['fmts'].keys()) == num_cached_formats:
-        video_pool.remove(video_id, website_id)
-        if alternate_vid: video_pool.remove(alternate_vid, website_id)
-        info({ 'code' : ALL_QUEUED_FORMATS_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'All formats for this video has been cached already.' })
+        video.destroy()
+    except Exception, e:
+        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
 
 def cache_generalized(video):
     try:
@@ -888,8 +846,6 @@ def cache_generalized(video):
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
                     VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
-                else:
-                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
             video.destroy()
         except Exception, e:
             ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
@@ -1198,7 +1154,7 @@ def watch_store_log():
                     matched = False
                     for website in o.websites:
                         if eval('o.enable_' + website + '_cache'):
-                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(video_url, host, path, query)')
+                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(o, video_url, host, path, query)')
                             if matched:
                                 for video_seek_arg in o.arg_drop_list[website_id]:
                                     if video_seek_arg in dict and not arg_drop_exception(website_id, dict, video_seek_arg):
@@ -1251,9 +1207,10 @@ def watch_store_log():
                             cache_dir = get_next_cache_dir()
                             if cache_dir == False: continue
                             try:
-                                filename = eval('get_' + website_id + '_filename(video_id, format)')
                                 if website_id == 'youtube':
                                     filename = get_youtube_filename(o, video_id, format, youtube_params)
+                                else:
+                                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
                                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
@@ -1265,9 +1222,7 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    if o.use_db: VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                                elif os.path.isfile(tmp_path):
-                                    os.unlink(tmp_path)
+                                    VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                             except Exception, e:
                                 ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
                 except Exception, e:
@@ -1461,6 +1416,7 @@ def cleanup_process():
         #    schedule()
         #except Exception, e:
         #    pass
+        #time.sleep(5)
         try:
             clean_cpn_pool()
         except Exception, e:
