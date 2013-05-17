@@ -108,22 +108,6 @@ class LoggingThread(threading.Thread):
         except Exception, e:
             ent({'code' : CACHE_THREAD_ERR, 'message' : 'Error in cache thread.', 'debug' : str(e)})
 
-def get_connection():
-    global video_pool
-    try:
-        video_pool.ping()
-        return video_pool
-    except:
-        pass
-
-    try:
-        video_pool = ServerProxy(o.rpc_url)
-        video_pool.ping()
-        return video_pool
-    except Exception, e:
-        ent({ 'code' : RPC_CONNECT_ERR, 'error_msg' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e) })
-        return None
-
 def connection():
     global video_pool
     try:
@@ -616,7 +600,6 @@ def cache(video):
 
 def schedule():
     try:
-        if o.offline_mode or not is_caching_time(): return
         if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
 
         video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
@@ -914,26 +897,15 @@ def is_caching_time():
 
 def cache_thread_scheduler():
     if o.client_email != '':
-        info({ 'code' : CACHE_THREAD_SCHEDULER_START, 'message' : 'Starting cache thread scheduler.' })
-        refine_cache_periods()
-        connection()
+        info({ 'code' : 'CACHE_THREAD_SCHEDULER_START', 'message' : 'Starting cache thread scheduler.' })
+        if o.offline_mode:
+            info({ 'code' : 'CACHE_THREAD_SCHEDULER_STOP', 'message' : 'Stopping cache thread scheduler because we are in offline mode.' })
+            return
 
+        refine_cache_periods()
         while True:
-            try:
-                num_tries = 0
-                while num_tries < 10:
-                    try:
-                        if video_pool.schedule():
-                            break
-                    except Exception, e:
-                        connection()
-                    num_tries += 1
-                    time.sleep(min(2 ** num_tries, 10))
-                else:
-                    warn({ 'code' : CACHE_THREAD_SCHEDULE_FAIL, 'message' : 'Could not schedule a cache thread in ' + str(num_tries) + ' tries. Please check RPC server status using vc-scheduler command.' })
-            except Exception, e:
-                wnt({ 'code' : CACHE_THREAD_SCHEDULE_WARN, 'message' : 'Error in scheduling a cache thread. Continuing.', 'debug' : str(e)})
-            time.sleep(5)
+            if is_caching_time(): schedule()
+            time.sleep(10)
     else:
         warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
 
@@ -1412,11 +1384,6 @@ def rebuild_filelist():
 def cleanup_process():
     time.sleep(10)
     while True:
-        #try:
-        #    schedule()
-        #except Exception, e:
-        #    pass
-        #time.sleep(5)
         try:
             clean_cpn_pool()
         except Exception, e:
