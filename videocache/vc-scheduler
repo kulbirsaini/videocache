@@ -1329,7 +1329,7 @@ def watch_store_log():
                             cache_dir = get_next_cache_dir()
                             if cache_dir == False: continue
                             try:
-                                filename = video_id + format
+                                filename = eval('get_' + website_id + '_filename(video_id, format)')
                                 if website_id == 'youtube':
                                     filename = get_youtube_filename(o, video_id, format, youtube_params)
                                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
@@ -1709,6 +1709,7 @@ if __name__ == '__main__':
         # Import website functions
         for website_id in o.websites:
             exec(website_id + '_cached_url = generalized_cached_url')
+            exec('get_' + website_id + '_filename = get_generalized_filename')
             exec('from websites.' + website_id + ' import *')
 
         if o.use_db: initialize_database(o)

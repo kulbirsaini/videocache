@@ -11,7 +11,7 @@ __docformat__ = 'plaintext'
 from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
 from common import *
 from error_codes import *
-from store import generalized_cached_url
+from store import generalized_cached_url, get_generalized_filename
 from vcoptions import VideocacheOptions
 from vcsysinfo import *
 
