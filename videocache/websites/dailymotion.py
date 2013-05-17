@@ -44,6 +44,7 @@ def check_dailymotion_video(url, host = None, path = None, query = None):
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if (re.compile('.*\..*\.dmcdn\.net').search(host) or host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and re.compile('.*\/frag\([0-9]+\)\/.*').search(path) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg|on2)').search(path):
+        queue = False
         fragment = []
         match = re.compile('.*frag\(([0-9]+)\).*').search(path)
         if match:
@@ -54,14 +55,7 @@ def check_dailymotion_video(url, host = None, path = None, query = None):
         else:
             video_id = '_'.join(parts[:-1] + fragment)
             format = parts[-1]
-    elif host.find('.dailymotion.com') > -1 and (re.compile('^/video/[a-zA-Z0-9]{5,9}_?.*').search(path)):
-        search = False
-        try:
-            video_id = urllib.quote(re.compile('/video/([a-zA-Z0-9]{5,9})_?.*').search(path).group(1))
-        except Exception, e:
-            pass
     else:
         matched = False
 
     return (matched, website_id, video_id, format, search, queue)
-
