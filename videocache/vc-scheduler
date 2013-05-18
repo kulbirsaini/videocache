@@ -1456,9 +1456,6 @@ def flush_scheduler_queue():
 
 def independent_cleaner():
     o.set_loggers()
-    if not o.use_db:
-        info({ 'code' : 'DB_USE_DISABLED', 'message' : 'Skipping automatic cache cleaning. Option use_db is set to zero (0) in videocache.conf.' })
-        return
     cleanup_cache()
     return
 
@@ -1614,7 +1611,7 @@ if __name__ == '__main__':
             exec('get_' + website_id + '_filename = get_generalized_filename')
             exec('from websites.' + website_id + ' import *')
 
-        if o.use_db: initialize_database(o)
+        initialize_database(o)
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':

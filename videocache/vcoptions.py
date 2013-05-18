@@ -112,7 +112,6 @@ class VideocacheOptions:
             self.__class__.squid_access_log = mainconf.squid_access_log
             self.__class__.ssl_fo = None
             self.__class__.file_mode = 0644
-            self.__class__.use_db = int(mainconf.use_db)
             self.__class__.db_hostname = mainconf.db_hostname
             self.__class__.db_username = mainconf.db_username
             self.__class__.db_password = mainconf.db_password

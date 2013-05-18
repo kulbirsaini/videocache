@@ -442,4 +442,4 @@ def wnt(params = {}):
     trace(params)
 
 def create_tables():
-    return VideoFile.create_table()
+    return VideoFile.create_table() and VideoQueue.create_table() and YoutubeCPN.create_table()

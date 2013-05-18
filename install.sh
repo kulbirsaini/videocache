@@ -863,24 +863,13 @@ db_code() {
   echo; echo
   heading 'Database Configuration'
   green 'MySQL database is used for hashing cached files for efficient cleanup'
-  ask_question 'Do you want to skip database configuration? (y/n): '
-  if [[ $? == 1 ]]; then
-    message_with_padding "Database configuration"
-    green "Skipped"
-    skip_db=1
-    db_hostname=''
-    db_username=''
-    db_password=''
-    db_database=''
-  else
-    check_mysql_dependencies
-    echo
-    get_db_hostname
-    get_db_username
-    get_db_password
-    get_db_database
-    check_mysql_access
-  fi
+  check_mysql_dependencies
+  echo
+  get_db_hostname
+  get_db_username
+  get_db_password
+  get_db_database
+  check_mysql_access
 }
 
 get_db_hostname() {
@@ -1098,12 +1087,7 @@ build_setup_command() {
   else
     setup_command="$setup_command --skip-apache-conf"
   fi
-  if [[ $skip_db == 0 ]]; then
-    setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database"
-  else
-    setup_command="$setup_command --skip-db"
-  fi
-  setup_command="$setup_command install 2>&1"
+  setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database install 2>&1"
 }
 
 install_videocache() {
@@ -1202,7 +1186,6 @@ client_email=''
 cache_host=''
 this_proxy=''
 setup_command=''
-skip_db=0
 db_hostname=''
 db_username=''
 db_password=''
