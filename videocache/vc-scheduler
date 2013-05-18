@@ -142,7 +142,6 @@ class VideoPool:
     last_scores_rebuild = {}
     last_sync = {}
     cpn_pool = {}
-    subprocess_list = []
 
     def __init__(self):
         for website_id in o.websites:
@@ -206,24 +205,6 @@ class VideoPool:
         for website_id in o.websites:
             if self.scores_changed[website_id] or self.last_scores_rebuild[website_id] > self.last_dump: return True
         return False
-
-    def add_to_subprocess_list(self, pid):
-        if pid not in self.subprocess_list:
-            self.subprocess_list.append(pid)
-        return True
-
-    def remove_from_subprocess_list(self, pid):
-        if pid in self.subprocess_list:
-            self.subprocess_list.remove(pid)
-        return True
-
-    def stop_subprocesses(self):
-        for pid in self.subprocess_list:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except:
-                pass
-        return True
 
     def add_videos(self, videos = {}):
         info({ 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' })
@@ -584,6 +565,7 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
 
     def shutdown(self):
         self.finished = True
+        return True
 
     def server_bind(self):
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -593,29 +575,18 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
         while not self.finished:
             self.handle_request()
 
-def start_scheduler_server():
-    server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
-    server.register_function(server.shutdown)
-    server.register_introspection_functions()
-    server.register_instance(VideoPool())
-    info({ 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' })
-    server.serve_forever()
-
-def scheduler_server_heartbeat():
-    while True:
-        num_tries = 0
-        while num_tries < 5:
-            try:
-                start_scheduler_server()
-            except Exception, e:
-                time.sleep(min(2 ** num_tries, 5))
-                trace({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() })
-
-            num_tries += 1
-        else:
-            error({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler or set rpc_port option in /etc/videocache.conf to a different value.' })
-
-        time.sleep(30)
+def start_rpc_server():
+    try:
+        server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
+        server.register_function(server.shutdown)
+        server.register_introspection_functions()
+        server.register_instance(VideoPool())
+        info({ 'code' : 'VIDEO_POOL_SERVER_START', 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) })
+        server.serve_forever()
+        server.server_close()
+        info({ 'code' : 'VIDEO_POOL_SERVER_STOP', 'message' : 'Stopping VideoPool Server' })
+    except Exception, e:
+        wnt({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Could not start VideoPool server', 'debug' : str(e) })
 
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
@@ -972,11 +943,8 @@ def extract_pids_from_ps(output):
     return pids
 
 def kill_tail_processes(filename, user):
-    try:
-        for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
-            os.kill(pid, signal.SIGTERM)
-    except Exception, e:
-        ent({ 'code' : 'PROCESS_TERMINATE_ERR', 'message' : 'Error while terminating idle process. Please report if this occurs frequently.', 'debug' : str(e) })
+    for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
+        os.kill(pid, signal.SIGTERM)
 
 def tail_file(filename, finder_list = [], any_find = True, interval = 120):
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
@@ -1002,7 +970,10 @@ def tail_file(filename, finder_list = [], any_find = True, interval = 120):
             if shall_yield: yield line
 
         if (time.time() - last_read) > interval:
-            kill_tail_processes(filename, o.videocache_user)
+            try:
+                kill_tail_processes(filename, o.videocache_user)
+            except Exception, e:
+                ent({ 'code' : 'PROCESS_TERMINATE_ERR', 'message' : 'Error while terminating idle process. Please report if this occurs frequently.', 'debug' : str(e) })
             t.join()
             process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
             q = Queue()
@@ -1193,44 +1164,9 @@ def need_rest_for():
         pass
     return rest_for
 
-class VideoPoolDaemon(VideocacheDaemon):
-
-    def __init__(self, o = None, **kwargs):
-        self.o = o
-        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
-
-    def run(self):
-        global process_id
-        try:
-            self.o.set_loggers()
-            process_id = os.getpid()
-
-            server_thread = threading.Thread(target = scheduler_server_heartbeat)
-            task_scheduler_thread = threading.Thread(target = task_scheduler)
-            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
-            if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
-
-            server_thread.start()
-            task_scheduler_thread.start()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.start()
-
-            server_thread.join()
-            task_scheduler_thread.join()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.join()
-        except Exception, e:
-            ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
-
-def stop_subprocesses():
-    connection()
-    try:
-        video_pool.stop_subprocesses()
-    except Exception, e:
-        pass
-
 def submit_system_info():
     try:
+        connection()
         if o.client_email != '':
             num_tries = 0
             systems = []
@@ -1352,8 +1288,7 @@ def rebuild_filelist():
     except Exception, e:
         ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist', 'debug' : str(e) })
 
-def flush_scheduler_queue():
-    o.set_loggers()
+def flush_video_queue():
     try:
         while True:
             count, results = VideoQueue.execute('DELETE FROM %s LIMIT 500;' % VideoQueue.table_name)
@@ -1409,11 +1344,6 @@ def cleanup_cache():
         except Exception, e:
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
-
-def independent_cleaner():
-    o.set_loggers()
-    cleanup_cache()
-    return
 
 def cleanup_video_queue():
     cut_off_time = time.time() - o.video_queue_lifetime
@@ -1490,6 +1420,11 @@ def task_scheduler():
     cv_thread = None
     cv_interval = 1800
 
+    # start_rpc_server
+    last_srs_at = 0
+    srs_thread = None
+    srs_interval = 10
+
     refine_cache_periods()
 
     while True:
@@ -1550,7 +1485,53 @@ def task_scheduler():
         except Exception, e:
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
+        try:
+            if not (srs_thread and srs_thread.isAlive()) and cur_time - last_srs_at > srs_interval:
+                srs_thread = LoggingThread(target = start_rpc_server, name = 'start_rpc_server')
+                last_srs_at = cur_time
+                srs_thread.start()
+        except Exception, e:
+            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
         time.sleep(2)
+
+class VideoPoolDaemon(VideocacheDaemon):
+
+    def __init__(self, o = None, **kwargs):
+        self.o = o
+        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
+
+    def run(self):
+        global process_id
+        try:
+            self.o.set_loggers()
+            process_id = os.getpid()
+
+            task_scheduler_thread = threading.Thread(target = task_scheduler)
+            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
+            if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
+
+            task_scheduler_thread.start()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
+            if o.enable_access_log_monitoring: access_log_watcher_thread.start()
+
+            task_scheduler_thread.join()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
+            if o.enable_access_log_monitoring: access_log_watcher_thread.join()
+        except Exception, e:
+            ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
+
+def cleanup_processes():
+    connection()
+    try:
+        video_pool.shutdown()
+    except:
+        pass
+    for filename in [o.squid_access_log, o.squid_store_log]:
+        try:
+            kill_tail_processes(filename, o.videocache_user)
+        except:
+            pass
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -1607,26 +1588,25 @@ if __name__ == '__main__':
             exec('from websites.' + website_id + ' import *')
 
         initialize_database(o)
+        if options.sig in ['flush', 'clean']:
+            os.setgid(uid)
+            os.setuid(uid)
+            o.set_loggers()
+
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
-            stop_subprocesses()
+            cleanup_processes()
             daemon.stop()
         elif options.sig == 'restart':
-            stop_subprocesses()
+            cleanup_processes()
             daemon.restart()
-        elif options.sig == 'kill':
-            daemon.kill()
         elif options.sig == 'status':
             daemon.status()
         elif options.sig == 'flush':
-            os.setgid(uid)
-            os.setuid(uid)
-            flush_scheduler_queue()
+            flush_video_queue()
         elif options.sig == 'clean':
-            os.setgid(uid)
-            os.setuid(uid)
-            independent_cleaner()
+            cleanup_cache()
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:

@@ -65,7 +65,7 @@ def wnt(params = {}):
     trace(params)
 
 def sync_video_info():
-    sysinfo_last_submitted_at = 0
+    sysinfo_last_submitted_at = time.time() - 3540
     sysinfo_submit_interval = 3600
 
     sleep_time = 10
@@ -97,7 +97,7 @@ def sync_video_info():
             ent({ 'code' : 'VIDEO_SUBMIT_FAIL', 'message' : 'Could not submit video information to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
 
 def submit_system_info():
-    expired_video(o)
+    delete_video(o)
     try:
         num_tries = 0
         while num_tries < 5:
