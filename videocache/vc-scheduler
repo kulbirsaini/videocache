@@ -946,30 +946,6 @@ def is_cached(video_url):
     trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
     return False
 
-def add_pid_to_subprocess_list(pid):
-    try:
-        video_pool.ping()
-        video_pool.add_to_subprocess_list(pid)
-    except:
-        connection()
-        try:
-            video_pool.ping()
-            video_pool.add_to_subprocess_list(pid)
-        except:
-            pass
-
-def remove_pid_from_subprocess_list(pid):
-    try:
-        video_pool.ping()
-        video_pool.remove_from_subprocess_list(pid)
-    except:
-        connection()
-        try:
-            video_pool.ping()
-            video_pool.remove_from_subprocess_list(pid)
-        except:
-            pass
-
 def arg_drop_exception(website_id, dict, arg):
     if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
         return True
@@ -986,13 +962,27 @@ def enqueue_output(output, queue):
         pass
     return
 
+def extract_pids_from_ps(output):
+    results = output.strip().split('\n')
+    pids = []
+    for result in results:
+        match = re.compile('^[^\ ]+[ ]+([0-9]+)').search(result)
+        if match and is_integer(match.group(1)):
+            pids.append(int(match.group(1)))
+    return pids
+
+def kill_tail_processes(filename, user):
+    try:
+        for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
+            os.kill(pid, signal.SIGTERM)
+    except Exception, e:
+        ent({ 'code' : 'PROCESS_TERMINATE_ERR', 'message' : 'Error while terminating idle process. Please report if this occurs frequently.', 'debug' : str(e) })
+
 def tail_file(filename, finder_list = [], any_find = True, interval = 120):
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
     q = Queue()
     t = threading.Thread(target = enqueue_output, args = (process.stdout, q))
     t.start()
-
-    add_pid_to_subprocess_list(process.pid)
 
     last_read = time.time()
     while True:
@@ -1012,11 +1002,9 @@ def tail_file(filename, finder_list = [], any_find = True, interval = 120):
             if shall_yield: yield line
 
         if (time.time() - last_read) > interval:
-            remove_pid_from_subprocess_list(process.pid)
-            os.kill(process.pid, signal.SIGKILL)
+            kill_tail_processes(filename, o.videocache_user)
             t.join()
             process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-            add_pid_to_subprocess_list(process.pid)
             q = Queue()
             t = threading.Thread(target = enqueue_output, args = (process.stdout, q))
             t.start()

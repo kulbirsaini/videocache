@@ -43,6 +43,20 @@ def datetime_to_timestamp(t):
 def timestamp_to_datetime(t):
     return datetime.datetime.fromtimestamp(float(t))
 
+def is_integer(number):
+    try:
+        int(number)
+        return True
+    except:
+        return False
+
+def is_float(number):
+    try:
+        float(number)
+        return True
+    except:
+        return False
+
 def is_valid_domain_port(name):
     if re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$').match(name):
         return True
