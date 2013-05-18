@@ -593,41 +593,29 @@ class VideoPoolRPCServer(SimpleXMLRPCServer):
         while not self.finished:
             self.handle_request()
 
-def cache(video):
-    info({ 'code' : CACHE_THREAD_START, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
-    eval('cache_' + video.website_id + '_video(video)')
-    info({ 'code' : CACHE_THREAD_REMOVE, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
+def start_scheduler_server():
+    server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
+    server.register_function(server.shutdown)
+    server.register_introspection_functions()
+    server.register_instance(VideoPool())
+    info({ 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' })
+    server.serve_forever()
 
-def schedule():
-    try:
-        if o.offline_mode or not is_caching_time(): return
-        if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
+def scheduler_server_heartbeat():
+    while True:
+        num_tries = 0
+        while num_tries < 5:
+            try:
+                start_scheduler_server()
+            except Exception, e:
+                time.sleep(min(2 ** num_tries, 5))
+                trace({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() })
 
-        video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
-        if not video: return
+            num_tries += 1
+        else:
+            error({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler or set rpc_port option in /etc/videocache.conf to a different value.' })
 
-        if not (video.video_id and video.website_id):
-            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Unable to locate video_id or website_id. Removing from queue. ' + str(video.to_params()) })
-            video.destroy()
-            return
-
-        if video.access_count < o.hit_threshold: return
-
-        if o.enable_store_log_monitoring:
-            cut_off_time = time.time() - o.store_log_threshold
-            if cut_off_time < video.first_access: return
-
-        video.update_attributes({ 'access_count' : 0, 'active' : True, 'activated_at' : time.time() })
-        cache_thread = LoggingThread(target = cache, name = str(video.video_id), args = (video,))
-        cache_thread.start()
-    except Exception, e:
-        ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
-
-def cache_thread_scheduler():
-    if o.client_email != '':
-        schedule()
-    else:
-        warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
+        time.sleep(30)
 
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
@@ -637,6 +625,16 @@ def remove_file(filename):
         if os.path.isfile(target_file): os.unlink(target_file)
     except Exception, e:
         pass
+
+def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
+    if not old_video_id or not new_video_id:
+        return
+    for youtube_dir in o.base_dirs[website_id]:
+        for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
+            try:
+                shutil.move(filename, filename.replace(old_video_id, new_video_id))
+            except:
+                pass
 
 def cache_remote_url(remote_url, target_file, params = {}):
     try:
@@ -711,16 +709,6 @@ def cache_remote_url(remote_url, target_file, params = {}):
         ent({ 'code' : CACHE_ERR, 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
         return False
     return True
-
-def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
-    if not old_video_id or not new_video_id:
-        return
-    for youtube_dir in o.base_dirs[website_id]:
-        for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
-            try:
-                shutil.move(filename, filename.replace(old_video_id, new_video_id))
-            except:
-                pass
 
 def cache_youtube_video(video):
     try:
@@ -902,66 +890,41 @@ def is_caching_time():
             return True
     return False
 
-def cleanup_video():
+def cache(video):
+    info({ 'code' : CACHE_THREAD_START, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
+    eval('cache_' + video.website_id + '_video(video)')
+    info({ 'code' : CACHE_THREAD_REMOVE, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
+
+def schedule():
     try:
-        delete_video(o, randomize)
+        if o.offline_mode or not is_caching_time(): return
+        if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
+
+        video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
+        if not video: return
+
+        if not (video.video_id and video.website_id):
+            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Unable to locate video_id or website_id. Removing from queue. ' + str(video.to_params()) })
+            video.destroy()
+            return
+
+        if video.access_count < o.hit_threshold: return
+
+        if o.enable_store_log_monitoring:
+            cut_off_time = time.time() - o.store_log_threshold
+            if cut_off_time < video.first_access: return
+
+        video.update_attributes({ 'access_count' : 0, 'active' : True, 'activated_at' : time.time() })
+        cache_thread = LoggingThread(target = cache, name = str(video.video_id), args = (video,))
+        cache_thread.start()
     except Exception, e:
-        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
+        ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
 
-def submit_system_info():
-    try:
-        if o.client_email != '':
-            num_tries = 0
-            systems = []
-            while num_tries < 5:
-                try:
-                    video_pool.ping()
-                    systems = video_pool.get_systems()
-                    break
-                except Exception, e:
-                    connection()
-
-                time.sleep(min(2 ** num_tries, 10))
-                num_tries += 1
-
-            if len(systems) != 0:
-                cookie_handler = urllib2.HTTPCookieProcessor()
-                redirect_handler = urllib2.HTTPRedirectHandler()
-                info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-                for system in systems:
-                    new_info = {}
-                    for k,v in system.items():
-                        new_info['[server][' + k + ']'] = v
-
-                    status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
-        else:
-            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
-    except Exception, e:
-        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
-
-def start_scheduler_server():
-    server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
-    server.register_function(server.shutdown)
-    server.register_introspection_functions()
-    server.register_instance(VideoPool())
-    info({ 'code' : VIDEO_POOL_SERVER_START, 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) + '.' })
-    server.serve_forever()
-
-def scheduler_server_heartbeat():
-    while True:
-        num_tries = 0
-        while num_tries < 5:
-            try:
-                start_scheduler_server()
-            except Exception, e:
-                time.sleep(min(2 ** num_tries, 5))
-                trace({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : traceback.format_exc() })
-
-            num_tries += 1
-        else:
-            error({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Video Pool Server (RPC Server) is crashing time and again. Please check if there any other program listening on port 9100. If so, close/kill that program and then restart vc-scheduler or set rpc_port option in /etc/videocache.conf to a different value.' })
-
-        time.sleep(30)
+def cache_thread_scheduler():
+    if o.client_email != '':
+        schedule()
+    else:
+        warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
 
 def is_cached(video_url):
     try:
@@ -982,15 +945,6 @@ def is_cached(video_url):
             pass
     trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
     return False
-
-def enqueue_output(output, queue):
-    try:
-        for line in iter(output.readline, ''):
-            queue.put(line)
-        output.close()
-    except:
-        pass
-    return
 
 def add_pid_to_subprocess_list(pid):
     try:
@@ -1015,6 +969,22 @@ def remove_pid_from_subprocess_list(pid):
             video_pool.remove_from_subprocess_list(pid)
         except:
             pass
+
+def arg_drop_exception(website_id, dict, arg):
+    if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
+        return True
+    if website_id == 'dailymotion' and arg == 'seek' and dict['seek'][0] == '0':
+        return True
+    return False
+
+def enqueue_output(output, queue):
+    try:
+        for line in iter(output.readline, ''):
+            queue.put(line)
+        output.close()
+    except:
+        pass
+    return
 
 def tail_file(filename, finder_list = [], any_find = True, interval = 120):
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
@@ -1082,13 +1052,6 @@ def watch_access_log():
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
     except Exception, e:
         ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
-
-def arg_drop_exception(website_id, dict, arg):
-    if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
-        return True
-    if website_id == 'dailymotion' and arg == 'seek' and dict['seek'][0] == '0':
-        return True
-    return False
 
 def watch_store_log():
     global local_cpn_pool
@@ -1197,7 +1160,6 @@ def watch_store_log():
     except Exception, e:
         ent({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
 
-
 def update_disk_space():
     global base_dir_disk_space
     for cache_dir in o.base_dir_list:
@@ -1229,37 +1191,6 @@ def get_next_cache_dir():
     warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
     return False
 
-def cleanup_video_queue():
-    cut_off_time = time.time() - o.video_lifetime
-    active_cut_off_time = time.time() - 3600
-    try:
-        while True:
-            count, results = VideoQueue.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 1000;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time)))
-            if count < 1000:
-                break
-            time.sleep(need_rest_for())
-        VideoQueue.execute('UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at = NULL OR activated_at < "%s");' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)))
-    except Exception, e:
-        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
-
-def cleanup_cpn_pool():
-    global local_cpn_pool
-    cut_off_time = time.time() - o.cpn_lifetime
-    for cpn_id in local_cpn_pool.keys():
-        try:
-            if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
-                local_cpn_pool.pop(cpn_id, None)
-        except:
-            pass
-    try:
-        while True:
-            count, results = YoutubeCPN.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 1000;' % (YoutubeCPN.table_name, timestamp_to_datetime(cut_off_time)))
-            if count < 1000:
-                break
-            time.sleep(need_rest_for())
-    except Exception, e:
-        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
-
 def need_rest_for():
     rest_for = 2
     try:
@@ -1273,6 +1204,73 @@ def need_rest_for():
     except Exception, e:
         pass
     return rest_for
+
+class VideoPoolDaemon(VideocacheDaemon):
+
+    def __init__(self, o = None, **kwargs):
+        self.o = o
+        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
+
+    def run(self):
+        global process_id
+        try:
+            self.o.set_loggers()
+            process_id = os.getpid()
+
+            server_thread = threading.Thread(target = scheduler_server_heartbeat)
+            task_scheduler_thread = threading.Thread(target = task_scheduler)
+            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
+            if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
+
+            server_thread.start()
+            task_scheduler_thread.start()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
+            if o.enable_access_log_monitoring: access_log_watcher_thread.start()
+
+            server_thread.join()
+            task_scheduler_thread.join()
+            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
+            if o.enable_access_log_monitoring: access_log_watcher_thread.join()
+        except Exception, e:
+            ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
+
+def stop_subprocesses():
+    connection()
+    try:
+        video_pool.stop_subprocesses()
+    except Exception, e:
+        pass
+
+def submit_system_info():
+    try:
+        if o.client_email != '':
+            num_tries = 0
+            systems = []
+            while num_tries < 5:
+                try:
+                    video_pool.ping()
+                    systems = video_pool.get_systems()
+                    break
+                except Exception, e:
+                    connection()
+
+                time.sleep(min(2 ** num_tries, 10))
+                num_tries += 1
+
+            if len(systems) != 0:
+                cookie_handler = urllib2.HTTPCookieProcessor()
+                redirect_handler = urllib2.HTTPRedirectHandler()
+                info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+                for system in systems:
+                    new_info = {}
+                    for k,v in system.items():
+                        new_info['[server][' + k + ']'] = v
+
+                    status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
+        else:
+            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
+    except Exception, e:
+        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
     for files_to_remove_chunk in chunks(files_to_remove, 25):
@@ -1342,8 +1340,8 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
 def remove_rouge_db_entries(cache_dir):
     try:
         while True:
-            count, results = VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s" LIMIT 1000;' % (VideoFile.table_name, os.path.join(cache_dir, '')))
-            if count < 1000:
+            count, results = VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s" LIMIT 500;' % (VideoFile.table_name, os.path.join(cache_dir, '')))
+            if count < 500:
                 return
             time.sleep(need_rest_for())
     except Exception, e:
@@ -1365,6 +1363,31 @@ def rebuild_filelist():
                     ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
     except Exception, e:
         ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist', 'debug' : str(e) })
+
+def flush_scheduler_queue():
+    o.set_loggers()
+    try:
+        while True:
+            count, results = VideoQueue.execute('DELETE FROM %s LIMIT 500;' % VideoQueue.table_name)
+            if count < 500:
+                break
+            time.sleep(need_rest_for())
+        info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
+    except Exception, e:
+        ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
+    for cache_dir in o.base_dir_list:
+        queue_file = os.path.join(cache_dir, o.queue_dump_file)
+        if os.path.isfile(queue_file):
+            try:
+                os.unlink(queue_file)
+            except Exception, e:
+                pass
+
+def cleanup_video():
+    try:
+        delete_video(o, randomize)
+    except Exception, e:
+        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_cache():
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
@@ -1399,65 +1422,49 @@ def cleanup_cache():
             cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
     cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
 
-class VideoPoolDaemon(VideocacheDaemon):
-
-    def __init__(self, o = None, **kwargs):
-        self.o = o
-        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
-
-    def run(self):
-        global process_id
-        try:
-            self.o.set_loggers()
-            process_id = os.getpid()
-
-            server_thread = threading.Thread(target = scheduler_server_heartbeat)
-            task_scheduler_thread = threading.Thread(target = task_scheduler)
-            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
-            if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
-
-            server_thread.start()
-            task_scheduler_thread.start()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.start()
-
-            server_thread.join()
-            task_scheduler_thread.join()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.join()
-        except Exception, e:
-            ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
-
-def stop_subprocesses():
-    connection()
-    try:
-        video_pool.stop_subprocesses()
-    except Exception, e:
-        pass
-
-def flush_scheduler_queue():
-    o.set_loggers()
-    try:
-        while True:
-            count, results = VideoQueue.execute('DELETE FROM %s LIMIT 1000;' % VideoQueue.table_name)
-            if count < 1000:
-                break
-            time.sleep(need_rest_for())
-        info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
-    except Exception, e:
-        ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
-    for dir in o.base_dir_list:
-        queue_file = os.path.join(dir, o.queue_dump_file)
-        if os.path.isfile(queue_file):
-            try:
-                os.unlink(queue_file)
-            except Exception, e:
-                pass
-
 def independent_cleaner():
     o.set_loggers()
     cleanup_cache()
     return
+
+def cleanup_video_queue():
+    cut_off_time = time.time() - o.video_queue_lifetime
+    active_cut_off_time = time.time() - o.active_queue_lifetime
+    try:
+        while True:
+            count, r = VideoQueue.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time)))
+            if count < 500:
+                break
+            time.sleep(need_rest_for())
+    except Exception, e:
+        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
+
+    try:
+        while True:
+            count, r = VideoQueue.execute('UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at = NULL OR activated_at < "%s") LIMIT 500;' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)))
+            if count < 500:
+                break
+            time.sleep(need_rest_for())
+    except Exception, e:
+        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
+
+def cleanup_cpn_pool():
+    global local_cpn_pool
+    cut_off_time = time.time() - o.cpn_lifetime
+    for cpn_id in local_cpn_pool.keys():
+        try:
+            if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
+                local_cpn_pool.pop(cpn_id, None)
+        except:
+            pass
+    try:
+        while True:
+            count, results = YoutubeCPN.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (YoutubeCPN.table_name, timestamp_to_datetime(cut_off_time)))
+            if count < 500:
+                break
+            time.sleep(need_rest_for())
+    except Exception, e:
+        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def task_scheduler():
     # cache_thread_scheduler

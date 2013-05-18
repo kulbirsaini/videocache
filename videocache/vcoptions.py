@@ -102,7 +102,6 @@ class VideocacheOptions:
             self.__class__.force_video_size = int(mainconf.force_video_size)
             self.__class__.client_email = mainconf.client_email
             self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
-            self.__class__.max_cache_queue_size = int(mainconf.max_cache_queue_size)
             self.__class__.info_server = mainconf.info_server
             self.__class__.video_server = mainconf.video_server
             this_proxy = mainconf.this_proxy.strip()
@@ -117,7 +116,8 @@ class VideocacheOptions:
             self.__class__.db_password = mainconf.db_password
             self.__class__.db_database = mainconf.db_database
             self.__class__.cpn_lifetime = 1800
-            self.__class__.video_lifetime = 3600 * 24 * 3
+            self.__class__.video_queue_lifetime = 3600 * 24 * 2
+            self.__class__.active_queue_lifetime = 3600
             self.__class__.hit_time_threshold = 30
             self.__class__.store_log_threshold = 300
 

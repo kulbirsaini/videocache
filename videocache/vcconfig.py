@@ -63,7 +63,6 @@ class VideocacheConf:
     min_video_size = Option(0)
     force_video_size = Option(1)
     cache_period = Option('')
-    max_cache_queue_size = Option(100000)
     this_proxy = Option('')
     enable_store_log_monitoring = Option(1)
     squid_store_log = Option('')
