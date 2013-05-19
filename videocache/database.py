@@ -10,9 +10,12 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
+from functools import wraps
+from Queue import Empty
 
 import datetime
 import logging
+import multiprocessing
 import os
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 try:
@@ -21,6 +24,23 @@ except:
     pass
 import time
 import traceback
+
+def with_timeout(timeout):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(klass, *args, **kwargs):
+            q = multiprocessing.Queue()
+            subproc = multiprocessing.Process(target=f, args=(klass,) + args + (q,), kwargs=kwargs)
+            t = time.time()
+            subproc.start()
+            subproc.join(timeout)
+            subproc.terminate()
+            try:
+                return q.get(timeout = 0.1)
+            except Empty:
+                return False
+        return wrapper
+    return decorator
 
 def get_db_connection(num_tries = 0):
     if num_tries == 3:
@@ -62,7 +82,7 @@ def find_by_%s(klass, value):
     return klass.find_by({ '%s' : value })
     """
 
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         for key in self.fields.keys():
             if self.fields[key] == 'timestamp':
                 value = attributes.get(key, None)
@@ -295,7 +315,8 @@ def find_by_%s(klass, value):
         return status
 
     @classmethod
-    def execute(klass, query):
+    @with_timeout(5)
+    def execute(klass, query, q = None):
         log_query(query)
         result = (0, ())
         try:
@@ -305,10 +326,13 @@ def find_by_%s(klass, value):
                 results = db_cursor.fetchall()
                 result = (count, results)
         except TimeoutError, e:
-            return False
+            pass
         finally:
             db_connection.close()
-        return result
+        if q:
+            q.put(result)
+        else:
+            return result
 
 class YoutubeCPN(Model):
     fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }
@@ -405,7 +429,7 @@ class VideoFile(Model):
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 
-    def __init__(self, attributes):
+    def __init__(self, attributes = {}):
         Model.__init__(self, attributes)
         if self.cache_dir and self.website_id and self.filename:
             self.filepath = os.path.join(self.cache_dir, o.website_cache_dir[self.website_id], self.filename)
