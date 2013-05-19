@@ -12,7 +12,6 @@ from common import *
 from error_codes import *
 
 import datetime
-import eventlet
 import logging
 import os
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
@@ -20,6 +19,7 @@ try:
     import MySQLdb
 except:
     pass
+import time
 import traceback
 
 def get_db_connection(num_tries = 0):
@@ -34,7 +34,7 @@ def get_db_connection(num_tries = 0):
     except Exception, e:
         try:
             if db_connection.errno() == 2006 or db_connection.errno() == 2013:
-                eventlet.sleep(0.15)
+                time.sleep(0.15)
                 get_db_connection(num_tries + 1)
         except:
             return (None, None)
@@ -114,9 +114,9 @@ def find_by_%s(klass, value):
                     new_values.append(timestamp_to_datetime(value))
                 else:
                     new_values.append(value)
-        return ' AND '.join(query_strings), new_values
+        return 'AND'.join(query_strings), new_values
 
-    def update_attribute(self, attribute, value, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def update_attribute(self, attribute, value):
         status = False
         if attribute in self.fields.keys() and attribute != 'id':
             if self.fields[attribute] == 'timestamp':
@@ -124,20 +124,18 @@ def find_by_%s(klass, value):
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
             log_query(query)
-            with timeout as timeout:
-                try:
-                    db_connection, db_cursor = get_db_connection()
-                    if db_connection and db_cursor:
-                        count = db_cursor.execute(query)
-                    status = True
-                except TimeoutError, e:
-                    pass
-                finally:
-                    db_connection.close()
-                    timeout.cancel()
+            try:
+                db_connection, db_cursor = get_db_connection()
+                if db_connection and db_cursor:
+                    count = db_cursor.execute(query)
+                status = True
+            except TimeoutError, e:
+                pass
+            finally:
+                db_connection.close()
         return status
 
-    def update_attributes(self, params, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def update_attributes(self, params):
         status = False
         keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
@@ -147,37 +145,33 @@ def find_by_%s(klass, value):
         query += ', '.join(map(lambda x: x + ' = ' + self.placeholders[self.fields[x]] + ' ', keys)) + " WHERE id = %s "
         query = query % tuple(values)
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    db_cursor.execute(query)
-                status = True
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                db_cursor.execute(query)
+            status = True
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return status
 
-    def destroy(self, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def destroy(self):
         status = False
         query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    status = db_cursor.execute(query)
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                status = db_cursor.execute(query)
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return status
 
     @classmethod
-    def destroy_by(klass, params = {}, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def destroy_by(klass, params = {}):
         status = False
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
@@ -186,20 +180,18 @@ def find_by_%s(klass, value):
         query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
         query = query % tuple(values)
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    status = db_cursor.execute(query)
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                status = db_cursor.execute(query)
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return status
 
     @classmethod
-    def count(klass, params = {}, timeout = eventlet.timeout.Timeout(2, TimeoutError)):
+    def count(klass, params = {}):
         result = 0
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
@@ -207,21 +199,19 @@ def find_by_%s(klass, value):
         if where_part:
             query += ' WHERE ' + where_part % tuple(values)
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    db_cursor.execute(query)
-                    result = db_cursor.fetchall()[0][0]
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                db_cursor.execute(query)
+                result = db_cursor.fetchall()[0][0]
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return result
 
     @classmethod
-    def find_by(klass, params = {}, timeout = eventlet.timeout.Timeout(1.5, TimeoutError)):
+    def find_by(klass, params = {}):
         results = []
         order = params.get('order', None)
         limit = params.get('limit', None)
@@ -244,50 +234,48 @@ def find_by_%s(klass, value):
         query += query_suffix
         query = query % tuple(values)
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    db_cursor.execute(query)
-                    results = map(lambda row: klass(dict(zip(select_keys, row))), db_cursor.fetchall())
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                db_cursor.execute(query)
+                results = map(lambda row: klass(dict(zip(select_keys, row))), db_cursor.fetchall())
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return results
 
     @classmethod
-    def find(klass, id, timeout = eventlet.timeout.Timeout(0.5, TimeoutError)):
-        result = klass.find_by({ 'id' : id, 'limit' : 1 }, timeout)
+    def find(klass, id):
+        result = klass.find_by({ 'id' : id, 'limit' : 1 })
         if len(result) == 0:
             return None
         return result[0]
 
     @classmethod
-    def first(klass, params = {}, timeout = eventlet.timeout.Timeout(0.5, TimeoutError)):
+    def first(klass, params = {}):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id ASC')
-        results = klass.find_by(params, timeout)
+        results = klass.find_by(params)
         if params['limit'] == 1 and len(results) == 0: return None
         if len(results) == 1: return results[0]
         return results
 
     @classmethod
-    def last(klass, params = {}, timeout = eventlet.timeout.Timeout(0.5, TimeoutError)):
+    def last(klass, params = {}):
         params['limit'] = params.get('limit', 1)
         params['order'] = params.get('order', 'id') + ' DESC'
-        results = klass.find_by(params, timeout)
+        results = klass.find_by(params)
         if params['limit'] == 1 and len(results) == 0: return None
         if len(results) == 1: return results[0]
         return results
 
     @classmethod
-    def all(klass,params = {}, timeout = eventlet.timeout.Timeout(1.5, TimeoutError)):
-        return klass.find_by(params, timeout)
+    def all(klass,params = {}):
+        return klass.find_by(params)
 
     @classmethod
-    def create(klass, params, timeout = eventlet.timeout.Timeout(1.5, TimeoutError)):
+    def create(klass, params):
         status = False
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
@@ -296,34 +284,30 @@ def find_by_%s(klass, value):
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
         log_query(query)
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    status = db_cursor.execute(query)
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                status = db_cursor.execute(query)
+        except TimeoutError, e:
+            pass
+        finally:
+            db_connection.close()
         return status
 
     @classmethod
-    def execute(klass, query, timeout = eventlet.timeout.Timeout(2, TimeoutError)):
+    def execute(klass, query):
         log_query(query)
         result = (0, ())
-        with timeout as timeout:
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    count = db_cursor.execute(query)
-                    results = db_cursor.fetchall()
-                    result = (count, results)
-            except TimeoutError, e:
-                return False
-            finally:
-                db_connection.close()
-                timeout.cancel()
+        try:
+            db_connection, db_cursor = get_db_connection()
+            if db_connection and db_cursor:
+                count = db_cursor.execute(query)
+                results = db_cursor.fetchall()
+                result = (count, results)
+        except TimeoutError, e:
+            return False
+        finally:
+            db_connection.close()
         return result
 
 class YoutubeCPN(Model):
@@ -357,7 +341,7 @@ class YoutubeCPN(Model):
         return True
 
     @classmethod
-    def create(klass, params, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def create(klass, params):
         params['access_time'] = params.get('access_time', current_time())
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
@@ -366,7 +350,7 @@ class YoutubeCPN(Model):
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
         query += " ON DUPLICATE KEY UPDATE access_time = CURRENT_TIMESTAMP"
-        return VideoFile.execute(query, timeout)
+        return VideoFile.execute(query)
 
 class VideoQueue(Model):
     fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer', 'active' : 'boolean', 'activated_at' : 'timestamp', 'first_access' : 'timestamp' }
@@ -405,7 +389,7 @@ class VideoQueue(Model):
         return True
 
     @classmethod
-    def create(klass, params, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def create(klass, params):
         params['access_count'] = params.get('access_count', 1)
         params['access_time'] = params.get('access_time', current_time())
         keys, values = klass.filter_params(params)
@@ -414,7 +398,7 @@ class VideoQueue(Model):
         query = "INSERT IGNORE INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
-        return VideoFile.execute(query, timeout)
+        return VideoFile.execute(query)
 
 class VideoFile(Model):
     fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'timestamp', 'access_count' : 'integer' }
@@ -456,7 +440,7 @@ class VideoFile(Model):
         return True
 
     @classmethod
-    def create(klass, params, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
+    def create(klass, params):
         if params['cache_dir']:
             params['cache_dir'] = params['cache_dir'].rstrip('/')
         params['access_count'] = params.get('access_count', 1)
@@ -470,7 +454,7 @@ class VideoFile(Model):
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
         query += " ON DUPLICATE KEY UPDATE access_count = access_count + 1, access_time = CURRENT_TIMESTAMP"
-        return VideoFile.execute(query, timeout)
+        return VideoFile.execute(query)
 
 def info(params = {}):
     if o.enable_videocache_log:

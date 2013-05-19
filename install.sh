@@ -14,7 +14,6 @@ netifaces_url='https://github.com/kulbirsaini/videocache-dependencies/blob/maste
 iniparse_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/iniparse.tar.gz?raw=true'
 ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/ctypes.tar.gz?raw=true'
 MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
-eventlet_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/eventlet.tar.gz?raw=true'
 
 # Common Functions
 blue_without_newline() {
@@ -447,7 +446,6 @@ python_code() {
   check_python_dev
   install_and_verify_python_module netifaces
   install_and_verify_python_module ctypes
-  install_and_verify_python_module eventlet
 }
 
 # Squid user
