@@ -177,7 +177,12 @@ class VideocacheOptions:
             self.__class__.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
             self.__class__.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
             self.__class__.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
-            self.__class__.magnet = mainconf.magnet
+            # DB Logfile
+            self.__class__.enable_db_query_log = int(mainconf.enable_db_query_log)
+            self.__class__.db_query_logformat = mainconf.db_query_logformat
+            self.__class__.db_query_logfile = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
+            self.__class__.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
+            self.__class__.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
 
             # Filelist Database
             self.__class__.video_file_table_name = 'video_files'
@@ -383,6 +388,7 @@ class VideocacheOptions:
                 self.__class__.logformat = self.__class__.logformat.replace(key, self.format_map[key])
                 self.__class__.scheduler_logformat = self.__class__.scheduler_logformat.replace(key, self.format_map[key])
                 self.__class__.cleaner_logformat = self.__class__.cleaner_logformat.replace(key, self.format_map[key])
+                self.__class__.db_query_logformat = self.__class__.db_query_logformat.replace(key, self.format_map[key])
             # Main Videocache Logfile
             if self.__class__.enable_videocache_log:
                 self.__class__.vc_logger = logging.Logger('VideocacheLog')
@@ -410,6 +416,13 @@ class VideocacheOptions:
                 self.__class__.vcc_logger.setLevel(logging.DEBUG)
                 vcc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.cleaner_logfile, mode = 'a', maxBytes = self.__class__.max_cleaner_logfile_size, backupCount = self.__class__.max_cleaner_logfile_backups)
                 self.__class__.vcc_logger.addHandler(vcc_log_handler)
+
+            # DB Logfile
+            if self.__class__.enable_db_query_log:
+                self.__class__.db_logger = logging.Logger('DatabaseLog')
+                self.__class__.db_logger.setLevel(logging.DEBUG)
+                db_log_handler = logging.handlers.RotatingFileHandler(self.__class__.db_query_logfile, mode = 'a', maxBytes = self.__class__.max_db_query_logfile_size, backupCount = self.__class__.max_db_query_logfile_backups)
+                self.__class__.db_logger.addHandler(db_log_handler)
 
         except Exception, e:
             syslog_msg('Could not set logging! Debug: '  + traceback.format_exc().replace('\n', ''))

@@ -170,8 +170,6 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         log_traceback()
         print_message_and_abort(install_error)
 
-    generate_magnet_http(os.path.join(working_dir, 'videocache', 'vcconfig.py'), os.path.join(install_dir, 'vcconfig.py'))
-
     try:
         src_vc_update = os.path.join(install_dir, 'vc-update')
         src_vc_scheduler = os.path.join(install_dir, 'vc-scheduler')

@@ -114,6 +114,12 @@ class VideocacheConf:
     tracefile = Option('trace.log')
     max_tracefile_size = Option(10)
     max_tracefile_backups = Option(1)
+    # DB logfile
+    enable_db_query_log = Option(0)
+    db_query_logformat = Option('%tl %m')
+    db_query_logfile = Option('database.log')
+    max_db_query_logfile_size = Option(10)
+    max_db_query_logfile_backups = Option(1)
 
     # Network
     cache_host = Option('')
@@ -123,8 +129,6 @@ class VideocacheConf:
     proxy_username = Option('')
     proxy_password = Option('')
     max_cache_speed = Option(0)
-
-    magnet = Option('0')
 
     # Android apps
     enable_android_cache = Option(1)

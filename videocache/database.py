@@ -123,6 +123,7 @@ def find_by_%s(klass, value):
                 value = timestamp_to_datetime(value)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
+            log_query(query)
             with timeout as timeout:
                 try:
                     db_connection, db_cursor = get_db_connection()
@@ -145,6 +146,7 @@ def find_by_%s(klass, value):
         query = "UPDATE %s SET " % self.table_name
         query += ', '.join(map(lambda x: x + ' = ' + self.placeholders[self.fields[x]] + ' ', keys)) + " WHERE id = %s "
         query = query % tuple(values)
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -161,6 +163,7 @@ def find_by_%s(klass, value):
     def destroy(self, timeout = eventlet.timeout.Timeout(1, TimeoutError)):
         status = False
         query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -182,6 +185,7 @@ def find_by_%s(klass, value):
             return False
         query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
         query = query % tuple(values)
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -202,6 +206,7 @@ def find_by_%s(klass, value):
         query = "SELECT COUNT(*) FROM %s" % klass.table_name
         if where_part:
             query += ' WHERE ' + where_part % tuple(values)
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -221,10 +226,12 @@ def find_by_%s(klass, value):
         order = params.get('order', None)
         limit = params.get('limit', None)
         offset = params.get('offset', None)
-        select = params.get('select', ', '.join(klass.fields))
-        if 'id' not in map(lambda x: x.strip(), select.split(',')):
-            select = 'id, ' + select
-        select_keys = map(lambda x: x.strip(), select.split(','))
+        select = params.get('select', None)
+        if select:
+            select_keys = list(set(map(lambda x: x.strip(), select.strip().split(','))))
+        else:
+            select_keys = list(set(klass.fields.keys()))
+        select = ', '.join(select_keys)
         query_suffix = ''
         if order: query_suffix += " ORDER BY %s" % order
         if limit: query_suffix += " LIMIT %s" % limit
@@ -236,6 +243,7 @@ def find_by_%s(klass, value):
             query += ' WHERE ' + where_part
         query += query_suffix
         query = query % tuple(values)
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -287,6 +295,7 @@ def find_by_%s(klass, value):
         query = "INSERT INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
+        log_query(query)
         with timeout as timeout:
             try:
                 db_connection, db_cursor = get_db_connection()
@@ -301,6 +310,7 @@ def find_by_%s(klass, value):
 
     @classmethod
     def execute(klass, query, timeout = eventlet.timeout.Timeout(2, TimeoutError)):
+        log_query(query)
         result = (0, ())
         with timeout as timeout:
             try:
@@ -491,6 +501,10 @@ def wnt(params = {}):
     error(params)
     params.update({ 'message' : traceback.format_exc() })
     trace(params)
+
+def log_query(query):
+    if o.enable_db_query_log:
+        o.db_logger.info(build_message({ 'logformat' : o.db_query_logformat, 'message' : query }))
 
 def create_tables():
     return VideoFile.create_table() and VideoQueue.create_table() and YoutubeCPN.create_table()
