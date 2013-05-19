@@ -296,7 +296,7 @@ if __name__ == '__main__':
     if o.cache_host == '':
         error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
         o.enable_videocache = 0
-    elif re.compile('127.0.0.1').search(o.cache_host):
+    elif o.cache_host.find('127.0.0.1') > -1:
         warn( { 'code' : CACHE_HOST_WARN, 'message' : 'The option cache_host is set to 127.0.0.1. Videocache will be able to serve videos only to localhost. Please set it to the private/public IP address of the server and restart/reload Squid daemon' } )
 
     info( { 'code' : VIDEOCACHE_START, 'message' : 'Starting Videocache.' } )

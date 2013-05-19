@@ -13,6 +13,12 @@ import re
 import urllib
 import urlparse
 
+VALIDATE_DAILYMOTION_DOMAIN_REGEX1 = re.compile('.*\..*\.dmcdn\.net')
+VALIDATE_DAILYMOTION_DOMAIN_REGEX2 = re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com')
+VALIDATE_DAILYMOTION_FRAGMENT_REGEX = re.compile('.*\/frag\([0-9]+\)\/.*')
+VALIDATE_DAILYMOTION_VIDEO_EXT_REGEX = re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg|on2)')
+DAILYMOTION_FRAGMENT_EXTRACT_REGEX = re.compile('.*frag\(([0-9]+)\).*')
+
 def get_dailymotion_filename(o, video_id, format):
     if format:
         return '.'.join([video_id, format])
@@ -43,10 +49,10 @@ def check_dailymotion_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (re.compile('.*\..*\.dmcdn\.net').search(host) or host.find('vid.akm.dailymotion.com') > -1 or re.compile('proxy[a-z0-9\-]?[a-z0-9]?[a-z0-9]?[a-z0-9]?\.dailymotion\.com').search(host)) and re.compile('.*\/frag\([0-9]+\)\/.*').search(path) and re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg|on2)').search(path):
+    if (VALIDATE_DAILYMOTION_DOMAIN_REGEX1.search(host) or host.find('vid.akm.dailymotion.com') > -1 or VALIDATE_DAILYMOTION_DOMAIN_REGEX2.search(host)) and VALIDATE_DAILYMOTION_FRAGMENT_REGEX.search(path) and VALIDATE_DAILYMOTION_VIDEO_EXT_REGEX.search(path):
         queue = False
         fragment = []
-        match = re.compile('.*frag\(([0-9]+)\).*').search(path)
+        match = DAILYMOTION_FRAGMENT_EXTRACT_REGEX.search(path)
         if match:
             fragment = [match.group(1)]
         parts = urllib.quote(path.strip('/').split('/')[-1]).split('.')

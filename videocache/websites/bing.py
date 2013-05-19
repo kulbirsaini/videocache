@@ -12,6 +12,9 @@ import re
 import urllib
 import urlparse
 
+VALIDATE_BING_DOMAIN_REGEX = re.compile('msn(?:bc)?\.(.*)\.(com|net)')
+VALIDATE_BING_VIDEO_EXT_REGEX = re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)')
+
 def check_bing_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'bing', None, '', True, True
 
@@ -19,7 +22,7 @@ def check_bing_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (host.find('msn.com') > -1 or re.compile('msn(?:bc)?\.(.*)\.(com|net)').search(host)) and re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)').search(path):
+    if (host.find('msn.com') > -1 or VALIDATE_BING_DOMAIN_REGEX.search(host)) and VALIDATE_BING_VIDEO_EXT_REGEX.search(path):
         try:
             video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:

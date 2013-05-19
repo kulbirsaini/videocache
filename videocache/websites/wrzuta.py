@@ -12,6 +12,9 @@ import re
 import urllib
 import urlparse
 
+VALIDATE_WRZUTA_VIDEO_REGEX = re.compile('wv[0-9]+\/[a-z0-9]+\/0\/')
+VALIDATE_WRZUTA_AUDEO_REGEX = re.compile('wa[0-9]+\/[a-z0-9]+')
+
 def check_wrzuta_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'wrzuta', None, '', True, True
 
@@ -20,12 +23,12 @@ def check_wrzuta_video(o, url, host = None, path = None, query = None):
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     if host.find('c.wrzuta.pl') > -1:
-        if re.compile('wv[0-9]+\/[a-z0-9]+\/0\/').search(path):
+        if VALIDATE_WRZUTA_VIDEO_REGEX.search(path):
             try:
                 video_id = urllib.quote(path.strip('/').split('/')[-2])
             except Exception, e:
                 pass
-        elif re.compile('wa[0-9]+\/[a-z0-9]+').search(path):
+        elif VALIDATE_WRZUTA_AUDEO_REGEX.search(path):
             try:
                 video_id = urllib.quote(path.strip('/').split('/')[-1])
             except Exception, e:

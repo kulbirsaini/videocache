@@ -938,7 +938,7 @@ def extract_pids_from_ps(output):
     results = output.strip().split('\n')
     pids = []
     for result in results:
-        match = re.compile('^[^\ ]+[ ]+([0-9]+)').search(result)
+        match = PID_EXTRACT_REGEX.search(result)
         if match and is_integer(match.group(1)):
             pids.append(int(match.group(1)))
     return pids
@@ -999,11 +999,10 @@ def watch_access_log():
     time.sleep(10)
 
     track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    url_regex = re.compile('(http://[^\s]+)')
     try:
         for line in tail_file(o.squid_access_log, track_lines, True):
             try:
-                url = re.findall(url_regex, line)[0]
+                url = re.findall(URL_EXTRACT_REGEX, line)[0]
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
                     local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
@@ -1572,6 +1571,10 @@ if __name__ == '__main__':
         process_id = '-'
         stdout = sys.stdout
         stderr = sys.stderr
+
+        # Compiled regexes
+        PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')
+        URL_EXTRACT_REGEX = re.compile('(http://[^\s]+)')
 
         try:
             import ctypes

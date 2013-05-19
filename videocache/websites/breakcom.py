@@ -12,6 +12,8 @@ import re
 import urllib
 import urlparse
 
+VALIDATE_BREAKCOM_VIDEO_EXT_REGEX = re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)')
+
 def check_breakcom_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'breakcom', None, '', True, True
 
@@ -19,7 +21,7 @@ def check_breakcom_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if host.find('.break.com') > -1 and re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)').search(path):
+    if host.find('.break.com') > -1 and VALIDATE_BREAKCOM_VIDEO_EXT_REGEX.search(path):
         try:
             video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:

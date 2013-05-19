@@ -13,6 +13,8 @@ import platform
 import re
 import subprocess
 
+MAC_ADDRESS_REGEX = re.compile('(hwaddr|ether).*(([0-9A-F]{2}:){5}[0-9A-F]{2})', re.I)
+
 def get_dist_details():
     try:
         dist = platform.dist('Unknown', 'Unknown', 'Unknown')
@@ -95,7 +97,6 @@ def get_ip_addresses():
 
 def get_mac_addresses():
     cmd = 'ifconfig'
-    mac_regex = re.compile('(hwaddr|ether).*(([0-9A-F]{2}:){5}[0-9A-F]{2})', re.I)
     for path in ['/sbin/', '', '/bin/']:
         command = os.path.join(path, cmd)
         try:
@@ -103,7 +104,7 @@ def get_mac_addresses():
             ifconfig = co.stdout.read()
             if co.poll() is None:
                 co.terminate()
-            macs = ', '.join(filter(lambda x: is_valid_mac(x), [i[1] for i in mac_regex.findall(ifconfig, re.MULTILINE)]))
+            macs = ', '.join(filter(lambda x: is_valid_mac(x), [i[1] for i in MAC_ADDRESS_REGEX.findall(ifconfig, re.MULTILINE)]))
             if macs != '':
                 return macs
         except Exception, e:

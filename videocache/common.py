@@ -24,6 +24,11 @@ import urllib
 import urllib2
 import urlparse
 
+VALIDATE_DOMAIN_PORT_REGEX = re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$')
+VALIDATE_EMAIL_REGEX = re.compile('^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$')
+VALIDATE_IP_ADDRESS_REGEX = re.compile('^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$')
+VALIDATE_MAC_ADDRESS_REGEX = re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I)
+
 class TimeoutError(Exception):
     pass
 
@@ -61,7 +66,7 @@ def is_float(number):
         return False
 
 def is_valid_domain_port(name):
-    if re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$').match(name):
+    if VALIDATE_DOMAIN_PORT_REGEX.match(name):
         return True
     return False
 
@@ -88,7 +93,7 @@ def is_valid_host_port(host_port, port_optional = False):
     return is_valid_ip(host_port.split(':')[0])
 
 def is_valid_email(email):
-    if re.compile('^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$').match(email):
+    if VALIDATE_EMAIL_REGEX.match(email):
         return True
     return False
 
@@ -124,10 +129,10 @@ def is_ascii(string):
         return False
 
 def is_ip_address(string):
-    return re.compile('^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$').match(string)
+    return VALIDATE_IP_ADDRESS_REGEX.match(string)
 
 def is_mac_address(string):
-    return re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I).search(string)
+    return VALIDATE_MAC_ADDRESS_REGEX.search(string)
 
 def max_or_empty(sequence):
     if len(sequence) == 0:
