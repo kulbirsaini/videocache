@@ -19,6 +19,7 @@ from optparse import OptionParser
 from xmlrpclib import ServerProxy
 
 import cgi
+import eventlet
 import logging
 import logging.handlers
 import os
@@ -215,14 +216,14 @@ def squid_part():
                                                     video_id = local_cpn_pool[cpn]['video_id']
                                                     local_cpn_pool[cpn]['last_used'] = time.time()
                                                 else:
-                                                    result = YoutubeCPN.first({ 'cpn' : cpn })
+                                                    result = YoutubeCPN.first({ 'cpn' : cpn }, eventlet.timeout.Timeout(0.2, TimeoutError))
                                                     if result:
                                                         video_id = result.video_id
                                                     else:
                                                         video_id = False
                                                     if video_id == False:
                                                         time.sleep(2)
-                                                        result = YoutubeCPN.first({ 'cpn' : cpn })
+                                                        result = YoutubeCPN.first({ 'cpn' : cpn }, eventlet.timeout.Timeout(0.2, TimeoutError))
                                                         if result:
                                                             video_id = result.video_id
                                                         else:
@@ -241,7 +242,7 @@ def squid_part():
                                     info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                 else:
                                     info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
-                                    VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                    VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }, eventlet.timeout.Timeout(0.2, TimeoutError))
 
                             if new_url == '' and queue and video_id:
                                 params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}

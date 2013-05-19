@@ -174,7 +174,7 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
     format = get_youtube_video_format_from_query(query)
 
     # Normal youtube videos in web browser
-    if host.find('.youtube.com') > -1 and path.find('stream_204') > -1 and 'view=' in query:
+    if host.find('.youtube.com') > -1 and path.find('stream_204') > -1 and query.find('view=0') > -1:
         video_id = get_youtube_video_id_from_query(query)
         search = False
     elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('youtu.be') > -1 or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.com').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]').search(host) or re.compile('\.(youtube|google|googlevideo|youtube-nocookie)\.[a-z][a-z]\.[a-z][a-z]').search(host)):

@@ -25,6 +25,7 @@ from xmlrpclib import ServerProxy
 import cgi
 import cookielib
 import datetime
+import eventlet
 import glob
 import heapq
 import logging
@@ -760,7 +761,7 @@ def cache_youtube_video(video):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
-                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }, eventlet.timeout.Timeout(0.2, TimeoutError))
         else:
             info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
         video.destroy()
@@ -794,7 +795,7 @@ def cache_generalized(video):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
+                    VideoFile.create({ 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() }, eventlet.timeout.Timeout(0.2, TimeoutError))
             video.destroy()
         except Exception, e:
             ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
@@ -869,9 +870,9 @@ def cache(video):
 def schedule():
     try:
         if o.offline_mode or not is_caching_time(): return
-        if VideoQueue.count({ 'active' : True }) > o.max_cache_processes: return
+        if VideoQueue.count({ 'active' : True }, eventlet.timeout.Timeout(0.2, TimeoutError)) > o.max_cache_processes: return
 
-        video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False })
+        video = VideoQueue.last({ 'order' : 'access_count', 'cacheable' : True, 'active' : False }, eventlet.timeout.Timeout(0.2, TimeoutError))
         if not video: return
 
         if not (video.video_id and video.website_id):
@@ -1006,7 +1007,7 @@ def watch_access_log():
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
                 if video_id != None and cpn != None:
                     local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                    YoutubeCPN.create({ 'video_id' : video_id, 'cpn' : cpn })
+                    YoutubeCPN.create({ 'video_id' : video_id, 'cpn' : cpn }, eventlet.timeout.Timeout(0.1, TimeoutError))
             except Exception, e:
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message', 'debug' : str(e) })
     except Exception, e:
@@ -1060,7 +1061,7 @@ def watch_store_log():
                                 local_cpn_pool[cpn]['last_used'] = time.time()
                             else:
                                 if cpn:
-                                    result = YoutubeCPN.first({ 'cpn' : cpn })
+                                    result = YoutubeCPN.first({ 'cpn' : cpn }, eventlet.timeout.Timeout(0.2, TimeoutError))
                                     if result and result.video_id:
                                         video_id = result.video_id
                                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
@@ -1111,7 +1112,7 @@ def watch_store_log():
                                     os.chmod(video_path, o.file_mode)
                                     os.utime(video_path, None)
                                     info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                    VideoFile.create({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() }, eventlet.timeout.Timeout(0.2, TimeoutError))
                             except Exception, e:
                                 ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
                 except Exception, e:
@@ -1199,7 +1200,7 @@ def submit_system_info():
 def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
     for files_to_remove_chunk in chunks(files_to_remove, 25):
         try:
-            VideoFile.destroy_by({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
+            VideoFile.destroy_by({ 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk }, eventlet.timeout.Timeout(2, TimeoutError))
         except Exception, e:
             ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
@@ -1214,7 +1215,7 @@ def add_file_entries_to_db(cache_dir, website_id, files_to_create):
             stats = os.stat(filename)
             queries.append(query_prefix2 % (filename, stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))))
         try:
-            VideoFile.execute(query_prefix + ','.join(queries))
+            VideoFile.execute(query_prefix + ','.join(queries), eventlet.timeout.Timeout(3, TimeoutError))
         except Exception, e:
             ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while adding file entries to database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
@@ -1230,7 +1231,7 @@ def update_file_entries_in_db(cache_dir, website_id, files_to_update):
             stats = os.stat(filename)
             query = query_prefix + query_prefix2 % (stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))) + query_suffix + query_suffix2 % filename
             try:
-                VideoFile.execute(query)
+                VideoFile.execute(query, eventlet.timeout.Timeout(3, TimeoutError))
             except Exception, e:
                 ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while update file entry in database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
@@ -1243,7 +1244,7 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     total_files_updated = 0
     for l_1 in letters:
         try:
-            count, results = VideoFile.execute('SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
+            count, results = VideoFile.execute('SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)), eventlet.timeout.Timeout(5, TimeoutError))
         except:
             results = []
         files_on_os = set(glob.glob(os.path.join(l_1 + '*')))
@@ -1264,7 +1265,7 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
 def remove_rouge_db_entries(cache_dir):
     try:
         while True:
-            count, results = VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s" LIMIT 500;' % (VideoFile.table_name, os.path.join(cache_dir, '')))
+            count, results = VideoFile.execute('DELETE FROM %s WHERE cache_dir = "%s" LIMIT 500;' % (VideoFile.table_name, os.path.join(cache_dir, '')), eventlet.timeout.Timeout(3, TimeoutError))
             if count < 500:
                 return
             time.sleep(need_rest_for())
@@ -1291,7 +1292,7 @@ def rebuild_filelist():
 def flush_video_queue():
     try:
         while True:
-            count, results = VideoQueue.execute('DELETE FROM %s LIMIT 500;' % VideoQueue.table_name)
+            count, results = VideoQueue.execute('DELETE FROM %s LIMIT 500;' % VideoQueue.table_name, eventlet.timeout.Timeout(4, TimeoutError))
             if count < 500:
                 break
             time.sleep(need_rest_for())
@@ -1321,7 +1322,7 @@ def cleanup_cache():
         try:
             if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
                 while True:
-                    count, results = VideoFile.execute(query)
+                    count, results = VideoFile.execute(query, eventlet.timeout.Timeout(3, TimeoutError))
                     if len(results) < 5:
                         cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
@@ -1336,7 +1337,7 @@ def cleanup_cache():
                                 os.unlink(filepath)
                                 cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
                         try:
-                            VideoFile.destroy_by({ 'id' : delete_ids })
+                            VideoFile.destroy_by({ 'id' : delete_ids }, eventlet.timeout.Timeout(2, TimeoutError))
                         except Exception, e:
                             ent({ 'code' : 'FILE_DELETE_ERR', 'website_id' : website_id, 'message' : 'Error in deleting videos from database ' + str(delete_ids), 'debug' : str(e) })
                         time.sleep(need_rest_for())
@@ -1350,7 +1351,7 @@ def cleanup_video_queue():
     active_cut_off_time = time.time() - o.active_queue_lifetime
     try:
         while True:
-            count, r = VideoQueue.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time)))
+            count, r = VideoQueue.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time)), eventlet.timeout.Timeout(4, TimeoutError))
             if count < 500:
                 break
             time.sleep(need_rest_for())
@@ -1359,7 +1360,7 @@ def cleanup_video_queue():
 
     try:
         while True:
-            count, r = VideoQueue.execute('UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at = NULL OR activated_at < "%s") LIMIT 500;' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)))
+            count, r = VideoQueue.execute('UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at = NULL OR activated_at < "%s") LIMIT 500;' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)), eventlet.timeout.Timeout(4, TimeoutError))
             if count < 500:
                 break
             time.sleep(need_rest_for())
@@ -1377,7 +1378,7 @@ def cleanup_cpn_pool():
             pass
     try:
         while True:
-            count, results = YoutubeCPN.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (YoutubeCPN.table_name, timestamp_to_datetime(cut_off_time)))
+            count, results = YoutubeCPN.execute('DELETE FROM %s WHERE access_time < "%s" LIMIT 500;' % (YoutubeCPN.table_name, timestamp_to_datetime(cut_off_time)), eventlet.timeout.Timeout(4, TimeoutError))
             if count < 500:
                 break
             time.sleep(need_rest_for())

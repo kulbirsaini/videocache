@@ -24,6 +24,9 @@ import urllib
 import urllib2
 import urlparse
 
+class TimeoutError(Exception):
+    pass
+
 # Colored messages on terminal
 def red(msg):#{{{
     return "\033[1;31m%s\033[0m" % msg
