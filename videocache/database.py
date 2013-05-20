@@ -10,12 +10,9 @@ __docformat__ = 'plaintext'
 
 from common import *
 from error_codes import *
-from functools import wraps
-from Queue import Empty
 
 import datetime
 import logging
-import multiprocessing
 import os
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 try:
@@ -24,23 +21,6 @@ except:
     pass
 import time
 import traceback
-
-def with_timeout(timeout):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(klass, *args, **kwargs):
-            q = multiprocessing.Queue()
-            subproc = multiprocessing.Process(target=f, args=(klass,) + args + (q,), kwargs=kwargs)
-            t = time.time()
-            subproc.start()
-            subproc.join(timeout)
-            subproc.terminate()
-            try:
-                return q.get(timeout = 0.1)
-            except Empty:
-                return False
-        return wrapper
-    return decorator
 
 def get_db_connection(num_tries = 0):
     if num_tries == 3:
@@ -315,8 +295,8 @@ def find_by_%s(klass, value):
         return status
 
     @classmethod
-    @with_timeout(5)
-    def execute(klass, query, q = None):
+    @classmethod_with_timeout(5)
+    def execute(klass, q, query):
         log_query(query)
         result = (0, ())
         try:

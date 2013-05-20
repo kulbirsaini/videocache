@@ -9,9 +9,12 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from fsop import *
+from functools import wraps
+from Queue import Empty
 
 import cgi
 import datetime
+import multiprocessing
 import os
 import pwd
 import re
@@ -31,6 +34,42 @@ VALIDATE_MAC_ADDRESS_REGEX = re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I)
 
 class TimeoutError(Exception):
     pass
+
+def with_timeout(tmout, raise_exception = True):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            q = multiprocessing.Queue()
+            subproc = multiprocessing.Process(target=f, args=(q,) + args, kwargs=kwargs)
+            t = time.time()
+            subproc.start()
+            subproc.join(tmout)
+            subproc.terminate()
+            try:
+                return q.get(timeout = 0.1)
+            except Empty:
+                if raise_exception: raise TimeoutError
+                return False
+        return wrapper
+    return decorator
+
+def classmethod_with_timeout(tmout, raise_exception = False):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(klass, *args, **kwargs):
+            q = multiprocessing.Queue()
+            subproc = multiprocessing.Process(target=f, args=(klass, q) + args, kwargs=kwargs)
+            t = time.time()
+            subproc.start()
+            subproc.join(tmout)
+            subproc.terminate()
+            try:
+                return q.get(timeout = 0.1)
+            except Empty:
+                if raise_exception: raise TimeoutError
+                return False
+        return wrapper
+    return decorator
 
 # Colored messages on terminal
 def red(msg):#{{{

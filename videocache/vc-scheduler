@@ -924,24 +924,6 @@ def arg_drop_exception(website_id, dict, arg):
         return True
     return False
 
-def enqueue_output(queue, output, finder_list = [], any_find = True):
-    try:
-        for line in iter(output.readline, ''):
-            if finder_list == []:
-                shall_queue = True
-            else:
-                if any_find:
-                    shall_queue = any(map(lambda x: line.find(x) > -1, finder_list))
-                else:
-                    shall_queue = all(map(lambda x: line.find(x) > -1, finder_list))
-            if shall_queue: queue.put(line)
-        output.close()
-    except:
-        pass
-    finally:
-        output.close()
-    return
-
 def extract_pids_from_ps(output):
     results = output.strip().split('\n')
     pids = []
@@ -955,33 +937,40 @@ def kill_tail_processes(filename, user):
     for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
         os.kill(pid, signal.SIGTERM)
 
-def tail_file(filename, finder_list = [], any_find = True, interval = 120):
-    process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-    q = Queue()
-    t = threading.Thread(target = enqueue_output, args = (q, process.stdout, finder_list, any_find))
-    t.start()
+@with_timeout(120)
+def readline_with_timeout(q, output, finder_list = [], any_find = True):
+    line = output.readline()
+    try:
+        if finder_list == []:
+            shall_queue = True
+        else:
+            if any_find:
+                shall_queue = any(map(lambda x: line.find(x) > -1, finder_list))
+            else:
+                shall_queue = all(map(lambda x: line.find(x) > -1, finder_list))
+        if shall_queue:
+            q.put(line)
+        else:
+            q.put(False)
+    except Exception, e:
+        ent({ 'code' : 'ACCESS_LOG_QUEUE_ERR', 'message' : 'Ideally, there should be no error here. If you see this, please report.', 'debug' : str(e) })
 
+def tail_file(filename, finder_list = [], any_find = True):
+    process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
     last_read = time.time()
+
     while True:
         try:
-            line = q.get(timeout = 0.1)
+            line = readline_with_timeout(process.stdout, finder_list, any_find)
             last_read = time.time()
-        except Empty:
-            pass
-        else:
-            yield line
-
-        if (time.time() - last_read) > interval:
-            try:
-                kill_tail_processes(filename, o.videocache_user)
-            except Exception, e:
-                ent({ 'code' : 'PROCESS_TERMINATE_ERR', 'message' : 'Error while terminating idle process. Please report if this occurs frequently.', 'debug' : str(e) })
-            t.join()
+            if line: yield line
+        except TimeoutError, e:
+            process.stdout.close()
+            process.terminate()
             process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-            q = Queue()
-            t = threading.Thread(target = enqueue_output, args = (q, process.stdout, finder_list, any_find))
-            t.start()
-            last_read = time.time()
+        except Exception, e:
+            wnt({ 'code' : 'TAIL_FILE_ERR', 'message' : 'Could not parse message from squid logfile ' + filename + ' Please report if you see this error frequently.', 'debug' : str(e) })
+            time.slee(0.05)
 
 def watch_access_log():
     global local_cpn_pool
