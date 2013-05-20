@@ -123,20 +123,10 @@ def find_by_%s(klass, value):
                 value = timestamp_to_datetime(value)
             query = "UPDATE %s SET %s = " + self.placeholders[self.fields[attribute]]  + " WHERE id = %s "
             query = query % (self.table_name, attribute, value, self.id)
-            log_query(query)
-            try:
-                db_connection, db_cursor = get_db_connection()
-                if db_connection and db_cursor:
-                    count = db_cursor.execute(query)
-                status = True
-            except TimeoutError, e:
-                pass
-            finally:
-                db_connection.close()
+            status, results = self.execute(query)
         return status
 
     def update_attributes(self, params):
-        status = False
         keys, values = self.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
@@ -144,75 +134,40 @@ def find_by_%s(klass, value):
         query = "UPDATE %s SET " % self.table_name
         query += ', '.join(map(lambda x: x + ' = ' + self.placeholders[self.fields[x]] + ' ', keys)) + " WHERE id = %s "
         query = query % tuple(values)
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                db_cursor.execute(query)
-            status = True
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
+        status, results = self.execute(query)
         return status
 
     def destroy(self):
-        status = False
         query = "DELETE FROM %s WHERE id = %s" % (self.table_name, self.id )
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                status = db_cursor.execute(query)
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
+        status, results = self.execute(query)
         return status
 
     @classmethod
     def destroy_by(klass, params = {}):
-        status = False
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
         if len(values) < 1:
             return False
         query = ("DELETE FROM %s WHERE " % klass.table_name) + where_part
         query = query % tuple(values)
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                status = db_cursor.execute(query)
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
+        status, results = klass.execute(query)
         return status
 
     @classmethod
     def count(klass, params = {}):
-        result = 0
         keys, values = klass.filter_params(params)
         where_part, values = klass.construct_query(keys, values)
         query = "SELECT COUNT(*) FROM %s" % klass.table_name
         if where_part:
             query += ' WHERE ' + where_part % tuple(values)
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                db_cursor.execute(query)
-                result = db_cursor.fetchall()[0][0]
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
-        return result
+        counts, results = klass.execute(query)
+        if len(results) > 0 and len(results[0]) > 0:
+            return results[0][0]
+        else:
+            return 0
 
     @classmethod
     def find_by(klass, params = {}):
-        results = []
         order = params.get('order', None)
         limit = params.get('limit', None)
         offset = params.get('offset', None)
@@ -233,17 +188,8 @@ def find_by_%s(klass, value):
             query += ' WHERE ' + where_part
         query += query_suffix
         query = query % tuple(values)
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                db_cursor.execute(query)
-                results = map(lambda row: klass(dict(zip(select_keys, row))), db_cursor.fetchall())
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
-        return results
+        count, results = klass.execute(query)
+        return map(lambda row: klass(dict(zip(select_keys, row))), results)
 
     @classmethod
     def find(klass, id):
@@ -276,43 +222,36 @@ def find_by_%s(klass, value):
 
     @classmethod
     def create(klass, params):
-        status = False
         keys, values = klass.filter_params(params)
         if len(keys) == 0:
             return False
         query = "INSERT INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
-        log_query(query)
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                status = db_cursor.execute(query)
-        except TimeoutError, e:
-            pass
-        finally:
-            db_connection.close()
+        status, results = klass.execute(query)
         return status
 
     @classmethod
-    @classmethod_with_timeout(5)
-    def execute(klass, q, query):
+    def execute(klass, query):
         log_query(query)
-        result = (0, ())
-        try:
-            db_connection, db_cursor = get_db_connection()
-            if db_connection and db_cursor:
-                count = db_cursor.execute(query)
-                results = db_cursor.fetchall()
-                result = (count, results)
-        except TimeoutError, e:
-            pass
-        finally:
+        count, results = 0, []
+        db_connection, db_cursor = get_db_connection()
+        if db_connection and db_cursor:
+            count = db_cursor.execute(query)
+            results = db_cursor.fetchall()
             db_connection.close()
-        if q:
-            q.put(result)
-        else:
-            return result
+        return (count, results)
+
+
+    @classmethod
+    def with_timeout(klass, timeout, f, *args, **kwargs):
+        @classmethod_with_timeout(timeout)
+        def _new_ret_method(klass, q, *args, **kwargs):
+            q.put(f(*args, **kwargs))
+        try:
+            return _new_ret_method(klass, *args, **kwargs)
+        except TimeoutError, e:
+            return None
 
 class YoutubeCPN(Model):
     fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }

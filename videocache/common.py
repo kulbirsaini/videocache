@@ -53,7 +53,7 @@ def with_timeout(tmout, raise_exception = True):
         return wrapper
     return decorator
 
-def classmethod_with_timeout(tmout, raise_exception = False):
+def classmethod_with_timeout(tmout, raise_exception = True):
     def decorator(f):
         @wraps(f)
         def wrapper(klass, *args, **kwargs):
@@ -70,6 +70,12 @@ def classmethod_with_timeout(tmout, raise_exception = False):
                 return False
         return wrapper
     return decorator
+
+def timeout_exec(timeout, f, *args, **kwargs):
+    @with_timeout(timeout, f)
+    def _new_ret_method(q, *args, **kwargs):
+        q.put(f(*args, **kwargs))
+    return _new_ret_method(*args, **kwargs)
 
 # Colored messages on terminal
 def red(msg):#{{{
