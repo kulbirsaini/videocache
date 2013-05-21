@@ -914,7 +914,7 @@ def is_cached(video_url):
                 return True
         except Exception, e:
             pass
-    trace({ 'code' : STORE_LOG_CHECK_ERR, 'message' : traceback.format_exc() })
+    trace({ 'code' : 'LOG_CHECK_ERR', 'message' : traceback.format_exc() })
     return False
 
 def arg_drop_exception(website_id, dict, arg):
@@ -955,15 +955,32 @@ def readline_with_timeout(q, output, finder_list = [], any_find = True):
     except Exception, e:
         ent({ 'code' : 'ACCESS_LOG_QUEUE_ERR', 'message' : 'Ideally, there should be no error here. If you see this, please report.', 'debug' : str(e) })
 
-def tail_file(filename, finder_list = [], any_find = True):
+def tail_file():
+    if o.offline_mode:
+        info({ 'code': ACCESS_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
+        return
+
+    while True:
+        if not os.path.isfile(o.squid_access_log):
+            warn({ 'code' : ACCESS_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
+        else:
+            break
+        time.sleep(300)
+
+    global access_log_queue, store_log_queue
+    filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
+    access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
+    store_log_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-    last_read = time.time()
 
     while True:
         try:
             line = readline_with_timeout(process.stdout, finder_list, any_find)
-            last_read = time.time()
-            if line: yield line
+            if line:
+                if any(map(lambda x: line.find(x) > -1, access_log_track_lines)):
+                    access_log_queue.put(line)
+                elif any(map(lambda x: line.find(x) > -1, store_log_track_lines)):
+                    store_log_queue.put(line)
         except TimeoutError, e:
             process.stdout.close()
             process.terminate()
@@ -973,24 +990,12 @@ def tail_file(filename, finder_list = [], any_find = True):
             time.slee(0.05)
 
 def watch_access_log():
-    global local_cpn_pool
-    if o.offline_mode:
-        info({ 'code': ACCESS_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
-        return
+    global local_cpn_pool, access_log_queue
+    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid\'s access.log for Youtube video ID extraction.' })
 
     while True:
-        if not os.path.isfile(o.squid_access_log):
-            warn({ 'code' : ACCESS_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid\'s access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
-        else:
-            break
-        sleep(300)
-
-    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid\'s access.log for Youtube video ID extraction.' })
-    time.sleep(10)
-
-    track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    try:
-        for line in tail_file(o.squid_access_log, track_lines, True):
+        try:
+            line = access_log_queue.get(timeout = 120)
             try:
                 url = re.findall(URL_EXTRACT_REGEX, line)[0]
                 video_id, cpn = get_youtube_video_id_and_cpn(url)
@@ -999,115 +1004,123 @@ def watch_access_log():
                     YoutubeCPN.with_timeout(0.25, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
             except Exception, e:
                 ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
-    except Exception, e:
-        ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
+        except Empty, e:
+            pass
+        except Exception, e:
+            ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
+            time.slee(0.05)
+
+def get_youtube_video_id_from_cpn(cpn, video_id, website_id):
+    global local_cpn_pool
+    if cpn in local_cpn_pool:
+        local_cpn_pool[cpn]['last_used'] = time.time()
+        return local_cpn_pool[cpn]['video_id']
+
+    if cpn:
+        result = YoutubeCPN.with_timeout(0.5, YoutubeCPN.first, { 'cpn' : cpn })
+        if result and result.video_id:
+            local_cpn_pool[cpn] = { 'video_id' : result.video_id, 'last_used' : time.time() }
+            return result.video_id
+
+    if video_id and len(video_id) != 16 and len(video_id) != 11:
+        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos.' })
+        return None
+
+    return video_id
 
 def watch_store_log():
-    global local_cpn_pool
-    if o.offline_mode:
-        info({ 'code': STORE_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid store.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
-        return
+    global local_cpn_pool, store_log_queue
 
     if not o.this_proxy:
         warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
     while True:
-        if not os.path.isfile(o.squid_store_log):
-            warn({ 'code' : STORE_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid\'s store.log file. Please set option squid_store_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
-        else:
-            break
-        sleep(300)
+        try:
+            line = store_log_queue.get(timeout = 120)
+            try:
+                video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
+                fragments = urlparse.urlsplit(video_url)
+                [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+                dict = cgi.parse_qs(query)
 
-    info({ 'code' : STORE_LOG_WATCH_START, 'message' : 'Watching Squid\'s store.log for videos cached by Squid.' })
-    time.sleep(10)
-    try:
-        for line in tail_file(o.squid_store_log, ['SWAPOUT'], False):
-            if line.find('video/') > 0 or line.find('audio/') > 0 or line.find('text/plain') > 0 or line.find('flv-application/octet-stream') > 0 or line.find('application/vnd.android.package-archive') > 0:
-                try:
-                    video_url = line.split()[-1]
-                    fragments = urlparse.urlsplit(video_url)
-                    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
-                    dict = cgi.parse_qs(query)
+                matched = False
+                for website in o.websites:
+                    if eval('o.enable_' + website + '_cache'):
+                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(o, video_url, host, path, query)')
+                        if matched:
+                            for video_seek_arg in o.arg_drop_list[website_id]:
+                                if video_seek_arg in dict and not arg_drop_exception(website_id, dict, video_seek_arg):
+                                    matched = False
+                                    break
+                            break
 
-                    matched = False
-                    for website in o.websites:
-                        if eval('o.enable_' + website + '_cache'):
-                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(o, video_url, host, path, query)')
-                            if matched:
-                                for video_seek_arg in o.arg_drop_list[website_id]:
-                                    if video_seek_arg in dict and not arg_drop_exception(website_id, dict, video_seek_arg):
-                                        matched = False
-                                        break
-                                break
+                if not (matched and search):
+                    continue
 
-                    if matched:
-                        if website_id == 'youtube':
-                            old_video_id = video_id
-                            cpn = get_youtube_cpn_from_query(query)
-                            if cpn in local_cpn_pool:
-                                video_id = local_cpn_pool[cpn]['video_id']
-                                local_cpn_pool[cpn]['last_used'] = time.time()
-                            else:
-                                if cpn:
-                                    result = YoutubeCPN.with_timeout(0.5, YoutubeCPN.first, { 'cpn' : cpn })
-                                    if result and result.video_id:
-                                        video_id = result.video_id
-                                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                                    else:
-                                        if video_id and len(video_id) != 16 and len(video_id) != 11:
-                                            warn({ 'code' : 'YOUTUBE_MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesn\'t occur for all the videos.' })
-                                            continue
-                            if old_video_id and video_id and len(old_video_id) == 16 and len(video_id) == 11:
-                               migrate_to_new_youtube_video_ids(website_id, old_video_id, video_id)
+                if website_id == 'youtube':
+                    old_video_id = video_id
+                    cpn = get_youtube_cpn_from_query(query)
+                    video_id = get_youtube_video_id_from_cpn(cpn, video_id, website_id)
+                    if old_video_id and video_id:
+                        if len(old_video_id) == 16 and len(video_id) == 11:
+                           migrate_to_new_youtube_video_ids(website_id, old_video_id, video_id)
+                        if len(video_id) != 11 and len(old_video_id) == 16:
+                            video_id = old_video_id
 
-                        if not video_id:
-                            warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf file. Please set it to off. After that restart squid and vc-scheduler.' })
-                            continue
-                        cached = False
-                        if website_id == 'youtube':
-                            youtube_params = { 'strict_mode' : True, 'cache_check_only' : True }
-                            if o.enable_youtube_partial_caching: youtube_params.update(get_youtube_video_range_from_query(query))
-                            if youtube_cached_url(o, video_id, website_id, format, youtube_params)[0]:
-                                cached = True
-                        else:
-                            if eval(website_id + '_cached_url(o, video_id, website_id, format)')[0]:
-                                cached = True
+                    if not video_id and old_video_id and len(old_video_id) == 16:
+                        video_id = old_video_id
 
-                        if cached:
-                            info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Video already exists.' })
-                        else:
-                            if is_cached(video_url):
-                                info({ 'code' : STORE_LOG_HIT_CONFIRMED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
-                            else:
-                                info({ 'code' : STORE_LOG_HIT_CONFIRMATION_FAILED, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
-                                continue
+                if not video_id:
+                    warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
+                    continue
 
-                            cache_dir = get_next_cache_dir()
-                            if cache_dir == False: continue
-                            try:
-                                if website_id == 'youtube':
-                                    filename = get_youtube_filename(o, video_id, format, youtube_params)
-                                else:
-                                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
-                                tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
-                                video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
-                                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
-                                if website_id == 'android':
-                                    params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-                                if cache_remote_url(video_url, tmp_path, params):
-                                    size = os.path.getsize(tmp_path)
-                                    shutil.move(tmp_path, video_path)
-                                    os.chmod(video_path, o.file_mode)
-                                    os.utime(video_path, None)
-                                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                                    VideoFile.with_timeout(0.25, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                            except Exception, e:
-                                ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-                except Exception, e:
-                    ent({ 'code' : STORE_LOG_CACHE_ERR, 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-    except Exception, e:
-        ent({ 'code' : STORE_LOG_READ_ERR, 'message' : 'Error while reading squid store log at ' + o.squid_store_log + ' .', 'debug' : str(e) })
+                cached = False
+                if website_id == 'youtube':
+                    youtube_params = { 'strict_mode' : True, 'cache_check_only' : True }
+                    if o.enable_youtube_partial_caching: youtube_params.update(get_youtube_video_range_from_query(query))
+                    if youtube_cached_url(o, video_id, website_id, format, youtube_params)[0]:
+                        cached = True
+                else:
+                    if eval(website_id + '_cached_url(o, video_id, website_id, format)')[0]:
+                        cached = True
+
+                if cached:
+                    continue
+
+                if is_cached(video_url):
+                    info({ 'code' : 'LOG_HIT_CONFIRMED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
+                else:
+                    info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
+                    continue
+
+                cache_dir = get_next_cache_dir()
+                if cache_dir == False:
+                    continue
+
+                if website_id == 'youtube':
+                    filename = get_youtube_filename(o, video_id, format, youtube_params)
+                else:
+                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
+                tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
+                video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
+                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
+                if website_id == 'android':
+                    params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
+                if cache_remote_url(video_url, tmp_path, params):
+                    size = os.path.getsize(tmp_path)
+                    shutil.move(tmp_path, video_path)
+                    os.chmod(video_path, o.file_mode)
+                    os.utime(video_path, None)
+                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                    VideoFile.with_timeout(0.25, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+            except Exception, e:
+                ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
+        except Empty, e:
+            pass
+        except Exception, e:
+            ent({ 'code' : 'LOG_READ_ERR', 'message' : 'Error during reading message from log queue.', 'debug' : str(e) })
+            time.slee(0.05)
 
 def update_disk_space():
     global base_dir_disk_space
@@ -1497,15 +1510,18 @@ class VideoPoolDaemon(VideocacheDaemon):
             self.o.set_loggers()
             process_id = os.getpid()
 
-            task_scheduler_thread = threading.Thread(target = task_scheduler)
-            if o.enable_store_log_monitoring: store_log_watcher_thread = threading.Thread(target = watch_store_log)
-            if o.enable_access_log_monitoring: access_log_watcher_thread = threading.Thread(target = watch_access_log)
+            task_scheduler_thread = LoggingThread(target = task_scheduler)
+            tail_file_thread = LoggingThread(target = tail_file)
+            if o.enable_store_log_monitoring: store_log_watcher_thread = LoggingThread(target = watch_store_log)
+            if o.enable_access_log_monitoring: access_log_watcher_thread = LoggingThread(target = watch_access_log)
 
             task_scheduler_thread.start()
+            tail_file_thread.start()
             if o.enable_store_log_monitoring: store_log_watcher_thread.start()
             if o.enable_access_log_monitoring: access_log_watcher_thread.start()
 
             task_scheduler_thread.join()
+            tail_file_thread.join()
             if o.enable_store_log_monitoring: store_log_watcher_thread.join()
             if o.enable_access_log_monitoring: access_log_watcher_thread.join()
         except Exception, e:
@@ -1553,6 +1569,8 @@ if __name__ == '__main__':
 
         daemon = VideoPoolDaemon(o, uid = uid)
 
+        access_log_queue = Queue()
+        store_log_queue = Queue()
         base_dir_disk_space = {}
         last_base_dir_used = 0
         local_cpn_pool = {}
