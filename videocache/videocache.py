@@ -85,11 +85,11 @@ def sync_video_info():
                 cleanup_local_cpn_pool(now)
             video = local_video_queue.get(timeout = wait_time)
             try:
-                result = VideoQueue.first({ 'website_id' : video['website_id'], 'video_id' : video['video_id'], 'format' : video['format'] })
+                result = VideoQueue.with_timeout(0.5, VideoQueue.first, { 'website_id' : video['website_id'], 'video_id' : video['video_id'], 'format' : video['format'] })
                 if result and (result.client_ip != video['client_ip'] or (video['access_time'] - result.access_time) > o.hit_time_threshold):
                     result.update_attributes({ 'client_ip' : video['client_ip'], 'access_time' : video['access_time'], 'access_count' : result.access_count + 1 })
                 else:
-                    VideoQueue.create(video)
+                    VideoQueue.with_timeout(0.5, VideoQueue.create, video)
             except Exception, e:
                 wnt({ 'code' : 'VIDEO_SUBMIT_WARN', 'message' : 'Could not submit video information to mysql. Please check if mysql is still running. ' + str(video), 'debug' : str(e) })
             time.sleep(sleep_time)
@@ -157,14 +157,14 @@ def get_youtube_video_id_from_cpn(cpn, video_id):
         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
         return video_id
 
-    result = YoutubeCPN.first({ 'cpn' : cpn })
+    result = YoutubeCPN.with_timeout(0.2, YoutubeCPN.first, { 'cpn' : cpn })
     if result:
         video_id = result.video_id
         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
         return video_id
 
     time.sleep(1)
-    result = YoutubeCPN.first({ 'cpn' : cpn })
+    result = YoutubeCPN.with_timeout(0.2, YoutubeCPN.first, { 'cpn' : cpn })
     if result:
         video_id = result.video_id
         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
@@ -240,7 +240,7 @@ def squid_part():
                                         info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                     else:
                                         info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
-                                        VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                                        VideoFile.with_timeout(0.2, VideoFile.create, { 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                                 if new_url == '' and queue and video_id:
                                     params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}

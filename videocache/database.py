@@ -242,7 +242,6 @@ def find_by_%s(klass, value):
             db_connection.close()
         return (count, results)
 
-
     @classmethod
     def with_timeout(klass, timeout, f, *args, **kwargs):
         @classmethod_with_timeout(timeout)
@@ -251,6 +250,8 @@ def find_by_%s(klass, value):
         try:
             return _new_ret_method(klass, *args, **kwargs)
         except TimeoutError, e:
+            if 'execute' in str(f):
+                return (0, ())
             return None
 
 class YoutubeCPN(Model):
@@ -286,7 +287,7 @@ class YoutubeCPN(Model):
     @classmethod
     def create(klass, params):
         params['access_time'] = params.get('access_time', current_time())
-        keys, values = klass.filter_params(params)
+        keys, values = klass.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
         query = "INSERT INTO %s " % klass.table_name
@@ -335,7 +336,7 @@ class VideoQueue(Model):
     def create(klass, params):
         params['access_count'] = params.get('access_count', 1)
         params['access_time'] = params.get('access_time', current_time())
-        keys, values = klass.filter_params(params)
+        keys, values = klass.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
         query = "INSERT IGNORE INTO %s " % klass.table_name
@@ -390,7 +391,7 @@ class VideoFile(Model):
         params['access_time'] = params.get('access_time', current_time())
         if params.has_key('filename'):
             params['filename'] = str(params['filename'])
-        keys, values = klass.filter_params(params)
+        keys, values = klass.filter_params(params, ['id'])
         if len(keys) == 0:
             return False
         query = "INSERT INTO %s " % klass.table_name
