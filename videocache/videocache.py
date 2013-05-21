@@ -147,6 +147,30 @@ def connection():
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
+def get_youtube_video_id_from_cpn(cpn, video_id):
+    global local_cpn_pool
+    if cpn in local_cpn_pool:
+        local_cpn_pool[cpn]['last_used'] = time.time()
+        return local_cpn_pool[cpn]['video_id']
+
+    if len(video_id) == 11:
+        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+        return video_id
+
+    result = YoutubeCPN.first({ 'cpn' : cpn })
+    if result:
+        video_id = result.video_id
+        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+        return video_id
+
+    time.sleep(1)
+    result = YoutubeCPN.first({ 'cpn' : cpn })
+    if result:
+        video_id = result.video_id
+        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+        return video_id
+    return video_id
+
 def squid_part():
     global exit, local_cpn_pool, local_video_queue
 
@@ -177,89 +201,70 @@ def squid_part():
             wnt( { 'code' : INPUT_PARSE_ERR, 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL.', 'debug' : str(e) } )
             skip = True
 
-        if o.client_email != '':
-            if not skip and o.enable_videocache:
-                for website_id in o.websites:
-                    if eval('o.enable_' + website_id + '_cache'):
-                        (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(o, url, host, path, query)')
-                        if matched:
-                            if not video_id:
-                                warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
-                                break
+        try:
+            if o.client_email != '':
+                if not skip and o.enable_videocache:
+                    for website_id in o.websites:
+                        if eval('o.enable_' + website_id + '_cache'):
+                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(o, url, host, path, query)')
+                            if matched:
+                                if not video_id:
+                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+                                    break
 
-                            info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
-                            if not is_ascii(video_id):
-                                non_ascci_video_id_warning(website_id, video_id, client_ip)
-                                break
+                                info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
+                                if not is_ascii(video_id):
+                                    non_ascci_video_id_warning(website_id, video_id, client_ip)
+                                    break
 
-                            if search:
                                 if website_id == 'youtube':
-                                    youtube_params = {}
-                                    if o.enable_youtube_partial_caching:
-                                        youtube_params.update(get_youtube_video_range_from_query(query))
-                                        if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
-                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
-                                    if not found:
-                                        cpn = get_youtube_cpn_from_query(query)
-                                        if len(video_id) == 11:
-                                            if cpn not in local_cpn_pool:
-                                                local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                                        else:
-                                            old_video_id = video_id
-                                            try:
-                                                if cpn in local_cpn_pool:
-                                                    video_id = local_cpn_pool[cpn]['video_id']
-                                                    local_cpn_pool[cpn]['last_used'] = time.time()
-                                                else:
-                                                    result = YoutubeCPN.first({ 'cpn' : cpn })
-                                                    if result:
-                                                        video_id = result.video_id
-                                                    else:
-                                                        video_id = False
-                                                    if video_id == False:
-                                                        time.sleep(2)
-                                                        result = YoutubeCPN.first({ 'cpn' : cpn })
-                                                        if result:
-                                                            video_id = result.video_id
-                                                        else:
-                                                            video_id = False
-                                                if video_id:
-                                                    if cpn not in local_cpn_pool:
-                                                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
-                                                else:
-                                                    video_id = old_video_id
-                                            except Exception, e:
-                                                video_id = old_video_id
-                                else:
-                                    (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
-                                if new_url == '':
-                                    info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
-                                else:
-                                    info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
-                                    VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-
-                            if new_url == '' and queue and video_id:
-                                params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}
-                                shall_queue = False
-                                if website_id == 'youtube':
-                                    params.update({ 'url' : ''})
+                                    cpn = get_youtube_cpn_from_query(query)
                                     if len(video_id) == 11:
+                                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+
+                                if search:
+                                    if website_id == 'youtube':
+                                        youtube_params = {}
+                                        if o.enable_youtube_partial_caching:
+                                            youtube_params.update(get_youtube_video_range_from_query(query))
+                                            if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
+                                        (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                        if not found:
+                                            old_video_id = video_id
+                                            video_id = get_youtube_video_id_from_cpn(cpn, video_id)
+                                            if old_video_id != video_id:
+                                                (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                    else:
+                                        (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
+                                    if new_url == '':
+                                        info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
+                                    else:
+                                        info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
+                                        VideoFile.create({ 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+
+                                if new_url == '' and queue and video_id:
+                                    params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}
+                                    shall_queue = False
+                                    if website_id == 'youtube':
+                                        params.update({ 'url' : ''})
+                                        if len(video_id) == 11:
+                                            shall_queue = True
+                                    elif website_id != 'android':
                                         shall_queue = True
-                                elif website_id != 'android':
-                                    shall_queue = True
-                                    local_video_queue.put(params)
-                                if shall_queue:
-                                    if local_video_queue.full():
-                                        warn({ 'code' : 'LOCAL_QUEUE_FULL', 'message' : 'You are reaching ' + str(o.max_queue_size_per_plugin) + ' requests (for uncached new videos) per minute per plugin on your server. Try to increase the url_rewrite_children in squid.conf. If that doesnt fix this warning, please contact us.' })
-                                        try:
-                                            local_video_queue.get()
-                                        except:
-                                            pass
-                                    local_video_queue.put(params)
-                            break
-        else:
-            warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
+                                        local_video_queue.put(params)
+                                    if shall_queue:
+                                        if local_video_queue.full():
+                                            warn({ 'code' : 'LOCAL_QUEUE_FULL', 'message' : 'You are reaching ' + str(o.max_queue_size_per_plugin) + ' requests (for uncached new videos) per minute per plugin on your server. Try to increase the url_rewrite_children in squid.conf. If that doesnt fix this warning, please contact us.' })
+                                            try:
+                                                local_video_queue.get()
+                                            except:
+                                                pass
+                                        local_video_queue.put(params)
+                                break
+            else:
+                warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
+        except Exception, e:
+            wnt({ 'code' : 'VIDEOCACHE_UNKNOWN_ISSUE', 'message' : 'Unknown issue detected with videocache. Please report if you see this frequently.', 'debug' : str(e) })
 
         try:
             sys.stdout.write(new_url + '\n')
