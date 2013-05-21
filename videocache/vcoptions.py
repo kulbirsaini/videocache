@@ -120,6 +120,7 @@ class VideocacheOptions:
             self.__class__.active_queue_lifetime = 3600
             self.__class__.hit_time_threshold = 30
             self.__class__.store_log_threshold = 300
+            self.__class__.max_queue_size_per_plugin = 1024
 
             if this_proxy == '' or self.__class__.squid_store_log == '':
                 self.__class__.enable_store_log_monitoring = 0

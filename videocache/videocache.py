@@ -8,6 +8,8 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
+from Queue import Queue, Empty
+
 from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
 from common import *
 from error_codes import *
@@ -65,36 +67,37 @@ def wnt(params = {}):
     trace(params)
 
 def sync_video_info():
-    sysinfo_last_submitted_at = time.time() - 3540
+    global local_video_queue
+    now = time.time()
+    sysinfo_last_submitted_at = now - 3540
     sysinfo_submit_interval = 3600
+    cleanup_cpn_pool_last_at = now
+    cleanup_cpn_pool_interval = 300
 
-    sleep_time = 10
+    wait_time = 120
+    sleep_time = 0.05
     while True:
-        time.sleep(sleep_time)
         try:
-            global local_video_pool
-            videos = []
-            thread_pool.acquire()
-            videos = local_video_pool
-            local_video_pool = []
-            thread_pool.release()
-
-            if (time.time() - sysinfo_last_submitted_at) > sysinfo_submit_interval:
-                sysinfo_last_submitted_at = time.time()
+            if (now - sysinfo_last_submitted_at) > sysinfo_submit_interval:
+                sysinfo_last_submitted_at = now
                 submit_system_info()
-            clean_local_cpn_pool()
-
-            for params in videos:
-                try:
-                    result = VideoQueue.first({ 'website_id' : params['website_id'], 'video_id' : params['video_id'], 'format' : params['format'] })
-                    if result and (result.client_ip != params['client_ip'] or (params['access_time'] - result.access_time) > o.hit_time_threshold):
-                        result.update_attributes({ 'client_ip' : params['client_ip'], 'access_time' : params['access_time'], 'access_count' : result.access_count + 1 })
-                    else:
-                        VideoQueue.create(params)
-                except Exception, e:
-                    wnt({ 'code' : 'VIDEO_SUBMIT_WARN', 'message' : 'Could not submit video information to mysql. Please check if mysql is still running. ' + str(params), 'debug' : str(e) })
+            if (now - cleanup_cpn_pool_last_at) > cleanup_cpn_pool_interval:
+                cleanup_local_cpn_pool(now)
+            video = local_video_queue.get(timeout = wait_time)
+            try:
+                result = VideoQueue.first({ 'website_id' : video['website_id'], 'video_id' : video['video_id'], 'format' : video['format'] })
+                if result and (result.client_ip != video['client_ip'] or (video['access_time'] - result.access_time) > o.hit_time_threshold):
+                    result.update_attributes({ 'client_ip' : video['client_ip'], 'access_time' : video['access_time'], 'access_count' : result.access_count + 1 })
+                else:
+                    VideoQueue.create(video)
+            except Exception, e:
+                wnt({ 'code' : 'VIDEO_SUBMIT_WARN', 'message' : 'Could not submit video information to mysql. Please check if mysql is still running. ' + str(video), 'debug' : str(e) })
+            time.sleep(sleep_time)
+        except Empty, e:
+            continue
         except Exception, e:
             ent({ 'code' : 'VIDEO_SUBMIT_FAIL', 'message' : 'Could not submit video information to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
+        now = time.time()
 
 def submit_system_info():
     delete_video(o)
@@ -120,10 +123,9 @@ def submit_system_info():
     except Exception, e:
         return False
 
-def clean_local_cpn_pool():
+def cleanup_local_cpn_pool(now = time.time()):
     global local_cpn_pool
-    now = time.time()
-    cut_off_time = time.time() - o.cpn_lifetime
+    cut_off_time = now - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
         try:
             if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
@@ -142,17 +144,11 @@ def connection():
         except Exception, e:
             ent({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
 
-def add_video_to_local_pool(params):
-    global local_video_pool
-    thread_pool.acquire()
-    local_video_pool.append(params)
-    thread_pool.release()
-
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
 def squid_part():
-    global exit, local_cpn_pool
+    global exit, local_cpn_pool, local_video_queue
 
     input = sys.stdin.readline()
     while input:
@@ -245,12 +241,22 @@ def squid_part():
 
                             if new_url == '' and queue and video_id:
                                 params = {'video_id' : video_id, 'client_ip' : client_ip, 'url' : url, 'website_id' : website_id, 'access_time' : time.time(), 'first_access' : time.time(), 'format' : format}
+                                shall_queue = False
                                 if website_id == 'youtube':
                                     params.update({ 'url' : ''})
                                     if len(video_id) == 11:
-                                        add_video_to_local_pool(params)
+                                        shall_queue = True
                                 elif website_id != 'android':
-                                    add_video_to_local_pool(params)
+                                    shall_queue = True
+                                    local_video_queue.put(params)
+                                if shall_queue:
+                                    if local_video_queue.full():
+                                        warn({ 'code' : 'LOCAL_QUEUE_FULL', 'message' : 'You are reaching ' + str(o.max_queue_size_per_plugin) + ' requests (for uncached new videos) per minute per plugin on your server. Try to increase the url_rewrite_children in squid.conf. If that doesnt fix this warning, please contact us.' })
+                                        try:
+                                            local_video_queue.get()
+                                        except:
+                                            pass
+                                    local_video_queue.put(params)
                             break
         else:
             warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
@@ -284,10 +290,9 @@ if __name__ == '__main__':
         syslog_msg(halt_message)
         sys.exit(1)
 
-    local_video_pool = []
+    local_video_queue = Queue(o.max_queue_size_per_plugin)
     local_cpn_pool = {}
     video_pool = None
-    thread_pool = threading.Semaphore(value = 1)
     process_id = os.getpid()
     exit = False
     initialize_database(o)
