@@ -1234,7 +1234,7 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
             count, results = VideoFile.with_timeout(3, VideoFile.execute, 'SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
         except:
             results = []
-        files_on_os = set(glob.glob(os.path.join(l_1 + '*')))
+        files_on_os = set(glob.glob(l_1 + '*'))
         files_in_db = set(map(lambda x: x[1], results))
 
         files_to_remove = files_in_db - files_on_os
@@ -1247,6 +1247,7 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
         update_file_entries_in_db(cache_dir, website_id, files_to_update)
 
         total_files_updated += len(files_to_create) + len(files_to_update)
+        time.sleep(need_rest_for() / 4.0)
     return total_files_updated
 
 def remove_rouge_db_entries(cache_dir):
@@ -1271,6 +1272,7 @@ def rebuild_filelist():
                 try:
                     total_files_updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
                     info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in cache_dir : ' + cache_dir })
+                    time.sleep(need_rest_for())
                 except Exception, e:
                     ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
     except Exception, e:
