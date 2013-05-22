@@ -119,7 +119,6 @@ class VideocacheOptions:
             self.__class__.hit_time_threshold = int(mainconf.hit_time_threshold)
             self.__class__.log_hit_threshold = int(mainconf.log_hit_threshold)
             self.__class__.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
-            self.__class__.max_cpn_monitor_queue_size = int(mainconf.max_cpn_monitor_queue_size)
             self.__class__.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
 
             # Apache

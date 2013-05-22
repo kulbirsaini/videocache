@@ -174,6 +174,8 @@ def get_youtube_video_id_from_cpn(cpn, video_id):
 def squid_part():
     global exit, local_cpn_pool, local_video_queue
 
+    started_at = time.time()
+    url_hits = 0
     input = sys.stdin.readline()
     while input:
         new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
@@ -253,8 +255,9 @@ def squid_part():
                                         shall_queue = True
                                         local_video_queue.put(params)
                                     if shall_queue:
+                                        url_hits += 1
                                         if local_video_queue.full():
-                                            warn({ 'code' : 'LOCAL_QUEUE_FULL', 'message' : 'You are reaching ' + str(o.max_queue_size_per_plugin) + ' requests (for uncached new videos) per minute per plugin on your server. Try to increase the url_rewrite_children in squid.conf. If that doesnt fix this warning, please contact us.' })
+                                            warn({ 'code' : 'PLUGIN_QUEUE_FULL', 'message' : 'You are reaching ' + str(o.max_queue_size_per_plugin) + ' requests (for uncached new videos) per minute per plugin on your server. Try to increase the url_rewrite_children in squid.conf. If that doesnt fix this warning, please contact us.' })
                                             try:
                                                 local_video_queue.get()
                                             except:

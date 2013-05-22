@@ -75,7 +75,6 @@ class VideocacheConf:
     hit_time_threshold = Option(30)
     log_hit_threshold = Option(300)
     max_queue_size_per_plugin = Option(1024)
-    max_cpn_monitor_queue_size = Option(65535)
     max_log_hit_monitor_queue_size = Option(16384)
 
     # Apache

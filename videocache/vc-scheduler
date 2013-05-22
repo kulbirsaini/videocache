@@ -955,33 +955,13 @@ def readline_with_timeout(q, output, finder_list = [], any_find = True):
     except Exception, e:
         ent({ 'code' : 'ACCESS_LOG_QUEUE_ERR', 'message' : 'Ideally, there should be no error here. If you see this, please report.', 'debug' : str(e) })
 
-def tail_file():
-    if o.offline_mode:
-        info({ 'code': ACCESS_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
-        return
-
-    while True:
-        if not os.path.isfile(o.squid_access_log):
-            warn({ 'code' : ACCESS_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
-        else:
-            break
-        time.sleep(300)
-
-    global access_log_queue, log_hit_queue
-    filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
-    access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
+def tail_file(filename, finder_list = [], any_find = True):
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
 
-    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
     while True:
         try:
             line = readline_with_timeout(process.stdout, finder_list, any_find)
-            if line:
-                if any(map(lambda x: line.find(x) > -1, access_log_track_lines)):
-                    access_log_queue.put(line)
-                elif any(map(lambda x: line.find(x) > -1, log_hit_track_lines)):
-                    log_hit_queue.put(line)
+            if line: yield line
         except TimeoutError, e:
             process.stdout.close()
             process.terminate()
@@ -991,21 +971,40 @@ def tail_file():
             time.slee(0.05)
 
 def watch_access_log():
-    global local_cpn_pool, access_log_queue
-
+    time.sleep(15)
     while True:
+        if not os.path.isfile(o.squid_access_log):
+            warn({ 'code' : ACCESS_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
+        else:
+            break
+        time.sleep(300)
+
+    global local_cpn_pool, log_hit_queue
+    filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
+    access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
+    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
+
+    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
+
+    started_at = time.time()
+    log_hits = 0
+    for line in tail_file(filename, finder_list, any_find):
         try:
-            line = access_log_queue.get(timeout = 120)
-            try:
-                url = re.findall(URL_EXTRACT_REGEX, line)[0]
-                video_id, cpn = get_youtube_video_id_and_cpn(url)
-                if video_id != None and cpn != None:
-                    local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                    YoutubeCPN.with_timeout(0.25, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
-            except Exception, e:
-                ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
-        except Empty, e:
-            pass
+            if any(map(lambda x: line.find(x) > -1, access_log_track_lines)):
+                try:
+                    url = re.findall(URL_EXTRACT_REGEX, line)[0]
+                    video_id, cpn = get_youtube_video_id_and_cpn(url)
+                    if video_id != None and cpn != None:
+                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+                        YoutubeCPN.with_timeout(0.25, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
+                except Exception, e:
+                    ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
+            elif any(map(lambda x: line.find(x) > -1, log_hit_track_lines)):
+                log_hits += 1
+                if log_hit_queue.full():
+                    warn({ 'code' : 'LOG_HIT_QUEUE_FULL', 'message' : 'Videocache is receiving ' + str(int(log_hits / (time.time() - started_at))) + ' requests per second for to check against squid cache. Please report if you see this issue.' })
+                    log_hit_queue.get(timeout = 0.1)
+                log_hit_queue.put(line)
         except Exception, e:
             ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
             time.slee(0.05)
@@ -1430,11 +1429,6 @@ def task_scheduler():
     srs_thread = None
     srs_interval = 10
 
-    # tail_file
-    last_tf_at = 0
-    tf_thread = None
-    tf_interval = 120
-
     # cpn_monitor
     last_cm_at = now - 55
     cm_thread = None
@@ -1513,15 +1507,7 @@ def task_scheduler():
         except Exception, e:
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
-        if o.enable_access_log_monitoring:
-            try:
-                if not (tf_thread and tf_thread.isAlive()) and cur_time - last_tf_at > tf_interval:
-                    tf_thread = LoggingThread(target = tail_file, name = 'tail_file')
-                    last_tf_at = cur_time
-                    tf_thread.start()
-            except Exception, e:
-                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
+        if not o.offline_mode and o.enable_access_log_monitoring:
             try:
                 if not (cm_thread and cm_thread.isAlive()) and cur_time - last_cm_at > cm_interval:
                     cm_thread = LoggingThread(target = watch_access_log, name = 'watch_access_log')
@@ -1551,6 +1537,9 @@ class VideoPoolDaemon(VideocacheDaemon):
         try:
             self.o.set_loggers()
             process_id = os.getpid()
+
+            if o.offline_mode:
+                info({ 'code': ACCESS_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
 
             task_scheduler_thread = LoggingThread(target = task_scheduler)
             task_scheduler_thread.start()
@@ -1599,8 +1588,7 @@ if __name__ == '__main__':
 
         daemon = VideoPoolDaemon(o, uid = uid)
 
-        access_log_queue = Queue()
-        log_hit_queue = Queue()
+        log_hit_queue = Queue(o.max_log_hit_monitor_queue_size)
         base_dir_disk_space = {}
         last_base_dir_used = 0
         local_cpn_pool = {}
