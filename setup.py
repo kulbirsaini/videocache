@@ -93,12 +93,11 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
     install_dir = apply_install_root(root, '/usr/share/videocache/')
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
-    var_dir = os.path.dirname(o.scheduler_pidfile)
     init_dir = apply_install_root(root, '/etc/init.d/')
 
     install_error = blue("\n\n" + setup_error('install'))
 
-    dirs_to_be_created = [install_dir, etc_dir, usr_sbin_dir, var_dir, init_dir]
+    dirs_to_be_created = [install_dir, etc_dir, usr_sbin_dir, init_dir]
 
     if apache_conf_dir != '':
         dirs_to_be_created += [apply_install_root(root, apache_conf_dir)]

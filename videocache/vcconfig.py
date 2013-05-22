@@ -95,7 +95,7 @@ class VideocacheConf:
     # Logging
     logdir = Option('/var/log/videocache/')
     timeformat = Option('%d/%b/%Y:%H:%M:%S')
-    scheduler_pidfile = Option('/var/run/videocache.pid')
+    scheduler_pidfile = Option('videocache.pid')
     # Main Logfile
     enable_videocache_log = Option(1)
     logformat = Option('%tl %p %s %i %w %c %v %m %d')

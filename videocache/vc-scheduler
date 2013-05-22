@@ -27,6 +27,7 @@ import datetime
 import glob
 import heapq
 import logging
+import multiprocessing
 import pickle
 import pwd
 import random
@@ -970,6 +971,8 @@ def tail_file(filename, finder_list = [], any_find = True):
             time.slee(0.05)
 
 def watch_access_log():
+    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
+
     time.sleep(15)
     while True:
         if not os.path.isfile(o.squid_access_log):
@@ -982,8 +985,6 @@ def watch_access_log():
     filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
     access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
     log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
-
-    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
 
     started_at = time.time()
     log_hits = 0
@@ -1374,63 +1375,84 @@ def cleanup_cpn_pool():
     except Exception, e:
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
+def write_pid_file(pids):
+    try:
+        fobject = open(o.scheduler_pidfile, 'w')
+        fobject.write(','.join(map(lambda x: str(x), pids)))
+        fobject.close()
+    except Exception, e:
+        wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.scheduler_pidfile + ' is writable by Squid daemon user.', 'debug' : str(e) })
+
 def task_scheduler():
+    process_list = []
+    write_pid_file(process_list)
     now = time.time()
 
     # cache_thread_scheduler
     last_cts_at = 0
     cts_thread = None
+    cts_thread_pid = None
     cts_interval = 15
 
     # cleanup_cpn_pool
     last_ccp_at = 0
     ccp_thread = None
+    ccp_thread_pid = None
     ccp_interval = 120
 
     # cleanup_video_queue
     last_cvq_at = now - 570
     cvq_thread = None
+    cvq_thread_pid = None
     cvq_interval = 600
 
     # cleanup_cache
     last_cc_at = now - 220
     cc_thread = None
+    ccp_thread_pid = None
     cc_interval = 300
 
     # rebuild_filelist
     last_rf_at = now - 21550
     rf_thread = None
+    rf_thread_pid = None
     rf_interval = 21600
 
     # submit_system_info
     last_ssi_at = now - 21500
     ssi_thread = None
+    ssi_thread_pid = None
     ssi_interval = 21600
 
     # cleanup_video
     last_cv_at = now - 1770
     cv_thread = None
+    cv_thread_pid = None
     cv_interval = 1800
 
     # start_rpc_server
     last_srs_at = 0
     srs_thread = None
+    srs_thread_pid = None
     srs_interval = 10
 
     # cpn_monitor
     last_cm_at = now - 55
     cm_thread = None
+    cm_thread_pid = None
     cm_interval = 60
 
     # log_hit_monitor
     last_hm_at = now - 60
     hm_thread = None
+    hm_thread_pid = None
     hm_interval = 170
 
     refine_cache_periods()
 
     while True:
         cur_time = time.time()
+        write_pid_file(process_list)
         try:
             if not (cts_thread and cts_thread.isAlive()) and cur_time - last_cts_at > cts_interval:
                 cts_thread = LoggingThread(target = cache_thread_scheduler, name = 'cache_thread_scheduler')
@@ -1464,10 +1486,16 @@ def task_scheduler():
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
         try:
-            if not (rf_thread and rf_thread.isAlive()) and cur_time - last_rf_at > rf_interval:
-                rf_thread = LoggingThread(target = rebuild_filelist, name = 'rebuild_filelist')
+            if rf_thread_pid in process_list and rf_thread and not rf_thread.is_alive():
+                process_list.remove(rf_thread_pid)
+                rf_thread_pid = None
+            if not (rf_thread and rf_thread.is_alive()) and cur_time - last_rf_at > rf_interval:
+                rf_thread = multiprocessing.Process(target = rebuild_filelist, name = 'watch_log_hit')
                 last_rf_at = cur_time
                 rf_thread.start()
+                rf_thread_pid = rf_thread.pid
+                if rf_thread_pid not in process_list:
+                    process_list.append(rf_thread_pid)
         except Exception, e:
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
@@ -1505,10 +1533,16 @@ def task_scheduler():
                 wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
             try:
-                if not (hm_thread and hm_thread.isAlive()) and cur_time - last_hm_at > hm_interval:
-                    hm_thread = LoggingThread(target = watch_log_hit, name = 'watch_log_hit')
+                if hm_thread_pid in process_list and hm_thread and not hm_thread.is_alive():
+                    process_list.remove(hm_thread_pid)
+                    hm_thread_pid = None
+                if not (hm_thread and hm_thread.is_alive()) and cur_time - last_hm_at > hm_interval:
+                    hm_thread = multiprocessing.Process(target = watch_log_hit, name = 'watch_log_hit')
                     last_hm_at = cur_time
                     hm_thread.start()
+                    hm_thread_pid = hm_thread.pid
+                    if hm_thread_pid not in process_list:
+                        process_list.append(hm_thread_pid)
             except Exception, e:
                 wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
@@ -1518,7 +1552,7 @@ class VideoPoolDaemon(VideocacheDaemon):
 
     def __init__(self, o = None, **kwargs):
         self.o = o
-        VideocacheDaemon.__init__(self, o.scheduler_pidfile, name = 'Videocache Scheduler', **kwargs)
+        VideocacheDaemon.__init__(self, '/var/run/videocache.pid', name = 'Videocache Scheduler', **kwargs)
 
     def run(self):
         global process_id
@@ -1538,6 +1572,18 @@ class VideoPoolDaemon(VideocacheDaemon):
 def cleanup_processes():
     try:
         kill_tail_processes(o.squid_access_log, o.videocache_user)
+    except:
+        pass
+    try:
+        for pid in map(lambda x: int(x), filter(lambda x: is_integer(x), open(o.scheduler_pidfile, 'r').read().strip().split(','))):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+    except:
+        pass
+    try:
+        os.unlink(o.scheduler_pidfile)
     except:
         pass
 

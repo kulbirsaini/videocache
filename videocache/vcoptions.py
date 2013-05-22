@@ -153,7 +153,7 @@ class VideocacheOptions:
             # Logging
             self.__class__.logdir = mainconf.logdir
             self.__class__.timeformat = mainconf.timeformat
-            self.__class__.scheduler_pidfile = mainconf.scheduler_pidfile
+            self.__class__.scheduler_pidfile = os.path.join(mainconf.logdir, mainconf.scheduler_pidfile)
             # Mail Videocache Logfile
             self.__class__.enable_videocache_log = int(mainconf.enable_videocache_log)
             self.__class__.logformat = mainconf.logformat

@@ -54,14 +54,13 @@ def update_vc(o, root, install_dir, quiet):#{{{
     """Perform the update."""
     etc_dir = apply_install_root(root, '/etc/')
     usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
-    var_dir = os.path.dirname(o.scheduler_pidfile)
 
     error = red(update_error('update'))
     apache_conf_dir = ''
     if o.skip_apache_conf == 0 and o.apache_conf_dir != '':
         apache_conf_dir = apply_install_root(root, o.apache_conf_dir)
 
-    dirs_to_create = [etc_dir, usr_sbin_dir, var_dir]
+    dirs_to_create = [etc_dir, usr_sbin_dir]
     if apache_conf_dir != '':
         dirs_to_create.append(apache_conf_dir)
 
