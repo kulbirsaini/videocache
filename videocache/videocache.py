@@ -18,9 +18,9 @@ from vcoptions import VideocacheOptions
 from vcsysinfo import *
 
 from optparse import OptionParser
-from xmlrpclib import ServerProxy
 
 import cgi
+import cookielib
 import logging
 import logging.handlers
 import os
@@ -35,6 +35,11 @@ import traceback
 import urllib
 import urllib2
 import urlparse
+
+# Cookie processor and default socket timeout
+cj = cookielib.CookieJar()
+urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
+socket.setdefaulttimeout(90)
 
 def info(params = {}):
     if o.enable_videocache_log:
@@ -69,20 +74,27 @@ def wnt(params = {}):
 def sync_video_info():
     global local_video_queue
     now = time.time()
-    sysinfo_last_submitted_at = now - 3540
-    sysinfo_submit_interval = 3600
-    cleanup_cpn_pool_last_at = now
-    cleanup_cpn_pool_interval = 300
+    last_ssi_at = now - 21500
+    ssi_interval = 21600
+    last_ccp_at = now
+    ccp_interval = 300
+    last_cv_at = now - 1750
+    cv_interval = 1800
 
     wait_time = 120
     sleep_time = 0.05
     while True:
+        now = time.time()
         try:
-            if (now - sysinfo_last_submitted_at) > sysinfo_submit_interval:
-                sysinfo_last_submitted_at = now
+            if (now - last_ssi_at) > ssi_interval:
+                last_ssi_at = now
                 submit_system_info()
-            if (now - cleanup_cpn_pool_last_at) > cleanup_cpn_pool_interval:
+            if (now - last_ccp_at) > ccp_interval:
+                last_ccp_at = now
                 cleanup_local_cpn_pool(now)
+            if (now - last_cv_at) > cv_interval:
+                last_cv_at = now
+                cleanup_video()
             video = local_video_queue.get(timeout = wait_time)
             try:
                 result = VideoQueue.with_timeout(0.5, VideoQueue.first, { 'website_id' : video['website_id'], 'video_id' : video['video_id'], 'format' : video['format'] })
@@ -97,31 +109,31 @@ def sync_video_info():
             continue
         except Exception, e:
             ent({ 'code' : 'VIDEO_SUBMIT_FAIL', 'message' : 'Could not submit video information to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
-        now = time.time()
+
+def cleanup_video():
+    try:
+        delete_video(o)
+    except Exception, e:
+        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def submit_system_info():
-    delete_video(o)
     try:
-        num_tries = 0
-        while num_tries < 5:
-            try:
-                video_pool.ping()
-                sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision }
-                sys_info.update(get_all_info(o))
-                video_pool.add_system(sys_info)
-                return True
-            except Exception, e:
-                connection()
+        if o.client_email != '':
+            sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision, 'trial' : o.trial }
+            sys_info.update(get_all_info(o))
+            new_info = {}
+            for k,v in sys_info.items():
+                new_info['[server][' + k + ']'] = v
 
-            for i in range(1, int(min(2 ** num_tries, 10) / 0.1)):
-                if exit:
-                    return False
-                time.sleep(0.1)
-            num_tries += 1
+            cookie_handler = urllib2.HTTPCookieProcessor()
+            redirect_handler = urllib2.HTTPRedirectHandler()
+            info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+
+            status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
-            return False
+            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
     except Exception, e:
-        return False
+        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_local_cpn_pool(now = time.time()):
     global local_cpn_pool
@@ -132,17 +144,6 @@ def cleanup_local_cpn_pool(now = time.time()):
                 local_cpn_pool.pop(cpn_id, None)
         except:
             pass
-
-def connection():
-    global video_pool
-    try:
-        video_pool.ping()
-    except Exception, e:
-        try:
-            video_pool = ServerProxy(o.rpc_url)
-            video_pool.ping()
-        except Exception, e:
-            ent({ 'code' : RPC_CONNECT_ERR, 'message' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e)})
 
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
@@ -300,7 +301,6 @@ if __name__ == '__main__':
 
     local_video_queue = Queue(o.max_queue_size_per_plugin)
     local_cpn_pool = {}
-    video_pool = None
     process_id = os.getpid()
     exit = False
     initialize_database(o)

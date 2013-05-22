@@ -76,6 +76,7 @@ class VideocacheConf:
     log_hit_threshold = Option(300)
     max_queue_size_per_plugin = Option(1024)
     max_log_hit_monitor_queue_size = Option(16384)
+    trial = Option(0)
 
     # Apache
     skip_apache_conf = Option(0)
@@ -127,8 +128,6 @@ class VideocacheConf:
 
     # Network
     cache_host = Option('')
-    rpc_host = Option('127.0.0.1')
-    rpc_port = Option(9100)
     proxy = Option('')
     proxy_username = Option('')
     proxy_password = Option('')

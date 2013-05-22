@@ -20,7 +20,6 @@ from websites.youtube import *
 from optparse import OptionParser
 from Queue import Queue, Empty
 from SimpleXMLRPCServer import SimpleXMLRPCServer
-from xmlrpclib import ServerProxy
 
 import cgi
 import cookielib
@@ -1168,35 +1167,22 @@ def need_rest_for():
 
 def submit_system_info():
     try:
-        connection()
         if o.client_email != '':
-            num_tries = 0
-            systems = []
-            while num_tries < 5:
-                try:
-                    video_pool.ping()
-                    systems = video_pool.get_systems()
-                    break
-                except Exception, e:
-                    connection()
+            sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision, 'trial' : o.trial }
+            sys_info.update(get_all_info(o))
+            new_info = {}
+            for k,v in sys_info.items():
+                new_info['[server][' + k + ']'] = v
 
-                time.sleep(min(2 ** num_tries, 10))
-                num_tries += 1
+            cookie_handler = urllib2.HTTPCookieProcessor()
+            redirect_handler = urllib2.HTTPRedirectHandler()
+            info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
 
-            if len(systems) != 0:
-                cookie_handler = urllib2.HTTPCookieProcessor()
-                redirect_handler = urllib2.HTTPRedirectHandler()
-                info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-                for system in systems:
-                    new_info = {}
-                    for k,v in system.items():
-                        new_info['[server][' + k + ']'] = v
-
-                    status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
+            status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
     except Exception, e:
-        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
+        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
     for files_to_remove_chunk in chunks(files_to_remove, 25):
@@ -1312,7 +1298,7 @@ def cleanup_video():
     try:
         delete_video(o, randomize)
     except Exception, e:
-        warn({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
+        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_cache():
     cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
@@ -1500,7 +1486,7 @@ def task_scheduler():
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
         try:
-            if not (srs_thread and srs_thread.isAlive()) and cur_time - last_srs_at > srs_interval:
+            if False and not (srs_thread and srs_thread.isAlive()) and cur_time - last_srs_at > srs_interval:
                 srs_thread = LoggingThread(target = start_rpc_server, name = 'start_rpc_server')
                 last_srs_at = cur_time
                 srs_thread.start()
@@ -1545,14 +1531,9 @@ class VideoPoolDaemon(VideocacheDaemon):
             task_scheduler_thread.start()
             task_scheduler_thread.join()
         except Exception, e:
-            ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
+            ent({ 'code' : 'TASK_SCHEDULER_ERR', 'message' : 'Error while starting task scheduler.' })
 
 def cleanup_processes():
-    connection()
-    try:
-        video_pool.shutdown()
-    except:
-        pass
     try:
         kill_tail_processes(o.squid_access_log, o.videocache_user)
     except:
@@ -1592,7 +1573,6 @@ if __name__ == '__main__':
         base_dir_disk_space = {}
         last_base_dir_used = 0
         local_cpn_pool = {}
-        video_pool = None
         exit = False
         process_id = '-'
         stdout = sys.stdout

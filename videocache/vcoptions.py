@@ -120,6 +120,9 @@ class VideocacheOptions:
             self.__class__.log_hit_threshold = int(mainconf.log_hit_threshold)
             self.__class__.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
             self.__class__.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
+            self.__class__.trial = int(mainconf.trial)
+            if self.__class__.trial:
+                self.__class__.trial = 1
 
             # Apache
             self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)
@@ -188,8 +191,6 @@ class VideocacheOptions:
 
             # Network
             self.__class__.cache_host = str(mainconf.cache_host).strip()
-            self.__class__.rpc_host = mainconf.rpc_host
-            self.__class__.rpc_port = int(mainconf.rpc_port)
             proxy = mainconf.proxy.strip()
             proxy_username = mainconf.proxy_username.strip()
             proxy_password = mainconf.proxy_password.strip()
@@ -268,12 +269,6 @@ class VideocacheOptions:
                 self.__class__.cache_host_port = None
         except Exception, e:
             syslog_msg('Could not generate Cache URL for serving videos from cache. Debug: ' + traceback.format_exc().replace('\n', ''))
-            return None
-
-        try:
-            self.__class__.rpc_url = 'http://' + self.__class__.rpc_host + ':' + str(self.__class__.rpc_port)
-        except Exception, e:
-            syslog_msg('Could not generate RPC URL for XMLRPC communication. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         try:
