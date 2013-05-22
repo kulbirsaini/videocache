@@ -132,7 +132,7 @@ class VideoPool:
     last_used_dir = 0
     sync_lock = threading.Semaphore(value = 1)
     sync_threshold = 600
-    store_log_threshold = 240
+    log_hit_threshold = 240
 
     scores = {}
     queue = {}
@@ -508,7 +508,7 @@ class VideoPool:
                 if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
                     params = self.get_details(video_id, website_id)
                     if params != False:
-                        if o.enable_store_log_monitoring and (time.time() - params.get('first_access', 0)) < self.store_log_threshold:
+                        if o.enable_access_log_monitoring and (time.time() - params.get('first_access', 0)) < self.log_hit_threshold:
                             return True
                         next_cache_dir = self.get_next_cache_dir()
                         if next_cache_dir is False:
@@ -881,8 +881,8 @@ def schedule():
 
         if video.access_count < o.hit_threshold: return
 
-        if o.enable_store_log_monitoring:
-            cut_off_time = time.time() - o.store_log_threshold
+        if o.enable_access_log_monitoring:
+            cut_off_time = time.time() - o.log_hit_threshold
             if cut_off_time < video.first_access: return
 
         video.update_attributes({ 'access_count' : 0, 'active' : True, 'activated_at' : time.time() })
@@ -967,20 +967,21 @@ def tail_file():
             break
         time.sleep(300)
 
-    global access_log_queue, store_log_queue
+    global access_log_queue, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
     access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    store_log_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
+    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
 
+    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
     while True:
         try:
             line = readline_with_timeout(process.stdout, finder_list, any_find)
             if line:
                 if any(map(lambda x: line.find(x) > -1, access_log_track_lines)):
                     access_log_queue.put(line)
-                elif any(map(lambda x: line.find(x) > -1, store_log_track_lines)):
-                    store_log_queue.put(line)
+                elif any(map(lambda x: line.find(x) > -1, log_hit_track_lines)):
+                    log_hit_queue.put(line)
         except TimeoutError, e:
             process.stdout.close()
             process.terminate()
@@ -991,7 +992,6 @@ def tail_file():
 
 def watch_access_log():
     global local_cpn_pool, access_log_queue
-    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid\'s access.log for Youtube video ID extraction.' })
 
     while True:
         try:
@@ -1028,8 +1028,8 @@ def get_youtube_video_id_from_cpn(cpn, video_id, website_id):
 
     return video_id
 
-def watch_store_log():
-    global local_cpn_pool, store_log_queue
+def watch_log_hit():
+    global local_cpn_pool, log_hit_queue
 
     if not o.this_proxy:
         warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
@@ -1037,7 +1037,7 @@ def watch_store_log():
 
     while True:
         try:
-            line = store_log_queue.get(timeout = 120)
+            line = log_hit_queue.get(timeout = 120)
             try:
                 video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
                 fragments = urlparse.urlsplit(video_url)
@@ -1388,6 +1388,8 @@ def cleanup_cpn_pool():
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def task_scheduler():
+    now = time.time()
+
     # cache_thread_scheduler
     last_cts_at = 0
     cts_thread = None
@@ -1399,27 +1401,27 @@ def task_scheduler():
     ccp_interval = 120
 
     # cleanup_video_queue
-    last_cvq_at = time.time() - 570
+    last_cvq_at = now - 570
     cvq_thread = None
     cvq_interval = 600
 
     # cleanup_cache
-    last_cc_at = time.time() - 220
+    last_cc_at = now - 220
     cc_thread = None
     cc_interval = 300
 
     # rebuild_filelist
-    last_rf_at = time.time() - 21550
+    last_rf_at = now - 21550
     rf_thread = None
     rf_interval = 21600
 
     # submit_system_info
-    last_ssi_at = time.time() - 21500
+    last_ssi_at = now - 21500
     ssi_thread = None
     ssi_interval = 21600
 
     # cleanup_video
-    last_cv_at = time.time() - 1770
+    last_cv_at = now - 1770
     cv_thread = None
     cv_interval = 1800
 
@@ -1427,6 +1429,21 @@ def task_scheduler():
     last_srs_at = 0
     srs_thread = None
     srs_interval = 10
+
+    # tail_file
+    last_tf_at = 0
+    tf_thread = None
+    tf_interval = 120
+
+    # cpn_monitor
+    last_cm_at = now - 55
+    cm_thread = None
+    cm_interval = 60
+
+    # log_hit_monitor
+    last_hm_at = now - 60
+    hm_thread = None
+    hm_interval = 170
 
     refine_cache_periods()
 
@@ -1496,6 +1513,31 @@ def task_scheduler():
         except Exception, e:
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
+        if o.enable_access_log_monitoring:
+            try:
+                if not (tf_thread and tf_thread.isAlive()) and cur_time - last_tf_at > tf_interval:
+                    tf_thread = LoggingThread(target = tail_file, name = 'tail_file')
+                    last_tf_at = cur_time
+                    tf_thread.start()
+            except Exception, e:
+                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+            try:
+                if not (cm_thread and cm_thread.isAlive()) and cur_time - last_cm_at > cm_interval:
+                    cm_thread = LoggingThread(target = watch_access_log, name = 'watch_access_log')
+                    last_cm_at = cur_time
+                    cm_thread.start()
+            except Exception, e:
+                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
+            try:
+                if not (hm_thread and hm_thread.isAlive()) and cur_time - last_hm_at > hm_interval:
+                    hm_thread = LoggingThread(target = watch_log_hit, name = 'watch_log_hit')
+                    last_hm_at = cur_time
+                    hm_thread.start()
+            except Exception, e:
+                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+
         time.sleep(2)
 
 class VideoPoolDaemon(VideocacheDaemon):
@@ -1511,19 +1553,8 @@ class VideoPoolDaemon(VideocacheDaemon):
             process_id = os.getpid()
 
             task_scheduler_thread = LoggingThread(target = task_scheduler)
-            tail_file_thread = LoggingThread(target = tail_file)
-            if o.enable_store_log_monitoring: store_log_watcher_thread = LoggingThread(target = watch_store_log)
-            if o.enable_access_log_monitoring: access_log_watcher_thread = LoggingThread(target = watch_access_log)
-
             task_scheduler_thread.start()
-            tail_file_thread.start()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.start()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.start()
-
             task_scheduler_thread.join()
-            tail_file_thread.join()
-            if o.enable_store_log_monitoring: store_log_watcher_thread.join()
-            if o.enable_access_log_monitoring: access_log_watcher_thread.join()
         except Exception, e:
             ent({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Error while starting VideoPool server at port ' + str(self.o.rpc_port) })
 
@@ -1533,11 +1564,10 @@ def cleanup_processes():
         video_pool.shutdown()
     except:
         pass
-    for filename in [o.squid_access_log, o.squid_store_log]:
-        try:
-            kill_tail_processes(filename, o.videocache_user)
-        except:
-            pass
+    try:
+        kill_tail_processes(o.squid_access_log, o.videocache_user)
+    except:
+        pass
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -1570,7 +1600,7 @@ if __name__ == '__main__':
         daemon = VideoPoolDaemon(o, uid = uid)
 
         access_log_queue = Queue()
-        store_log_queue = Queue()
+        log_hit_queue = Queue()
         base_dir_disk_space = {}
         last_base_dir_used = 0
         local_cpn_pool = {}

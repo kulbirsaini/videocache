@@ -105,8 +105,6 @@ class VideocacheOptions:
             self.__class__.info_server = mainconf.info_server
             self.__class__.video_server = mainconf.video_server
             this_proxy = mainconf.this_proxy.strip()
-            self.__class__.enable_store_log_monitoring = int(mainconf.enable_store_log_monitoring)
-            self.__class__.squid_store_log = mainconf.squid_store_log
             self.__class__.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
             self.__class__.squid_access_log = mainconf.squid_access_log
             self.__class__.ssl_fo = None
@@ -116,14 +114,13 @@ class VideocacheOptions:
             self.__class__.db_password = mainconf.db_password
             self.__class__.db_database = mainconf.db_database
             self.__class__.cpn_lifetime = 1800
-            self.__class__.video_queue_lifetime = 3600 * 24 * 2
-            self.__class__.active_queue_lifetime = 3600
-            self.__class__.hit_time_threshold = 30
-            self.__class__.store_log_threshold = 300
-            self.__class__.max_queue_size_per_plugin = 1024
-
-            if this_proxy == '' or self.__class__.squid_store_log == '':
-                self.__class__.enable_store_log_monitoring = 0
+            self.__class__.video_queue_lifetime = int(mainconf.video_queue_lifetime)
+            self.__class__.active_queue_lifetime = int(mainconf.active_queue_lifetime)
+            self.__class__.hit_time_threshold = int(mainconf.hit_time_threshold)
+            self.__class__.log_hit_threshold = int(mainconf.log_hit_threshold)
+            self.__class__.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
+            self.__class__.max_cpn_monitor_queue_size = int(mainconf.max_cpn_monitor_queue_size)
+            self.__class__.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
 
             # Apache
             self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)

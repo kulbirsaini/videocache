@@ -49,7 +49,7 @@ Following options must be specified while installing Videocache.
                     Example: 192.168.1.14 or 192.168.1.14:81
 --this-proxy        IP_Address:PORT combination for Squid proxy running on this machine.
                     Example: 127.0.0.1:3128 192.168.1.1:8080
---squid-store-log   Full path to Squid store.log file. Example: /var/log/squid/store.log
+--squid-access-log  Full path to Squid access.log file. Example: /var/log/squid3/access.log
 --apache-conf-dir   Full path to conf.d or extra directory for Apache.
                     Example: /etc/httpd/conf.d/ or /etc/apache2/conf.d/ or /etc/httpd/extra/
 
@@ -57,7 +57,7 @@ You must supply either --skip-apache-conf or --apache-conf-dir.
 To see a list of all available options, please run
 $ python setup.py -h
 
-Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --squid-store-log /var/log/squid/store.log --apache-conf-dir /etc/httpd/conf.d install --db-hostname localhost --db-username videocache --db-password videocache --db-database videocache
+Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --squid-access-log /var/log/squid3/access.log --apache-conf-dir /etc/httpd/conf.d --db-hostname localhost --db-username videocache --db-password videocache --db-database videocache install
 
 Please see http://cachevideos.com/#install for more information or getting help.
 """
@@ -83,13 +83,12 @@ Please see http://cachevideos.com/#install for more information or getting help.
     messages['apache_conf_dir'] = "(--apache-conf-dir)  Apache conf.d or extra directory specified using --apache-conf-dir option doesn't start with a /"
     messages['client_email'] = "(--client-email)     Email address provided using --client-email option is not in valid format."
     messages['squid_user'] = "(--squid-user)       The user provided using --squid-user option doesn't exist on system."
-    messages['squid_store_log'] = "(--squid-store-log)  Squid store.log file path specified using --squid-store-log option doesn't start with a /"
     messages['squid_access_log'] = "(--squid-access-log)  Squid access.log file path specified using --squid-access-log option doesn't start with a /"
     if error_code in messages:
         return messages[error_code]
     return ''#}}}
 
-def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, squid_access_log, quiet, working_dir, hostname, username, password, database):#{{{
+def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, quiet, working_dir, hostname, username, password, database):#{{{
     """Perform the setup."""
     install_dir = apply_install_root(root, '/usr/share/videocache/')
     etc_dir = apply_install_root(root, '/etc/')
@@ -138,7 +137,6 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         config_data = re.sub('\nclient_email[\ ]*=[^\n]*\n', '\nclient_email = %s\n' % email, config_data, count = 0)
         config_data = re.sub('\ncache_host[\ ]*=[^\n]*\n', '\ncache_host = %s\n' % cache_host, config_data, count = 0)
         config_data = re.sub('\nthis_proxy[\ ]*=[^\n]*\n', '\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
-        config_data = re.sub('\nsquid_store_log[\ ]*=[^\n]*\n', '\nsquid_store_log = %s\n' % squid_store_log, config_data, count = 0)
         config_data = re.sub('\nsquid_access_log[\ ]*=[^\n]*\n', '\nsquid_access_log = %s\n' % squid_access_log, config_data, count = 0)
         config_data = re.sub('\napache_conf_dir[\ ]*=[^\n]*\n', '\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
         config_data = re.sub('\ndb_hostname[\ ]*=[^\n]*\n', '\ndb_hostname = %s\n' % hostname, config_data, count = 0)
@@ -189,7 +187,7 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
         log_traceback()
         print_message_and_abort(install_error)
 
-    squid_config_lines = "cache_store_log %s\naccess_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (squid_store_log, squid_access_log, get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "access_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (squid_access_log, get_ip_addresses().replace(',', ' '))
     msg = """
 Setup has completed successfully. Plesae follow the following steps to start Videocache.
 
@@ -245,7 +243,6 @@ def process_options(parser):#{{{
     parser.add_option('--apache-conf-dir', dest = 'apache_conf_dir', type='string', help = 'Path to conf.d directory for Apache. In most cases, it\'ll be /etc/httpd/conf.d/ or /etc/apache2/conf.d/.')
     parser.add_option('--cache-host', dest = 'cache_host', type='string', help = 'Cache host (IP Address with optional port) to serve cached videos via Apache.')
     parser.add_option('--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).')
-    parser.add_option('--squid-store-log', dest = 'squid_store_log', type='string', help = 'Full path to Squid store.log file. Example : /var/log/squid/store.log')
     parser.add_option('--squid-access-log', dest = 'squid_access_log', type='string', help = 'Full path to Squid access.log file. Example : /var/log/squid/access.log')
     parser.add_option('--db-hostname', dest = 'db_hostname', type='string', help = 'Enter hostname for database access')
     parser.add_option('--db-username', dest = 'db_username', type='string', help = 'Enter username for database access')
@@ -264,7 +261,7 @@ def verify_options(options, args):#{{{
     if os.geteuid() != 0:
         print_message_and_abort(red(setup_error('uid')))
 
-    if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or not options.squid_store_log or not options.squid_access_log or (options.skip_apache_conf == False and not options.apache_conf_dir):
+    if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or not options.squid_access_log or (options.skip_apache_conf == False and not options.apache_conf_dir):
         print_message_and_abort(red(setup_error('usage')))
 
     messages = ''
@@ -282,9 +279,6 @@ def verify_options(options, args):#{{{
 
     if not is_valid_user(options.squid_user):
         messages += "\n\n" + setup_error('squid_user')
-
-    if not is_valid_path(options.squid_store_log):
-        messages += "\n\n" + setup_error('squid_store_log')
 
     if not is_valid_path(options.squid_access_log):
         messages += "\n\n" + setup_error('squid_access_log')
@@ -336,6 +330,6 @@ if __name__ == '__main__':
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
-    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, squid_access_log, verbose, hostname, username, password, database = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_store_log, options.squid_access_log, options.verbose, options.db_hostname, options.db_username, options.db_password, options.db_database
-    setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_store_log, squid_access_log, not verbose, working_dir, hostname, username, password, database)
+    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, verbose, hostname, username, password, database = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_access_log, options.verbose, options.db_hostname, options.db_username, options.db_password, options.db_database
+    setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, not verbose, working_dir, hostname, username, password, database)
 

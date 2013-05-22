@@ -514,7 +514,7 @@ get_squid_user() {
   green $squid_user
 }
 
-# Squid store.log
+# Squid access.log
 is_valid_path() {
   if [[ $2 == 'file' ]]; then
     file=True
@@ -586,61 +586,6 @@ get_squid_access_log() {
   green $squid_access_log
 }
 
-check_squid_store_log() {
-  for file in /var/log/squid/store.log /var/log/squid3/store.log /var/logs/squid/store.log /var/logs/squid3/store.log /usr/local/squid/logs/store.log /usr/local/squid3/store.log ; do
-    if [[ -f $file ]]; then
-      squid_store_log=$file
-      return
-    fi
-  done
-}
-
-get_squid_store_log() {
-  check_squid_store_log
-  default_squid_store_log=$squid_store_log
-  for ((i = 1; i <= $tries; ++i )); do
-    echo
-    if [[ $default_squid_store_log == '' ]]; then
-      echo -n "Full path to Squid store.log file (example: /var/log/squid/store.log): "
-    else
-      echo -n "Full path to Squid store.log file (default: $default_squid_store_log): "
-    fi
-
-    read choice
-    choice=`echo $choice`
-
-    if [[ $choice == '' && $default_squid_store_log == '' ]]; then
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid Squid store.log path in $tries tries. Will exit now."
-        exit 1
-      else
-        red "You didn't enter anything. Please try again."
-      fi
-      continue
-    fi
-
-    if [[ $choice != '' ]]; then
-      squid_store_log=$choice
-    else
-      squid_store_log=$default_squid_store_log
-    fi
-
-    is_valid_path $squid_store_log file
-    if [[ $? == 0 ]]; then
-      break
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid Squid store.log path in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Path \`$squid_store_log\` is not a valid or acceptable path. Please try again."
-      fi
-    fi
-  done
-  message_with_padding "Selected Squid store.log file"
-  green $squid_store_log
-}
-
 # Squid
 check_squid_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
@@ -684,7 +629,6 @@ squid_code() {
   echo; echo
   heading 'Squid'
   check_squid
-  get_squid_store_log
   get_squid_access_log
   get_squid_user
 }
@@ -1063,8 +1007,6 @@ print_info() {
   heading 'Collected Information'
 
   dark_blue "We will be using the following information to install videocache."
-  message_with_padding "Squid store.log"
-  green $squid_store_log
   message_with_padding "Squid access.log"
   green $squid_access_log
   message_with_padding "Squid user"
@@ -1081,7 +1023,7 @@ print_info() {
 
 # Install Videocache
 build_setup_command() {
-  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-store-log $squid_store_log --squid-access-log $squid_access_log"
+  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-access-log $squid_access_log"
   if [[ $skip_apache == 0 ]]; then
     setup_command="$setup_command --apache-conf-dir $apache_config_dir"
   else
@@ -1176,7 +1118,6 @@ main() {
 
 tries=2
 OS=''
-squid_store_log=''
 squid_access_log=''
 squid_access_log=''
 squid_user=''
