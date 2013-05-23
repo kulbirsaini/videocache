@@ -188,8 +188,6 @@ def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, th
 
     squid_config_lines = "access_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (squid_access_log, get_ip_addresses().replace(',', ' '))
     msg = """
-Setup has completed successfully. Plesae follow the following steps to start Videocache.
-
 ----------------------------------Step 1-----------------------------------------
 Open the Videocache configuration file located at /etc/videocache.conf and modify
 any options you want. Once you are done, save the file.

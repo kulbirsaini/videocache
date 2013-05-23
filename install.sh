@@ -1086,9 +1086,9 @@ display_instructions() {
   echo; echo
   heading 'Post Installation Instructions'
   if [[ -f instructions.txt ]]; then
-    green "Setup has completed successfully. A file instructions.txt has been created\nin the bundle which you should follow the complete the installation process."
+    green "Setup has completed successfully. A file instructions.txt has been created\nin the bundle which you should follow to complete the installation process."
     echo
-    red "Post INSTALL instructions. FOLLOW EACH STEP CAREFULLY."
+    red "FOLLOW EACH STEP CAREFULLY."
     which cat > /dev/null 2> /dev/null
     if [[ $? == 0 ]]; then
       cat instructions.txt
