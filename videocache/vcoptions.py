@@ -88,8 +88,8 @@ class VideocacheOptions:
         try:
             # Options not in configuration file
             self.__class__.queue_dump_file = mainconf.queue_dump_file
-            self.__class__.version = '2.2'
-            self.__class__.revision = 'ed46bef8'
+            self.__class__.version = '2.3'
+            self.__class__.revision = '9934b085e'
             # General Options
             self.__class__.enable_videocache = int(mainconf.enable_videocache)
             self.__class__.offline_mode = int(mainconf.offline_mode)
