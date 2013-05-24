@@ -101,17 +101,13 @@ if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
     parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
-    parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     options, args = parser.parse_args()
 
     if os.getuid() != 0:
         print_message_and_abort(red(update_error('uid')))
 
-    if options.vc_root[0] != '/':
-        root = os.path.join(os.getcwd(), options.vc_root)
-    else:
-        root = options.vc_root
+    root = '/'
 
     install_dir = os.path.join(root, 'usr/share/videocache/')
     # Try to locate the videocache directory containing python files.
@@ -136,7 +132,7 @@ if __name__ == '__main__':
         print_message_and_abort(red("\nCould not import required modules for update.") + green("\nIf you contact us regarding this error, please send the Trace above."))
 
     try:
-        o = VideocacheOptions(options.config_file, root)
+        o = VideocacheOptions(options.config_file, root, False, True)
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % options.config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))

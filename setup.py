@@ -319,7 +319,7 @@ if __name__ == '__main__':
         root = options.vc_root
 
     try:
-        o = VideocacheOptions(config_file)
+        o = VideocacheOptions(config_file, '/', False, True)
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))

@@ -24,7 +24,7 @@ class VideocacheOptions:
     initialized = False
     halt = True
 
-    def __init__(self, config_file = '/etc/videocache.conf', root = '/', generate_crossdomain_files = False):
+    def __init__(self, config_file = '/etc/videocache.conf', root = '/', generate_crossdomain_files = False, skip_disk_size_calculation = False):
         self.config_file = config_file
         self.root = root
 
@@ -73,9 +73,9 @@ class VideocacheOptions:
 
         self.CLEANUP_LRU = 1
         self.CLEANUP_MAX_SIZE = 2
-        return self.initialize(generate_crossdomain_files)
+        return self.initialize(generate_crossdomain_files, skip_disk_size_calculation)
 
-    def initialize(self, generate_crossdomain_files = False):
+    def initialize(self, generate_crossdomain_files = False, skip_disk_size_calculation = False):
         if self.__class__.initialized:
             return
 
@@ -244,15 +244,16 @@ class VideocacheOptions:
             return None
 
         # Set up low and high threshold for disk cleanup
-        try:
-            base_dir_thresholds = {}
-            for cache_dir in self.__class__.base_dir_list:
-                size = partition_size(cache_dir)
-                base_dir_thresholds[cache_dir] = { 'low' : int(size * cache_swap_low / 100.0), 'high' : int(size * cache_swap_high / 100.0) }
-            self.__class__.base_dir_thresholds = base_dir_thresholds
-        except Exception, e:
-            syslog_msg('Could not calculate partition size for cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
-            return None
+        if not skip_disk_size_calculation:
+            try:
+                base_dir_thresholds = {}
+                for cache_dir in self.__class__.base_dir_list:
+                    size = partition_size(cache_dir)
+                    base_dir_thresholds[cache_dir] = { 'low' : int(size * cache_swap_low / 100.0), 'high' : int(size * cache_swap_high / 100.0) }
+                self.__class__.base_dir_thresholds = base_dir_thresholds
+            except Exception, e:
+                syslog_msg('Could not calculate partition size for cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
+                return None
 
         try:
             self.__class__.cache_alias = 'videocache'
