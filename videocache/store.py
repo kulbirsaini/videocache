@@ -8,11 +8,7 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
-from error_codes import *
-
 import os
-import stat
-import statvfs
 import subprocess
 
 def get_generalized_filename(o, video_id, format):
@@ -36,19 +32,19 @@ def generalized_cached_url(o, video_id, website_id, format, params = {}):
 
 def free_space(dir):
     disk_stat = os.statvfs(dir)
-    return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BAVAIL] / (1024*1024.0)
+    return disk_stat.f_frsize * disk_stat.f_bavail / 1048576.0
 
 def partition_size(dir):
     disk_stat = os.statvfs(dir)
-    return disk_stat[statvfs.F_FRSIZE] * disk_stat[statvfs.F_BLOCKS] / (1024*1024.0)
+    return disk_stat.f_frsize * disk_stat.f_blocks / 1048576.0
 
 def partition_used(dir):
     disk_stat = os.statvfs(dir)
-    return (disk_stat[statvfs.F_BLOCKS] - disk_stat[statvfs.F_BFREE]) * disk_stat[statvfs.F_FRSIZE] / (1024.0*1024)
+    return (disk_stat.f_blocks - disk_stat.f_bfree) * disk_stat.f_frsize / 1048576.0
 
 def get_size_and_time(filename):
     file_stat = os.stat(filename)
-    return (file_stat[stat.ST_SIZE], file_stat[stat.ST_ATIME])
+    return (file_stat.st_size, file_stat.st_atime)
 
 def get_filelist(dir, sort_by = 'time', order = 'desc'):
     cmd = "find %s -type f ! -iname '*.xml' ! -iname '*.queue' -printf " % dir

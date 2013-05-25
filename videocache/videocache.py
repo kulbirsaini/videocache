@@ -12,23 +12,16 @@ from Queue import Queue, Empty
 
 from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
 from common import *
-from error_codes import *
 from store import generalized_cached_url, get_generalized_filename
 from vcoptions import VideocacheOptions
-from vcsysinfo import *
+from vcsysinfo import get_all_info
 
 from optparse import OptionParser
 
-import cgi
 import cookielib
-import logging
-import logging.handlers
 import os
-import re
 import signal
-import subprocess
 import sys
-import syslog
 import threading
 import time
 import traceback
@@ -43,17 +36,17 @@ socket.setdefaulttimeout(90)
 
 def info(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id})
         o.vc_logger.info(build_message(params))
 
 def error(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id})
         o.vc_logger.error(build_message(params))
 
 def warn(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id})
         o.vc_logger.debug(build_message(params))
 
 def trace(params = {}):
@@ -103,12 +96,13 @@ def sync_video_info():
                 else:
                     VideoQueue.with_timeout(0.5, VideoQueue.create, video)
             except Exception, e:
-                wnt({ 'code' : 'VIDEO_SUBMIT_WARN', 'message' : 'Could not submit video information to mysql. Please check if mysql is still running. ' + str(video), 'debug' : str(e) })
+                wnt({ 'code' : 'VIDEO_QUEUE_WARN', 'message' : 'Could not queue video info to mysql. Please check if mysql is running. ' + str(video), 'debug' : str(e) })
             time.sleep(sleep_time)
         except Empty, e:
             continue
         except Exception, e:
-            ent({ 'code' : 'VIDEO_SUBMIT_FAIL', 'message' : 'Could not submit video information to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
+            ent({ 'code' : 'VIDEO_QUEUE_FAIL', 'message' : 'Could not queue video info to mysql. Please report if you see this error very frequently.', 'debug' : str(e) })
+            time.sleep(0.5)
 
 def cleanup_video():
     try:
@@ -129,7 +123,7 @@ def submit_system_info():
             redirect_handler = urllib2.HTTPRedirectHandler()
             info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
 
-            status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
+            info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
     except Exception, e:
@@ -146,7 +140,7 @@ def cleanup_local_cpn_pool(now = time.time()):
             pass
 
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
-    wnt( { 'code' : VIDEO_ID_ENCODING, 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
+    wnt( { 'code' : 'VIDEO_ID_ENCODING', 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
 def get_youtube_video_id_from_cpn(cpn, video_id):
     global local_cpn_pool
@@ -177,45 +171,42 @@ def squid_part():
 
     started_at = time.time()
     url_hits = 0
-    input = sys.stdin.readline()
-    while input:
+    line = sys.stdin.readline()
+    while line:
         new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
         try:
-            fields = input.strip().split(' ')
-            if o.cache_host == '':
-                error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
-                skip = True
+            fields = line.strip().split(' ')
             if len(fields) < 4:
-                warn( { 'code' : INPUT_WARN, 'message' : 'Input received from Squid is not parsable. Skipping this URL.' } )
+                warn( { 'code' : 'INPUT_WARN', 'message' : 'Input received from Squid is not parsable. Skipping this URL ' + line } )
                 skip = True
             elif fields[3].upper() != 'GET':
-                warn( { 'code' : HTTP_METHOD_WARN, 'message' : 'Can\'t handle HTTP method ' + fields[3].upper() + '. Skipping this URL.' } )
+                warn( { 'code' : 'HTTP_METHOD_WARN', 'message' : 'Cant handle HTTP method ' + fields[3].upper() + '. Skipping this URL.' } )
                 skip = True
             else:
                 url = fields[0]
                 client_ip = fields[1].split('/')[0]
                 fragments = urlparse.urlsplit(fields[0])
                 if (fragments[0] != 'http' and fragments[0] != 'https') or fragments[1] == '' or fragments[2] == '':
-                    warn( { 'code' : URL_WARN, 'client_ip' : client_ip, 'message' : 'Can\'t process. Skipping this URL ' + url } )
+                    warn( { 'code' : 'URL_WARN', 'client_ip' : client_ip, 'message' : 'Cant process. Skipping this URL ' + url } )
                     skip = True
                 else:
                     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
         except Exception, e:
-            wnt( { 'code' : INPUT_PARSE_ERR, 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL.', 'debug' : str(e) } )
+            wnt( { 'code' : 'INPUT_PARSE_ERR', 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL ' + line, 'debug' : str(e) } )
             skip = True
 
         try:
             if o.client_email != '':
                 if not skip and o.enable_videocache:
                     for website_id in o.websites:
-                        if eval('o.enable_' + website_id + '_cache'):
+                        if o.enabled_websites[website_id]:
                             (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(o, url, host, path, query)')
                             if matched:
                                 if not video_id:
-                                    warn( { 'code' : URL_ERR, 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
+                                    warn( { 'code' : 'URL_ERR', 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
                                     break
 
-                                info( { 'code' : URL_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
+                                info( { 'code' : 'URL_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
                                 if not is_ascii(video_id):
                                     non_ascci_video_id_warning(website_id, video_id, client_ip)
                                     break
@@ -240,9 +231,9 @@ def squid_part():
                                     else:
                                         (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
                                     if new_url == '':
-                                        info({ 'code' : CACHE_MISS, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
+                                        info({ 'code' : 'CACHE_MISS', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                     else:
-                                        info({ 'code' : CACHE_HIT, 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
+                                        info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
                                         VideoFile.with_timeout(0.2, VideoFile.create, { 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                                 if new_url == '' and queue and video_id:
@@ -274,28 +265,26 @@ def squid_part():
             sys.stdout.write(new_url + '\n')
             sys.stdout.flush()
         except Exception, e:
-            wnt( { 'code' : WRITEBACK_ERR, 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
-        input = sys.stdin.readline()
+            wnt( { 'code' : 'WRITEBACK_ERR', 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
+        line = sys.stdin.readline()
     else:
-        info( { 'code' : VIDEOCACHE_EXIT, 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
+        info( { 'code' : 'VIDEOCACHE_EXIT', 'message' : 'Received a stop signal from Squid server. Stopping Videocache.' } )
         exit = True
         os.kill(os.getpid(), signal.SIGTERM)
 
 if __name__ == '__main__':
     parser = OptionParser()
-    parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
-    parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     options, args = parser.parse_args()
 
     halt_message = 'One or more errors while starting Videocache. Please check syslog and videocache log for errors.'
     try:
-        root = options.vc_root 
-        o = VideocacheOptions(options.config_file, root)
+        o = VideocacheOptions('/etc/videocache.conf')
+        o.set_loggers()
     except Exception, e:
         syslog_msg( halt_message + ' Debug: '  + traceback.format_exc().replace('\n', ''))
         sys.exit(1)
 
-    if o.halt or o.set_loggers() == None:
+    if o.halt:
         syslog_msg(halt_message)
         sys.exit(1)
 
@@ -306,12 +295,12 @@ if __name__ == '__main__':
     initialize_database(o)
 
     if o.cache_host == '':
-        error( { 'code' : CACHE_HOST_ERR, 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
+        error( { 'code' : 'CACHE_HOST_ERR', 'message' : 'The option cache_host in /etc/videocache.conf is not set. Please set it and restart/reload Squid daemon. Videocache will be disabled until you set cache_host.' } )
         o.enable_videocache = 0
     elif o.cache_host.find('127.0.0.1') > -1:
-        warn( { 'code' : CACHE_HOST_WARN, 'message' : 'The option cache_host is set to 127.0.0.1. Videocache will be able to serve videos only to localhost. Please set it to the private/public IP address of the server and restart/reload Squid daemon' } )
+        warn( { 'code' : 'CACHE_HOST_WARN', 'message' : 'The option cache_host is set to 127.0.0.1. Videocache will be able to serve videos only to localhost. Please set it to the private/public IP address of the server and restart/reload Squid daemon' } )
 
-    info( { 'code' : VIDEOCACHE_START, 'message' : 'Starting Videocache.' } )
+    info( { 'code' : 'VIDEOCACHE_START', 'message' : 'Starting Videocache.' } )
 
     # Import website functions
     for website_id in o.websites:
@@ -326,5 +315,5 @@ if __name__ == '__main__':
         squid.join()
         video_info.join()
     except Exception, e:
-        ent( { 'code' : VIDEOCACHE_RUNTIME_ERR, 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
+        ent( { 'code' : 'VIDEOCACHE_RUNTIME_ERR', 'message' : 'Encountered an error while in service.', 'debug' : str(e) } )
 

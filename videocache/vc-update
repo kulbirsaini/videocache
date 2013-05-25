@@ -14,25 +14,25 @@ import os
 import sys
 import traceback
 
-def red(msg):#{{{
+def red(msg):
     return "\033[1;31m%s\033[0m" % msg
 
 def blue(msg):
     return "\033[1;36m%s\033[0m" % msg
 
 def green(msg):
-    return "\033[1;32m%s\033[0m" % msg#}}}
+    return "\033[1;32m%s\033[0m" % msg
 
-def print_message_and_abort(message):#{{{
+def print_message_and_abort(message):
     print >>sys.stderr, message
-    sys.exit(1)#}}}
+    sys.exit(1)
 
-def log_traceback():#{{{
+def log_traceback():
     print blue('\n' + '-' * 25 + 'Traceback Begin' + '-' * 25)
     print traceback.format_exc(),
-    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')#}}}
+    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
 
-def update_error(error_code):#{{{
+def update_error(error_code):
     """Report error while updating/installing videocache with proper error code."""
     messages = {}
     messages['usage'] =  """
@@ -48,17 +48,17 @@ You must be root to update Videocache installation.
 Please see http://cachevideos.com/#vc-update for more information or getting help."""
     if error_code in messages:
         return messages[error_code]
-    return#}}}
+    return
 
-def update_vc(o, root, install_dir, quiet):#{{{
+def update_vc(o, install_dir, quiet):
     """Perform the update."""
-    etc_dir = apply_install_root(root, '/etc/')
-    usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
+    etc_dir = '/etc/'
+    usr_sbin_dir = '/usr/sbin/'
 
     error = red(update_error('update'))
     apache_conf_dir = ''
     if o.skip_apache_conf == 0 and o.apache_conf_dir != '':
-        apache_conf_dir = apply_install_root(root, o.apache_conf_dir)
+        apache_conf_dir = o.apache_conf_dir
 
     dirs_to_create = [etc_dir, usr_sbin_dir]
     if apache_conf_dir != '':
@@ -95,31 +95,21 @@ def update_vc(o, root, install_dir, quiet):#{{{
     print blue("----------------------------------Step 3-----------------------------------------")
     print red("Restart Squid proxy server daemon using the following command.")
     print red("[root@localhost ~]# /etc/init.d/squid restart\n")
-    print green("In case of any bugs or problems, visit http://cachevideos.com/ and contact us.")#}}}
+    print green("In case of any bugs or problems, visit http://cachevideos.com/ and contact us.")
 
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
     parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
-    parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     options, args = parser.parse_args()
 
     if os.getuid() != 0:
         print_message_and_abort(red(update_error('uid')))
 
-    root = '/'
-
-    install_dir = os.path.join(root, 'usr/share/videocache/')
+    install_dir = '/usr/share/videocache/'
     # Try to locate the videocache directory containing python files.
     try:
         if os.path.isdir(install_dir):
-            sys.path = [install_dir] + sys.path
-            from vcoptions import VideocacheOptions
-            from common import *
-            from fsop import *
-            from database import create_tables, initialize_database
-        elif os.path.isdir('/usr/share/videocache/'):
-            install_dir = '/usr/share/videocache/'
             sys.path = [install_dir] + sys.path
             from vcoptions import VideocacheOptions
             from common import *
@@ -132,13 +122,13 @@ if __name__ == '__main__':
         print_message_and_abort(red("\nCould not import required modules for update.") + green("\nIf you contact us regarding this error, please send the Trace above."))
 
     try:
-        o = VideocacheOptions(options.config_file, root, False, True)
+        o = VideocacheOptions('/etc/videocache.conf', True, True)
     except Exception, e:
         log_traceback()
-        print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % options.config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))
+        print_message_and_abort(red("\nCould not read options from configuration file located at /etc/videocache.conf.") + green("\nIf you contact us regarding this error, please send the Trace above."))
 
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
-    update_vc(o, root, install_dir, not options.verbose)
+    update_vc(o, install_dir, not options.verbose)
 

@@ -9,14 +9,12 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from error_codes import *
 
 import atexit
 import errno
 import os
 import signal
 import sys
-import time
 
 class VideocacheDaemon:
 

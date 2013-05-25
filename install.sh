@@ -15,6 +15,7 @@ iniparse_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master
 ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/ctypes.tar.gz?raw=true'
 MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
 multiprocessing_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/multiprocessing.tar.gz?raw=true'
+importlib_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/importlib.tar.gz?raw=true'
 
 # Common Functions
 blue_without_newline() {
@@ -439,6 +440,24 @@ install_and_verify_python_module() {
   fi
 }
 
+python_import_test() {
+python - <<END
+import importlib, sys
+missing_modules = []
+for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+    try:
+        importlib.import_module(module)
+    except Exception, e:
+        missing_modules.append(module)
+
+if len(missing_modules) == 0:
+  sys.exit(0)
+else:
+  print ', '.join(missing_modules)
+  sys.exit(1)
+END
+}
+
 python_code() {
   echo; echo
   heading 'Python Modules And Development Files'
@@ -447,7 +466,22 @@ python_code() {
   check_python_dev
   install_and_verify_python_module netifaces
   install_and_verify_python_module ctypes
+  install_and_verify_python_module importlib
   install_and_verify_python_module multiprocessing
+
+  message_with_padding "Checking other modules required"
+  output=`python_import_test`
+  if [[ $? == 0 ]]; then
+    green 'Installed'
+    return 0
+  else
+    red 'Missing'
+    echo
+    red "The following required Python module(s) [${output}] is/are missing."
+    red "Please install these modules and run the installer again."
+    echo
+    exit 1
+  fi
 }
 
 # Squid user

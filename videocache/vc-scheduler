@@ -10,28 +10,21 @@ __docformat__ = 'plaintext'
 
 from common import *
 from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
-from error_codes import *
+from fsop import *
 from store import *
 from vcdaemon import VideocacheDaemon
 from vcoptions import VideocacheOptions
-from vcsysinfo import *
-from websites.youtube import *
+from vcsysinfo import get_all_info
 
 from optparse import OptionParser
 from Queue import Queue, Empty
-from SimpleXMLRPCServer import SimpleXMLRPCServer
 
 import cgi
 import cookielib
-import datetime
 import glob
-import heapq
-import logging
 import multiprocessing
-import pickle
 import pwd
 import random
-import shutil
 import signal
 import socket
 import sys
@@ -46,34 +39,37 @@ cj = cookielib.CookieJar()
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor(cj)))
 socket.setdefaulttimeout(90)
 
+# Alias urllib2.open to urllib2.urlopen
+urllib2.open = urllib2.urlopen
+
 def info(params = {}):
     if o.enable_scheduler_log:
-        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id })
+        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id })
         o.vcs_logger.info(build_message(params))
 
 def error(params = {}):
     if o.enable_scheduler_log:
-        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id })
+        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id })
         o.vcs_logger.error(build_message(params))
 
 def warn(params = {}):
     if o.enable_scheduler_log:
-        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id })
+        params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id })
         o.vcs_logger.debug(build_message(params))
 
 def cleaner_info(params = {}):
     if o.enable_cleaner_log:
-        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id})
         o.vcc_logger.info(build_message(params))
 
 def cleaner_error(params = {}):
     if o.enable_cleaner_log:
-        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id})
         o.vcc_logger.error(build_message(params))
 
 def cleaner_warn(params = {}):
     if o.enable_cleaner_log:
-        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id})
         o.vcc_logger.debug(build_message(params))
 
 def trace(params = {}):
@@ -106,496 +102,10 @@ class LoggingThread(threading.Thread):
         try:
             self._real_run()
         except Exception, e:
-            ent({'code' : CACHE_THREAD_ERR, 'message' : 'Error in cache thread.', 'debug' : str(e)})
-
-def connection():
-    global video_pool
-    try:
-        video_pool.ping()
-    except Exception, e:
-        try:
-            video_pool = ServerProxy(o.rpc_url)
-            video_pool.ping()
-        except Exception, e:
-            try:
-                ent({ 'code' : RPC_CONNECT_ERR, 'error_msg' : 'Could not connect to RPC server (videocache scheduler) at ' + o.rpc_host + ':' + str(o.rpc_port) + '. Please check scheduler status. If needed, restart scheduler using \'vc-scheduler -s restart\' command.', 'debug' : str(e) })
-            except:
-                pass
-
-class VideoPool:
-    scores_rebuild_threshold = 120
-    systems = []
-    hit_time_threshold = 15
-    last_dump = 0
-    dump_threshold = 120
-    disk_space = {}
-    last_used_dir = 0
-    sync_lock = threading.Semaphore(value = 1)
-    sync_threshold = 600
-    log_hit_threshold = 240
-
-    scores = {}
-    queue = {}
-    active = {}
-    scores_pq = {}
-    scores_changed = {}
-    last_scores_rebuild = {}
-    last_sync = {}
-    cpn_pool = {}
-
-    def __init__(self):
-        for website_id in o.websites:
-            self.scores[website_id] = {}
-            self.queue[website_id] = {}
-            self.active[website_id] = {}
-            self.scores_pq[website_id] = []
-            self.scores_changed[website_id] = True
-            self.last_scores_rebuild[website_id] = 0
-            self.last_sync[website_id] = 0
-
-    def ping(self):
-        return True
-
-    def add_system(self, new_system = {}):
-        sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision }
-        sys_info.update(get_all_info(o))
-        for system in [new_system, sys_info]:
-            if system != {}:
-                system.update({ 'un' : randomize })
-                if system not in self.systems:
-                    self.systems.append(system)
-        return True
-
-    def get_systems(self):
-        self.add_system()
-        return self.systems
-
-    def load_queue(self):
-        for dir in o.base_dir_list:
-            queue_file = os.path.join(dir, o.queue_dump_file)
-            if os.path.isfile(queue_file):
-                try:
-                    [scores, queue] = pickle.load(file(queue_file, 'r'))
-                    if o.websites[0] not in scores or o.websites[0] not in queue:
-                        self.flush()
-                        info({ 'code' : QUEUE_INCOMPATIBLE, 'message' : 'Video queue flushed because it was incompatible with the current version' })
-                        return True
-                    # Different statement just in case the exception messes up assignment.
-                    self.scores, self.queue = scores, queue
-                    self.trim_queue()
-                    info({ 'code' : QUEUE_LOAD, 'message' : 'Video queue loaded from dump file' })
-                    return True
-                except Exception, e:
-                    wnt({ 'code' : QUEUE_LOAD_WARN, 'message' : 'Unable to load video queue from dump file at ' + queue_file, 'debug' : str(e) })
-        return False
-
-    def dump_queue(self, now = False):
-        if now or (self.queue_changed_after_dump() and time.time() - self.last_dump > self.dump_threshold):
-            self.last_dump = time.time()
-            queue_dump_string = pickle.dumps([self.scores, self.queue])
-            for dir in o.base_dir_list:
-                queue_file = os.path.join(dir, o.queue_dump_file)
-                try:
-                    file(queue_file, 'w').write(queue_dump_string)
-                except Exception, e:
-                    wnt({ 'code' : QUEUE_DUMP_WARN, 'message' : 'Unable to dump video queue to dump file at ' + queue_file + '.', 'debug' : str(e) })
-        return True
-
-    def queue_changed_after_dump(self):
-        for website_id in o.websites:
-            if self.scores_changed[website_id] or self.last_scores_rebuild[website_id] > self.last_dump: return True
-        return False
-
-    def add_videos(self, videos = {}):
-        info({ 'code' : VIDEOS_RECEIVED, 'message' : 'Received ' + str(len(videos)) + ' videos from Videocache.' })
-
-        self.trim_queue()
-
-        self.sync_lock.acquire()
-        for video_id in videos:
-            for params in videos[video_id]:
-                self.add_video(video_id, params)
-        self.sync_lock.release()
-        return True
-
-    def is_uncacheable_youtube(self, video_id, website_id):
-        if video_id and len(video_id) != 11 and website_id == 'youtube': return True
-        return False
-
-    def remove_youtube_video_format(self, video_id, website_id, format):
-        if video_id in self.queue[website_id] and format in self.queue[website_id][video_id]['fmts']:
-            self.queue[website_id][video_id]['fmts'].pop(format)
-        return True
-
-    def add_youtube_video(self, video_id, website_id, params):
-        fmt = params['format']
-        params['urls'] = []
-        if video_id not in self.queue[website_id]:
-            if fmt:
-                params['fmts'] = { fmt : { 'score' : 1, 'access_time' : params['access_time'] } }
-            else:
-                params['fmts'] = {}
-            self.queue[website_id][video_id] = params
-            self.queue[website_id][video_id]['first_access'] = params['access_time']
-            self.set_score(video_id, website_id, 1)
-        elif fmt:
-            old_data = self.queue[website_id][video_id]
-            if old_data['fmts'].has_key(fmt):
-                if old_data['client_ip'] == params['client_ip'] and (params['access_time'] - old_data['fmts'][fmt]['access_time'] > self.hit_time_threshold):
-                    self.inc_score(video_id, website_id, 1)
-                    self.queue[website_id][video_id]['fmts'][fmt].update({ 'score' : old_data['fmts'][fmt].get('score', 0) + 1, 'access_time' : params['access_time'] })
-            else:
-                self.queue[website_id][video_id]['fmts'][fmt] = { 'score' : 1, 'access_time' : params['access_time'] }
-        return True
-
-    def add_video(self, video_id, params):
-        website_id = params['website_id']
-        if website_id == 'youtube':
-            params['urls'] = []
-            return self.add_youtube_video(video_id, website_id, params)
-
-        if video_id not in self.queue[website_id]:
-            self.queue[website_id][video_id] = params
-            self.queue[website_id][video_id]['first_access'] = params['access_time']
-            self.set_score(video_id, website_id, 1)
-        else:
-            old_data = self.queue[website_id][video_id]
-            try:
-                if params['client_ip'] == old_data['client_ip'] and (int(params['access_time']) - int(old_data['access_time'])) > self.hit_time_threshold:
-                    self.inc_score(video_id, website_id)
-                    self.queue[website_id][video_id].update({ 'access_time' : params['access_time'] })
-            except Exception, e:
-                self.inc_score(video_id, website_id)
-        return True
-
-    def trim_queue(self):
-        videos_in_queue = self.get_queue_length()
-        if videos_in_queue - o.max_cache_queue_size >= 0:
-            self.remove_least_popular(videos_in_queue - o.max_cache_queue_size + 1)
-        return True
-
-    def sync_queue(self, website_id = None, sync_now = False):
-        if website_id:
-            if sync_now or (time.time() - self.last_sync[website_id]) > self.sync_threshold:
-                self.sync_lock.acquire()
-                new_queue = {}
-                for video_id in self.scores[website_id].keys():
-                    if video_id in self.queue[website_id]:
-                        new_queue[video_id] = self.queue[website_id][video_id]
-                self.queue[website_id] = new_queue
-                self.last_sync[website_id] = time.time()
-                self.sync_lock.release()
-        else:
-            [self.sync_queue(web_id, sync_now) for web_id in o.websites]
-        return True
-
-    def rebuild_scores_pq(self, website_id = None, rebuild_scores_now = False):
-        if website_id:
-            #FIXME AND vs OR when to rebuild scores priority queue
-            #if self.scores_changed[website_id] and (rebuild_scores_now or time.time() - self.last_scores_rebuild[website_id] > self.scores_rebuild_threshold):
-            #FIXME rebuilding scores makes sense only if they have changed.
-            #if self.scores_changed[website_id] or (rebuild_scores_now or time.time() - self.last_scores_rebuild[website_id] > self.scores_rebuild_threshold):
-            if rebuild_scores_now or self.scores_changed[website_id]:
-                self.scores_pq[website_id] = [(v,k) for k,v in self.scores[website_id].items()]
-                self.scores_changed[website_id], self.last_scores_rebuild[website_id] = False, time.time()
-        else:
-            [self.rebuild_scores_pq(web_id, rebuild_scores_now) for web_id in o.websites]
-        return True
-
-    def get_score(self, video_id, website_id):
-        """Get the score of video represented by video_id."""
-        if website_id in self.scores:
-            return self.scores[website_id].get(video_id, 0)
-        return 0
-
-    def set_score(self, video_id, website_id, score = 1):
-        """Set the priority score of a video_id."""
-        if website_id in self.scores:
-            self.scores[website_id][video_id] = score
-            self.scores_changed[website_id] = True
-        return True
-
-    def inc_score(self, video_id, website_id, incr = 1):
-        """Increase the priority score of video represented by video_id."""
-        if website_id in self.scores and video_id in self.scores[website_id]:
-            self.scores[website_id][video_id] += incr
-            self.scores_changed[website_id] = True
-            return True
-        return False
-
-    def dec_score(self, video_id, website_id, decr = 1):
-        """Decrease the priority score of video represented by video_id."""
-        if website_id in self.scores and video_id in self.scores[website_id]:
-            self.scores[website_id][video_id] -= decr
-            self.scores_changed[website_id] = True
-            return True
-        return False
-
-    def get_popular(self, count = 1, website_id = None):
-        """Return the video_id of the most frequently access video."""
-        self.sync_queue(website_id)
-        self.rebuild_scores_pq(website_id)
-
-        if website_id:
-            return [(video_id, website_id) for score, video_id in heapq.nlargest(count, self.scores_pq[website_id])]
-        else:
-            return [(v, w) for s, v, w in heapq.nlargest(count, [(self.get_score(vid, wid), vid, wid) for vid, wid in [hit for hit_list in [self.get_popular(count, web_id) for web_id in o.websites] for hit in hit_list]])]
-
-    def get_least_popular(self, count = 1, website_id = None):
-        """Get `count` number of least popular videos"""
-        self.rebuild_scores_pq(website_id)
-
-        if website_id:
-            return [(video_id, website_id) for score, video_id in heapq.nsmallest(count, self.scores_pq[website_id])]
-        else:
-            return [(v, w) for s, v, w in heapq.nsmallest(count, [(self.get_score(vid, wid), vid, wid) for vid, wid in [flop for flop_list in [self.get_least_popular(count, web_id) for web_id in o.websites] for flop in flop_list]])]
-
-    def remove_least_popular(self, count = 1, website_id = None):
-        """Remove `count` number of least popular videos fromt the queue."""
-        for video_id, web_id in self.get_least_popular(count, website_id):
-            self.remove(video_id, web_id)
-        return True
-
-    def get_details(self, video_id, website_id):
-        """Return the details of a particular video represented by video_id."""
-        if website_id in self.queue:
-            return self.queue[website_id].get(video_id, { 'fmts' : {} })
-        return { 'fmts' : {} }
-
-    def remove_from_queue(self, video_id, website_id):
-        """Dequeue a video_id from the download queue."""
-        item = (self.get_score(video_id, website_id), video_id)
-        item in self.scores_pq[website_id] and self.scores_pq[website_id].remove(item)
-        self.scores_changed[website_id] = True
-        video_id in self.queue[website_id] and self.queue[website_id].pop(video_id)
-        video_id in self.scores[website_id] and self.scores[website_id].pop(video_id)
-        return True
-
-    def remove_url_from_queue(self, video_id, website_id, url):
-        """Dequeue a url for a video_id from the download queue."""
-        video_id in self.queue[website_id] and url in self.queue[website_id][video_id]['urls'] and self.queue[website_id][video_id]['urls'].remove(url)
-        return True
-
-    def remove(self, video_id, website_id):
-        """Remove video_id from queue as well as active connection list."""
-        return self.remove_from_queue(video_id, website_id) and self.remove_conn(video_id, website_id)
-
-    def remove_url(self, video_id, website_id, url):
-        """Remove url from url list for a video_id."""
-        if len(self.queue[website_id][video_id]['urls']) == 1:
-            return self.remove(video_id, website_id)
-        else:
-            return self.remove_url_from_queue(video_id, website_id, url)
-
-    def flush(self, website_id = None):
-        """Flush the queue and reinitialize everything."""
-        if website_id:
-            self.scores[website_id] = {}
-            self.queue[website_id] = {}
-            self.active[website_id] = {}
-            self.scores_pq[website_id] = []
-            self.scores_changed[website_id] = True
-            self.last_scores_rebuild[website_id] = 0
-            self.last_sync[website_id] = 0
-            return True
-        else:
-            [self.flush(web_id) for web_id in o.websites]
-        self.dump_queue(True)
-        return True
-
-    def get_queue_length(self, website_id = None):
-        if website_id:
-            return len(self.scores[website_id])
-        else:
-            return sum([self.get_queue_length(web_id) for web_id in o.websites])
-
-    def get_pq_length(self, website_id = None):
-        if website_id:
-            return len(self.scores_pq[website_id])
-        else:
-            return sum([self.get_pq_length(web_id) for web_id in o.websites])
-
-    def get_active(self, website_id = None):
-        if website_id:
-            return self.active[website_id]
-        else:
-            return self.active
-
-    def get_scores(self, website_id = None):
-        if website_id:
-            return self.scores[website_id]
-        else:
-            return self.scores
-
-    def get_queue(self, website_id = None):
-        if website_id:
-            return self.queue[website_id]
-        else:
-            return self.queue
-
-    def get_scores_pq(self, website_id = None):
-        if website_id:
-            return self.scores_pq[website_id]
-        else:
-            return self.scores_pq
-
-    def update_disk_space(self):
-        for dir in o.base_dir_list:
-            space_available = free_space(dir)
-            space_used = partition_used(dir)
-            self.disk_space[dir] = { 'free_space' : space_available, 'use' : True }
-            if space_used > o.base_dir_thresholds[dir]['high']:
-                self.disk_space[dir].update({ 'use' : False })
-
-    def get_next_cache_dir(self):
-        self.update_disk_space()
-        if o.base_dir_selection == 1:
-            for dir in o.base_dir_list:
-                if self.disk_space[dir]['use']:
-                    return dir
-        elif o.base_dir_selection == 2:
-            for dir in o.base_dir_list[(self.last_used_dir + 1):] + o.base_dir_list[:(self.last_used_dir + 1)]:
-                if self.disk_space[dir]['use']:
-                    self.last_used_dir = o.base_dir_list.index(dir)
-                    return dir
-        elif o.base_dir_selection == 3:
-            vk = [(v['free_space'], k) for k, v in self.disk_space.items()]
-            for v, dir in sorted(vk, reverse = True):
-                if self.disk_space[dir]['use']:
-                    self.last_used_dir = o.base_dir_list.index(dir)
-                    return dir
-
-        warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
-        return False
-
-    def start_cache_thread(self, video_id, website_id, params):
-        """Start a new thread which will cache the vdieo"""
-        new_thread = threading.Thread(target = cache, name = str(video_id), kwargs = { 'params' : params })
-        self.set_score(video_id, website_id, 0)
-        self.add_conn(video_id, website_id, new_thread)
-        new_thread.start()
-        info({ 'code' : CACHE_THREAD_START, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Starting cache thread.' })
-        return True
-
-    def clean_threads(self, website_id = None):
-        """Cleanup threads which have exitted."""
-        if website_id:
-            for (video_id, thread) in self.active[website_id].items():
-                try:
-                    if not thread or not thread.isAlive():
-                        self.remove(video_id, website_id)
-                        info({ 'code' : CACHE_THREAD_REMOVE, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Cache thread completed. Removing from active list.' })
-                except Exception, e:
-                    ent({ 'code' : CACHE_THREAD_REMOVE_ERR, 'website_id' : website_id, 'message' : 'Unable to remove cache thread from thread list', 'debug' : str(e), 'video_id' : video_id })
-        else:
-            [self.clean_threads(web_id) for web_id in o.websites]
-        return True
-
-    def schedule(self):
-        try:
-            self.clean_threads()
-            self.dump_queue()
-            if o.offline_mode or not is_caching_time():
-                return True
-            if self.get_conn_number() < o.max_cache_processes:
-                popular = self.get_popular()
-                if len(popular) != 1 or len(popular[0]) != 2:
-                    return True
-                video_id, website_id = popular[0]
-                if self.is_uncacheable_youtube(video_id, website_id):
-                    self.set_score(video_id, website_id, max(self.get_score(video_id, website_id) - 1, 0))
-                    return True
-                if video_id != False and self.is_active(video_id, website_id) == False and self.get_score(video_id, website_id) >= o.hit_threshold:
-                    params = self.get_details(video_id, website_id)
-                    if params != False:
-                        if o.enable_access_log_monitoring and (time.time() - params.get('first_access', 0)) < self.log_hit_threshold:
-                            return True
-                        next_cache_dir = self.get_next_cache_dir()
-                        if next_cache_dir is False:
-                            return True
-                        else:
-                            params.update({ 'cur_cache_dir' : next_cache_dir })
-                        self.start_cache_thread(video_id, website_id, params)
-                        return True
-                elif self.is_active(video_id, website_id) == True:
-                    self.set_score(video_id, website_id, 0)
-                    return True
-        except Exception, e:
-            ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not find out the next video to schedule.', 'debug' : str(e) })
-            return False
-        return True
-
-    # Functions related download scheduling.
-    # Have to mess up things in single class because python
-    # RPCServer doesn't allow to register multiple instances.
-    def add_conn(self, video_id, website_id, thread):
-        """Add video_id to active connections list."""
-        if video_id not in self.active[website_id]:
-            self.active[website_id][video_id] = thread
-        return True
-
-    def set_conn(self, video_id, website_id, thread):
-        self.active[website_id][video_id] = thread
-        return True
-
-    def get_conn_number(self, website_id = None):
-        """Return the number of currently active connections."""
-        if website_id:
-            return len(self.active[website_id])
-        else:
-            return sum([self.get_conn_number(web_id) for web_id in o.websites])
-
-    def is_active(self, video_id, website_id):
-        """Returns whether a connection is active or not."""
-        return video_id in self.active[website_id]
-
-    def remove_conn(self, video_id, website_id):
-        """Remove video_id from active connections list."""
-        if video_id in self.active[website_id]:
-            self.active[website_id].pop(video_id)
-        return True
-
-class VideoPoolRPCServer(SimpleXMLRPCServer):
-
-    allow_reuse_address = True
-
-    def __init__(self, *args, **kwargs):
-        self.finished = False
-        SimpleXMLRPCServer.__init__(self, *args, **kwargs)
-
-    def shutdown(self):
-        self.finished = True
-        return True
-
-    def server_bind(self):
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind(self.server_address)
-
-    def serve_forever(self):
-        while not self.finished:
-            self.handle_request()
-
-def start_rpc_server():
-    try:
-        server = VideoPoolRPCServer((o.rpc_host, int(o.rpc_port)), logRequests=0)
-        server.register_function(server.shutdown)
-        server.register_introspection_functions()
-        server.register_instance(VideoPool())
-        info({ 'code' : 'VIDEO_POOL_SERVER_START', 'message' : 'Starting VideoPool Server at port ' + str(o.rpc_port) })
-        server.serve_forever()
-        server.server_close()
-        info({ 'code' : 'VIDEO_POOL_SERVER_STOP', 'message' : 'Stopping VideoPool Server' })
-    except Exception, e:
-        wnt({ 'code' : VIDEO_POOL_SERVER_START_ERR, 'message' : 'Could not start VideoPool server', 'debug' : str(e) })
+            ent({'code' : 'CACHE_THREAD_ERR', 'message' : 'Error in cache thread.', 'debug' : str(e)})
 
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
-
-def remove_file(filename):
-    try:
-        if os.path.isfile(target_file): os.unlink(target_file)
-    except Exception, e:
-        pass
 
 def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
     if not old_video_id or not new_video_id:
@@ -603,17 +113,14 @@ def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
     for youtube_dir in o.base_dirs[website_id]:
         for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
             try:
-                shutil.move(filename, filename.replace(old_video_id, new_video_id))
+                move_file(filename, filename.replace(old_video_id, new_video_id))
             except:
                 pass
 
 def cache_remote_url(remote_url, target_file, params = {}):
     try:
-        video = params.get('video', None)
-        if video:
-            video_id, website_id = video.video_id, video.website_id
-        else:
-            video_id, website_id = '-', '-'
+        video_id = params.get('video_id', '-')
+        website_id = params.get('website_id', '-')
         http_headers = params.get('http_headers', get_random_user_agent())
         proxy = params.get('proxy', o.proxy)
         max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
@@ -623,33 +130,40 @@ def cache_remote_url(remote_url, target_file, params = {}):
         if not http_headers.has_key('User-Agent'):
             http_headers.update(get_random_user_agent())
 
+        opener = urllib2
         if proxy:
-            urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
+            opener = urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
+
         request = urllib2.Request(remote_url, None, http_headers)
 
-        connection = urllib2.urlopen(request)
+        conn = opener.open(request)
+        status = False
         try:
-            conn_info = connection.info()
+            conn_info = conn.info()
             video_size = int(conn_info.get('content-length', -1))
             if video_size == -1:
                 if o.force_video_size == 1:
-                    info({ 'code' : VIDEO_SIZE_NOT_SUPPLIED, 'message' : 'Video size was not supplied by web server. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
-                    return False
+                    info({ 'code' : 'SIZE_NOT_FOUND', 'message' : 'Video size was not given by web server. Skipping.', 'video_id' : video_id, 'website_id' : website_id })
+                    status = True
             else:
                 if max_video_size != 0 and video_size > max_video_size:
-                    info({ 'code' : VIDEO_TOO_LARGE, 'message' : 'Video size is large than the specified max video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
-                    return False
+                    info({ 'code' : 'VIDEO_TOO_LARGE', 'message' : 'Video size is large than the max size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
+                    status = True
                 if min_video_size != 0 and video_size < min_video_size:
-                    info({ 'code' : VIDEO_TOO_SMALL, 'message' : 'Video size is smaller than the specified min video size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
-                    return False
+                    info({ 'code' : 'VIDEO_TOO_SMALL', 'message' : 'Video size is smaller than the min size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
+                    status = True
         except Exception, e:
-            wnt({ 'code' : CONNECTION_INFO_ERR, 'message' : 'Error while getting connection information.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            wnt({ 'code' : 'CONNECTION_INFO_ERR', 'message' : 'Error while getting connection info.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+
+        if status:
+            conn.close()
+            return False
 
         filedesc = None
         start_time = time.time()
         downloaded = 0
         while True:
-            block = connection.read(16384)
+            block = conn.read(65536)
             if len(block) == 0:
                 break
             if not filedesc:
@@ -658,26 +172,27 @@ def cache_remote_url(remote_url, target_file, params = {}):
 
             downloaded += len(block)
             while max_cache_speed > 0 and downloaded / (time.time() - start_time) > max_cache_speed:
-                time.sleep(0.2)
+                time.sleep(0.1)
         if filedesc:
             filedesc.close()
+        conn.close()
 
         target_file_size = os.path.getsize(target_file)
         if video_size != -1 and target_file_size < 0.97 * video_size:
-            error({ 'code' : PARTIAL_CACHE_ERR, 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
+            error({ 'code' : 'PARTIAL_CACHE_ERR', 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
             remove_file(target_file)
             return False
     except urllib2.HTTPError, e:
         remove_file(target_file)
         try:
-            ent({ 'code' : CACHE_HTTP_ERR, 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
         except:
-            ent({ 'code' : CACHE_HTTP_ERR, 'message' : 'HTTP error. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
     except Exception, e:
         remove_file(target_file)
-        ent({ 'code' : CACHE_ERR, 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+        ent({ 'code' : 'CACHE_ERR', 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
         return False
     return True
 
@@ -695,17 +210,19 @@ def cache_youtube_video(video):
             video.destroy()
             return
 
-        if proxy: urllib2.install_opener(urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy })))
+        opener = urllib2
+        if proxy:
+            opener = urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
 
         video_info = None
         for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
             info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
             request = urllib2.Request(info_url, None, http_headers)
             try:
-                video_info = cgi.parse_qs(urllib2.urlopen(request).read())
+                video_info = cgi.parse_qs(opener.open(request).read())
                 try:
                     if int(video_info.get('view_count', [0])[0]) < o.min_youtube_views:
-                        info({ 'code' : VIEW_COUNT_LOW, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
+                        info({ 'code' : 'VIEW_COUNT_LOW', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
                         video.destroy()
                         return
                 except Exception, e:
@@ -714,7 +231,7 @@ def cache_youtube_video(video):
                 if 'url_encoded_fmt_stream_map' in video_info:
                     break
             except Exception, e:
-                ent({'code' : VIDEO_INFO_FETCH_ERR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info from ' + info_url, 'debug' : str(e) })
+                ent({'code' : 'VIDEO_INFO_FETCH_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info from ' + info_url, 'debug' : str(e) })
         else:
             warn({ 'code' : 'VIDEO_INFO_FETCH_WARN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not fetch required info to cache video. Please report this if it happens very frequently.' })
             video.destroy()
@@ -727,7 +244,7 @@ def cache_youtube_video(video):
             if alternate_vid and len(alternate_vid) == 16:
                 migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
         except Exception, e:
-            ent({ 'code' : URL_EXTRACTION_ERROR, 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
+            ent({ 'code' : 'URL_EXTRACTION_ERROR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
             video.destroy()
             return
 
@@ -747,25 +264,25 @@ def cache_youtube_video(video):
                 return
 
             if youtube_cached_url(o, video_id, website_id, fmt)[0]:
-                info({ 'code' : VIDEO_EXISTS, 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path })
+                info({ 'code' : 'VIDEO_EXISTS', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path })
             else:
                 video_url = url_map[fmt]
                 filename = get_youtube_filename(o, video_id, fmt)
                 video_path = os.path.join(cache_dir, filename)
                 tmp_path = os.path.join(tmp_dir, filename)
 
-                if cache_remote_url(video_url, tmp_path, {'http_headers' : http_headers}):
+                if cache_remote_url(video_url, tmp_path, {'http_headers' : http_headers, 'video_id' : video_id, 'website_id' : website_id}):
                     size = os.path.getsize(tmp_path)
-                    shutil.move(tmp_path, video_path)
+                    move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
+                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
                     VideoFile.with_timeout(0.5, VideoFile.create, { 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
         else:
             info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
         video.destroy()
     except Exception, e:
-        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
+        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
 
 def cache_generalized(video):
     try:
@@ -786,26 +303,24 @@ def cache_generalized(video):
         url = refine_url(url, o.arg_drop_list[website_id])
         try:
             if os.path.exists(video_path):
-                info({ 'code' : VIDEO_EXISTS, 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
+                info({ 'code' : 'VIDEO_EXISTS', 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
             else:
-                if cache_remote_url(url, tmp_path):
+                if cache_remote_url(url, tmp_path, {'video_id' : video_id, 'website_id' : website_id}):
                     size = os.path.getsize(tmp_path)
-                    shutil.move(tmp_path, video_path)
+                    move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
+                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
                     VideoFile.with_timeout(0.5, VideoFile.create, { 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
             video.destroy()
         except Exception, e:
-            ent({ 'code' : URL_CACHE_ERR, 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
+            ent({ 'code' : 'URL_CACHE_ERR', 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
     except Exception, e:
-        ent({'code' : CACHE_THREAD_ERR, 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
+        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
 
-def cache_android_video(video):
-    return
+def cache_android_video(video): pass
 
-def cache_dailymotion_video(video):
-    pass
+def cache_dailymotion_video(video): pass
 
 cache_aol_video = cache_generalized
 cache_bing_video = cache_generalized
@@ -837,14 +352,14 @@ def refine_cache_periods():
     global cache_periods
     cache_periods = []
     if o.cache_periods == False:
-        warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'Error in parsing the value of the option cache_period. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.'})
+        warn({ 'code' : 'CACHE_PERIOD_WARN', 'message' : 'Error in parsing the value of the option cache_period. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.'})
         cache_periods = []
     elif o.cache_periods == None:
         cache_periods = []
     else:
         for cp in o.cache_periods:
             if cp['start'][0] > cp['end'][0]:
-                warn({ 'code' : CACHE_PERIOD_WARN, 'message' : 'A time period mentioned using cache_period option is not valid. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.', 'debug' : cache_period_h2s(cp)})
+                warn({ 'code' : 'CACHE_PERIOD_WARN', 'message' : 'A time period mentioned using cache_period option is not valid. Ignoring. Please set cache_period option in /etc/videocache.conf properly and restart vc-scheduler.', 'debug' : cache_period_h2s(cp)})
             else:
                 cache_periods.append(cp)
 
@@ -862,9 +377,9 @@ def is_caching_time():
     return False
 
 def cache(video):
-    info({ 'code' : CACHE_THREAD_START, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
+    info({ 'code' : 'CACHE_THREAD_START', 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
     eval('cache_' + video.website_id + '_video(video)')
-    info({ 'code' : CACHE_THREAD_REMOVE, 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
+    info({ 'code' : 'CACHE_THREAD_REMOVE', 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
 
 def schedule():
     try:
@@ -889,7 +404,7 @@ def schedule():
         cache_thread = LoggingThread(target = cache, name = str(video.video_id), args = (video,))
         cache_thread.start()
     except Exception, e:
-        ent({ 'code' : VIDEO_SCHEDULE_ERR, 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
+        ent({ 'code' : 'VIDEO_SCHEDULE_ERR', 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
 
 def cache_thread_scheduler():
     if o.client_email != '':
@@ -898,29 +413,28 @@ def cache_thread_scheduler():
         warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
 
 def is_cached(video_url):
+    global this_opener
+    if not this_opener:
+        return False
     try:
-        urllib2.install_opener( urllib2.build_opener( urllib2.ProxyHandler ({ 'http': o.this_proxy })))
         request = HeadRequest(url = video_url, headers = { 'Cache-Control': 'only-if-cached' })
-        head_conn = urllib2.urlopen(request)
-        try:
-            if head_conn.getcode() == 200:
-                return True
-        except Exception, e:
-            if head_conn.code == 200:
-                return True
+        head_conn = this_opener.open(request)
+        if 'getcode' in dir(head_conn) and head_conn.getcode() == 200:
+            return True
+        if 'code' in dir(head_conn) and head_conn.code == 200:
+            return True
     except Exception, e:
-        try:
-            if e.code == 504:
-                return True
-        except Exception, e:
-            pass
-    trace({ 'code' : 'LOG_CHECK_ERR', 'message' : traceback.format_exc() })
+        if 'getcode' in dir(e) and e.getcode() == 504:
+            return True
+        if 'code' in dir(e) and e.code == 504:
+            return True
+        wnt({ 'code' : 'LOG_CHECK_ERR', 'message' : 'Could not confirm if url cached in Squid ' + video_url, 'debug' : str(e) })
     return False
 
-def arg_drop_exception(website_id, dict, arg):
-    if website_id == 'hardsextube' and arg == 'start' and dict['start'][0] == '0':
+def arg_drop_exception(website_id, params, arg):
+    if website_id == 'hardsextube' and arg == 'start' and params['start'][0] == '0':
         return True
-    if website_id == 'dailymotion' and arg == 'seek' and dict['seek'][0] == '0':
+    if website_id == 'dailymotion' and arg == 'seek' and params['seek'][0] == '0':
         return True
     return False
 
@@ -935,12 +449,15 @@ def extract_pids_from_ps(output):
 
 def kill_tail_processes(filename, user):
     for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
-        os.kill(pid, signal.SIGTERM)
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except:
+            pass
 
 @with_timeout(120)
 def readline_with_timeout(q, output, finder_list = [], any_find = True):
-    line = output.readline()
     try:
+        line = output.readline()
         if finder_list == []:
             shall_queue = True
         else:
@@ -971,12 +488,12 @@ def tail_file(filename, finder_list = [], any_find = True):
             time.slee(0.05)
 
 def watch_access_log():
-    info({ 'code' : ACCESS_LOG_WATCH_START, 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
+    info({ 'code' : 'ACCESS_LOG_WATCH_START', 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
 
     time.sleep(15)
     while True:
         if not os.path.isfile(o.squid_access_log):
-            warn({ 'code' : ACCESS_LOG_NOT_FOUND, 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
+            warn({ 'code' : 'ACCESS_LOG_NOT_FOUND', 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
         else:
             break
         time.sleep(300)
@@ -998,7 +515,7 @@ def watch_access_log():
                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
                         YoutubeCPN.with_timeout(0.25, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
                 except Exception, e:
-                    ent({ 'code' : ACCESS_LOG_PARSE_ERR, 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
+                    ent({ 'code' : 'ACCESS_LOG_PARSE_ERR', 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
             elif any(map(lambda x: line.find(x) > -1, log_hit_track_lines)):
                 log_hits += 1
                 if log_hit_queue.full():
@@ -1006,7 +523,7 @@ def watch_access_log():
                     log_hit_queue.get(timeout = 0.1)
                 log_hit_queue.put(line)
         except Exception, e:
-            ent({ 'code' : ACCESS_LOG_READ_ERR, 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
+            ent({ 'code' : 'ACCESS_LOG_READ_ERR', 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
             time.slee(0.05)
 
 def get_youtube_video_id_from_cpn(cpn, video_id, website_id):
@@ -1031,7 +548,7 @@ def watch_log_hit():
     global local_cpn_pool, log_hit_queue
 
     if not o.this_proxy:
-        warn({ 'code': LOCAL_PROXY_NOT_SPECIFIED, 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid\'s cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
+        warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
     while True:
@@ -1041,15 +558,15 @@ def watch_log_hit():
                 video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
                 fragments = urlparse.urlsplit(video_url)
                 [host, path, query] = [fragments[1], fragments[2], fragments[3]]
-                dict = cgi.parse_qs(query)
+                args = cgi.parse_qs(query)
 
                 matched = False
                 for website in o.websites:
-                    if eval('o.enable_' + website + '_cache'):
+                    if o.enabled_websites[website]:
                         (matched, website_id, video_id, format, search, queue) = eval('check_' + website + '_video(o, video_url, host, path, query)')
                         if matched:
                             for video_seek_arg in o.arg_drop_list[website_id]:
-                                if video_seek_arg in dict and not arg_drop_exception(website_id, dict, video_seek_arg):
+                                if video_seek_arg in args and not arg_drop_exception(website_id, args, video_seek_arg):
                                     matched = False
                                     break
                             break
@@ -1071,7 +588,7 @@ def watch_log_hit():
                         video_id = old_video_id
 
                 if not video_id:
-                    warn({ 'code' : VIDEO_ID_NOT_FOUND, 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
+                    warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
                     continue
 
                 cached = False
@@ -1108,10 +625,10 @@ def watch_log_hit():
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if cache_remote_url(video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
-                    shutil.move(tmp_path, video_path)
+                    move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    info({ 'code' : VIDEO_CACHED, 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
                     VideoFile.with_timeout(0.25, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
             except Exception, e:
                 ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
@@ -1127,7 +644,7 @@ def update_disk_space():
         space_available = free_space(cache_dir)
         space_used = partition_used(cache_dir)
         base_dir_disk_space[cache_dir] = { 'free_space' : space_available, 'use' : True }
-        if space_used > o.base_dir_thresholds[cache_dir]['high']:
+        if space_used >= o.base_dir_thresholds[cache_dir]['high']:
             base_dir_disk_space[cache_dir].update({ 'use' : False })
 
 def get_next_cache_dir():
@@ -1149,7 +666,7 @@ def get_next_cache_dir():
                 last_base_dir_used = o.base_dir_list.index(cache_dir)
                 return cache_dir
 
-    warn({'code' : CACHE_DIR_FULL, 'message' : 'All your cache directories have reached the disk availability threshold.'})
+    warn({'code' : 'CACHE_DIR_FULL', 'message' : 'All your cache directories have reached the disk availability threshold.'})
     return False
 
 def need_rest_for():
@@ -1190,7 +707,7 @@ def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
         try:
             VideoFile.with_timeout(1, VideoFile.destroy_by, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
         except Exception, e:
-            ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+            ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
 
 def add_file_entries_to_db(cache_dir, website_id, files_to_create):
@@ -1205,7 +722,7 @@ def add_file_entries_to_db(cache_dir, website_id, files_to_create):
         try:
             VideoFile.with_timeout(1, VideoFile.execute, query_prefix + ','.join(queries))
         except Exception, e:
-            ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while adding file entries to database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+            ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while adding file entries to database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
 
 def update_file_entries_in_db(cache_dir, website_id, files_to_update):
@@ -1221,7 +738,7 @@ def update_file_entries_in_db(cache_dir, website_id, files_to_update):
             try:
                 VideoFile.with_timeout(1, VideoFile.execute, query)
             except Exception, e:
-                ent({ 'code' : FILEDB_ERR, 'website_id' : website_id, 'message' : 'Error while update file entry in database for cache_dir : ' + cache_dir, 'debug' : str(e) })
+                ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while update file entry in database for cache_dir : ' + cache_dir, 'debug' : str(e) })
         time.sleep(need_rest_for())
 
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
@@ -1286,9 +803,9 @@ def flush_video_queue():
             if count < 25:
                 break
             time.sleep(need_rest_for())
-        info({'code' : QUEUE_FLUSH, 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
+        info({'code' : 'QUEUE_FLUSH', 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
     except Exception, e:
-        ent({ 'code' : QUEUE_FLUSH_ERR, 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
+        ent({ 'code' : 'QUEUE_FLUSH_ERR', 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
     for cache_dir in o.base_dir_list:
         queue_file = os.path.join(cache_dir, o.queue_dump_file)
         if os.path.isfile(queue_file):
@@ -1304,7 +821,7 @@ def cleanup_video():
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_cache():
-    cleaner_info({ 'code' : CLEANER_START, 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
+    cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
     for cache_dir in o.base_dir_list:
@@ -1314,8 +831,8 @@ def cleanup_cache():
                 while True:
                     count, results = VideoFile.with_timeout(1, VideoFile.execute, query)
                     if len(results) < 5:
-                        cleaner_warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
-                        warn({ 'code' : CLEANER_OUT_OF_JUNK, 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                        cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                        warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         break
                     for chunked_results in chunks(results, 25):
                         delete_ids = []
@@ -1325,7 +842,7 @@ def cleanup_cache():
                             filepath = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                             if os.path.isfile(filepath):
                                 os.unlink(filepath)
-                                cleaner_info({ 'code' : VIDEO_PURGED, 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
+                                cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
                         try:
                             VideoFile.with_timeout(1, VideoFile.destroy_by, { 'id' : delete_ids })
                         except Exception, e:
@@ -1333,8 +850,8 @@ def cleanup_cache():
                         time.sleep(need_rest_for())
                     if partition_used(cache_dir) < o.base_dir_thresholds[cache_dir]['low']: break
         except Exception, e:
-            cent({ 'code' : CLEANER_ERR, 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
-    cleaner_info({ 'code' : CLEANER_FINISH, 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
+            cent({ 'code' : 'CLEANER_ERR', 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
+    cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
 
 def cleanup_video_queue():
     cut_off_time = time.time() - o.video_queue_lifetime
@@ -1413,10 +930,10 @@ def task_scheduler():
     cc_interval = 300
 
     # rebuild_filelist
-    last_rf_at = now - 21550
+    last_rf_at = now - (o.filelist_rebuild_interval - 50)
     rf_thread = None
     rf_thread_pid = None
-    rf_interval = 21600
+    rf_interval = o.filelist_rebuild_interval
 
     # submit_system_info
     last_ssi_at = now - 21500
@@ -1430,12 +947,6 @@ def task_scheduler():
     cv_thread_pid = None
     cv_interval = 1800
 
-    # start_rpc_server
-    last_srs_at = 0
-    srs_thread = None
-    srs_thread_pid = None
-    srs_interval = 10
-
     # cpn_monitor
     last_cm_at = now - 55
     cm_thread = None
@@ -1443,7 +954,7 @@ def task_scheduler():
     cm_interval = 60
 
     # log_hit_monitor
-    last_hm_at = now - 60
+    last_hm_at = now - 165
     hm_thread = None
     hm_thread_pid = None
     hm_interval = 170
@@ -1515,14 +1026,6 @@ def task_scheduler():
         except Exception, e:
             wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
-        try:
-            if False and not (srs_thread and srs_thread.isAlive()) and cur_time - last_srs_at > srs_interval:
-                srs_thread = LoggingThread(target = start_rpc_server, name = 'start_rpc_server')
-                last_srs_at = cur_time
-                srs_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
         if not o.offline_mode and o.enable_access_log_monitoring:
             try:
                 if not (cm_thread and cm_thread.isAlive()) and cur_time - last_cm_at > cm_interval:
@@ -1533,16 +1036,10 @@ def task_scheduler():
                 wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
             try:
-                if hm_thread_pid in process_list and hm_thread and not hm_thread.is_alive():
-                    process_list.remove(hm_thread_pid)
-                    hm_thread_pid = None
                 if not (hm_thread and hm_thread.is_alive()) and cur_time - last_hm_at > hm_interval:
-                    hm_thread = multiprocessing.Process(target = watch_log_hit, name = 'watch_log_hit')
+                    hm_thread = LoggingThread(target = watch_log_hit, name = 'watch_log_hit')
                     last_hm_at = cur_time
                     hm_thread.start()
-                    hm_thread_pid = hm_thread.pid
-                    if hm_thread_pid not in process_list:
-                        process_list.append(hm_thread_pid)
             except Exception, e:
                 wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
 
@@ -1561,7 +1058,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             process_id = os.getpid()
 
             if o.offline_mode:
-                info({ 'code': ACCESS_LOG_NOT_MONITORED, 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
+                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
 
             task_scheduler_thread = LoggingThread(target = task_scheduler)
             task_scheduler_thread.start()
@@ -1590,14 +1087,12 @@ def cleanup_processes():
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
-    parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
-    parser.add_option('-c', '--config', dest = 'config_file', type='string', help = 'Use an alternate configuration file', default = '/etc/videocache.conf')
     parser.add_option('-s', '--signal', dest = 'sig', type='string', help = 'Send one of the following signals. start, stop, restart, kill')
     options, args = parser.parse_args()
 
     if options.sig:
         try:
-            o = VideocacheOptions(options.config_file, options.vc_root, True)
+            o = VideocacheOptions('/etc/videocache.conf', True)
         except Exception, e:
             message = 'Could not load Videocache configuration file. \nDebugging output: \n' + traceback.format_exc()
             syslog_msg(message.replace('\n', ''))
@@ -1606,7 +1101,7 @@ if __name__ == '__main__':
 
         uid = None
         try:
-            uid = pwd.getpwnam( o.videocache_user ).pw_uid
+            uid = pwd.getpwnam(o.videocache_user).pw_uid
         except Exception, e:
             pass
         if uid == None:
@@ -1625,6 +1120,9 @@ if __name__ == '__main__':
         process_id = '-'
         stdout = sys.stdout
         stderr = sys.stderr
+        this_opener = None
+        if o.this_proxy:
+            this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy }))
 
         # Compiled regexes
         PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')

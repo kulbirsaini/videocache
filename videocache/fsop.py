@@ -97,10 +97,6 @@ def is_executable(path):
     return st.st_mode & stat.S_IXOTH != 0
 
 # Create/Copy/Move directories and files
-def apply_install_root(root, dir):
-    """Apply --prefix option to all the directories."""
-    return os.path.join(root, dir.strip('/'))
-
 def set_permissions(dir, mode=0755, quiet = True):
     """Change the permissions of a directory."""
     try:
@@ -199,5 +195,20 @@ def copy_dir(source, dest, quiet = True):
         return True
     except:
         if not quiet: print "Failed to copy : " + source + " > " + dest
+        return False
+
+def move_file(source_file, target_file):
+    """Moves file from source_file to target_file."""
+    try:
+        shutil.move(source_file, target_file)
+        return True
+    except:
+        return False
+
+def remove_file(target_file):
+    try:
+        if os.path.isfile(target_file): os.unlink(target_file)
+        return True
+    except:
         return False
 

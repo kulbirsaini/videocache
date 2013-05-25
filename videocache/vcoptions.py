@@ -9,9 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from error_codes import *
 from store import partition_size
-
 from vcconfig import VideocacheConfig
 
 import logging
@@ -21,20 +19,31 @@ import traceback
 import urlparse
 
 class VideocacheOptions:
+    loggers_set = False
     initialized = False
     halt = True
+    config_file = None
+    generate_crossdomain_files = False
+    skip_disk_size_calculation = False
 
-    def __init__(self, config_file = '/etc/videocache.conf', root = '/', generate_crossdomain_files = False, skip_disk_size_calculation = False):
-        self.config_file = config_file
-        self.root = root
+    def __init__(self, config_file = '/etc/videocache.conf', generate_crossdomain_files = False, skip_disk_size_calculation = False):
+        self.__class__.config_file = config_file
+        self.__class__.generate_crossdomain_files = generate_crossdomain_files
+        self.__class__.skip_disk_size_calculation = skip_disk_size_calculation
+        self.__class__.initialize(config_file, generate_crossdomain_files, skip_disk_size_calculation)
 
-        self.youtube_res_order = [144, 224, 270, 360, 480, 720, 520, 540, 1080, 2304]
-        self.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
-        self.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
-        self.youtube_audio_only_itags = [ '140', '141' ]
-        self.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
-        self.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
-        self.youtube_formats = {
+    @classmethod
+    def initialize(klass, config_file, generate_crossdomain_files = False, skip_disk_size_calculation = False):
+        if klass.initialized:
+            return
+
+        klass.youtube_res_order = [144, 224, 270, 360, 480, 720, 520, 540, 1080, 2304]
+        klass.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
+        klass.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
+        klass.youtube_audio_only_itags = [ '140', '141' ]
+        klass.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
+        klass.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
+        klass.youtube_formats = {
             '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
             '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},
             '13'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
@@ -66,168 +75,160 @@ class VideocacheOptions:
             '141' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
         }
 
-        self.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
-        self.__class__.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
-        self.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        self.arg_drop_list = {'android' : [], 'youtube': ['noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
-
-        self.CLEANUP_LRU = 1
-        self.CLEANUP_MAX_SIZE = 2
-        return self.initialize(generate_crossdomain_files, skip_disk_size_calculation)
-
-    def initialize(self, generate_crossdomain_files = False, skip_disk_size_calculation = False):
-        if self.__class__.initialized:
-            return
+        klass.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'cnn', 'dailymotion', 'facebook', 'metacafe', 'myspace', 'vimeo', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
+        klass.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
+        klass.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
+        klass.arg_drop_list = {'android' : [], 'youtube': ['noflv', 'begin'], 'aol': ['timeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'cnn': [], 'dailymotion': ['start'], 'facebook': [], 'metacafe': [], 'myspace': [], 'vimeo': [], 'weather': [], 'wrzuta': [], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start'], 'redtube': [], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start'], 'xhamster': ['start'], 'xtube': ['start'], 'xvideos': ['fs'], 'youporn': ['fs']}
 
         try:
-            mainconf =  VideocacheConfig(self.config_file, self.root).read()
+            mainconf =  VideocacheConfig(config_file).read()
         except Exception, e:
             syslog_msg('Could not read configuration file! Debug: '  + traceback.format_exc().replace('\n', ''))
             return None
 
         try:
             # Options not in configuration file
-            self.__class__.queue_dump_file = mainconf.queue_dump_file
-            self.__class__.version = '2.3'
-            self.__class__.revision = '9934b085e'
+            klass.queue_dump_file = mainconf.queue_dump_file
+            klass.version = '2.3'
+            klass.revision = '9934b085e'
             # General Options
-            self.__class__.enable_videocache = int(mainconf.enable_videocache)
-            self.__class__.offline_mode = int(mainconf.offline_mode)
-            self.__class__.videocache_user = mainconf.videocache_user
-            self.__class__.videocache_group = mainconf.videocache_group
-            self.__class__.max_cache_processes = int(mainconf.max_cache_processes)
-            self.__class__.hit_threshold = int(mainconf.hit_threshold)
-            self.__class__.max_video_size = int(mainconf.max_video_size) * 1024 * 1024
-            self.__class__.min_video_size = int(mainconf.min_video_size) * 1024 * 1024
-            self.__class__.force_video_size = int(mainconf.force_video_size)
-            self.__class__.client_email = mainconf.client_email
-            self.__class__.cache_periods = cache_period_s2lh(mainconf.cache_period)
-            self.__class__.info_server = mainconf.info_server
-            self.__class__.video_server = mainconf.video_server
+            klass.enable_videocache = int(mainconf.enable_videocache)
+            klass.offline_mode = int(mainconf.offline_mode)
+            klass.videocache_user = mainconf.videocache_user
+            klass.videocache_group = mainconf.videocache_group
+            klass.max_cache_processes = int(mainconf.max_cache_processes)
+            klass.hit_threshold = int(mainconf.hit_threshold)
+            klass.max_video_size = int(mainconf.max_video_size) * 1048576
+            klass.min_video_size = int(mainconf.min_video_size) * 1048576
+            klass.force_video_size = int(mainconf.force_video_size)
+            klass.client_email = mainconf.client_email
+            klass.cache_periods = cache_period_s2lh(mainconf.cache_period)
+            klass.info_server = mainconf.info_server
+            klass.video_server = mainconf.video_server
             this_proxy = mainconf.this_proxy.strip()
-            self.__class__.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
-            self.__class__.squid_access_log = mainconf.squid_access_log
-            self.__class__.ssl_fo = None
-            self.__class__.file_mode = 0644
-            self.__class__.db_hostname = mainconf.db_hostname
-            self.__class__.db_username = mainconf.db_username
-            self.__class__.db_password = mainconf.db_password
-            self.__class__.db_database = mainconf.db_database
-            self.__class__.cpn_lifetime = 1800
-            self.__class__.video_queue_lifetime = int(mainconf.video_queue_lifetime)
-            self.__class__.active_queue_lifetime = int(mainconf.active_queue_lifetime)
-            self.__class__.hit_time_threshold = int(mainconf.hit_time_threshold)
-            self.__class__.log_hit_threshold = int(mainconf.log_hit_threshold)
-            self.__class__.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
-            self.__class__.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
-            self.__class__.trial = int(mainconf.trial)
-            if self.__class__.trial:
-                self.__class__.trial = 1
+            klass.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
+            klass.squid_access_log = mainconf.squid_access_log
+            klass.file_mode = 0644
+            klass.db_hostname = mainconf.db_hostname
+            klass.db_username = mainconf.db_username
+            klass.db_password = mainconf.db_password
+            klass.db_database = mainconf.db_database
+            klass.cpn_lifetime = 1800
+            klass.video_queue_lifetime = int(mainconf.video_queue_lifetime)
+            klass.active_queue_lifetime = int(mainconf.active_queue_lifetime)
+            klass.hit_time_threshold = int(mainconf.hit_time_threshold)
+            klass.log_hit_threshold = int(mainconf.log_hit_threshold)
+            klass.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
+            klass.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
+            klass.trial = int(mainconf.trial)
+            if klass.trial:
+                klass.trial = 1
 
             # Apache
-            self.__class__.skip_apache_conf = int(mainconf.skip_apache_conf)
-            self.__class__.apache_conf_dir = mainconf.apache_conf_dir.strip()
-            self.__class__.hide_cache_dirs = int(mainconf.hide_cache_dirs)
+            klass.skip_apache_conf = int(mainconf.skip_apache_conf)
+            klass.apache_conf_dir = mainconf.apache_conf_dir.strip()
+            klass.hide_cache_dirs = int(mainconf.hide_cache_dirs)
 
             # Filesystem
-            self.__class__.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
-            self.__class__.temp_dir = mainconf.temp_dir
-            self.__class__.base_dir_selection = int(mainconf.base_dir_selection)
-            self.__class__.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
-            if self.__class__.disk_cleanup_strategy == 2:
-                self.__class__.cleanup_order = 'size DESC, access_count ASC, access_time ASC'
-            elif self.__class__.disk_cleanup_strategy == 3:
-                self.__class__.cleanup_order = 'access_time ASC, access_count ASC, size DESC'
+            klass.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
+            klass.temp_dir = mainconf.temp_dir.lstrip('/')
+            klass.base_dir_selection = int(mainconf.base_dir_selection)
+            klass.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
+            if klass.disk_cleanup_strategy == 2:
+                klass.cleanup_order = 'size DESC, access_count ASC, access_time ASC'
+            elif klass.disk_cleanup_strategy == 3:
+                klass.cleanup_order = 'access_time ASC, access_count ASC, size DESC'
             else:
-                self.__class__.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
-            self.__class__.cache_dir_filelist_rebuild_interval = int(mainconf.cache_dir_filelist_rebuild_interval)
+                klass.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
+            klass.filelist_rebuild_interval = int(mainconf.filelist_rebuild_interval)
             cache_swap_low = min(max(int(mainconf.cache_swap_low), 85), 98)
             cache_swap_high = min(max(int(mainconf.cache_swap_high), 90), 99)
             if cache_swap_low > cache_swap_high:
                 cache_swap_low, cache_swap_high = cache_swap_high, cache_swap_low
             elif cache_swap_low == cache_swap_high:
                 cache_swap_low -= 1
-            self.__class__.cache_swap_low = cache_swap_low
-            self.__class__.cache_swap_high = cache_swap_high
+            klass.cache_swap_low = cache_swap_low
+            klass.cache_swap_high = cache_swap_high
 
             # Logging
-            self.__class__.logdir = mainconf.logdir
-            self.__class__.timeformat = mainconf.timeformat
-            self.__class__.scheduler_pidfile = os.path.join(mainconf.logdir, mainconf.scheduler_pidfile)
+            klass.logdir = mainconf.logdir
+            klass.timeformat = mainconf.timeformat
+            klass.scheduler_pidfile = os.path.join(mainconf.logdir, mainconf.scheduler_pidfile)
             # Mail Videocache Logfile
-            self.__class__.enable_videocache_log = int(mainconf.enable_videocache_log)
-            self.__class__.logformat = mainconf.logformat
-            self.__class__.logfile = os.path.join(mainconf.logdir, mainconf.logfile)
-            self.__class__.max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
-            self.__class__.max_logfile_backups = int(mainconf.max_logfile_backups)
+            klass.enable_videocache_log = int(mainconf.enable_videocache_log)
+            klass.logformat = mainconf.logformat
+            klass.logfile = os.path.join(mainconf.logdir, mainconf.logfile)
+            klass.max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
+            klass.max_logfile_backups = int(mainconf.max_logfile_backups)
             # Trace file
-            self.__class__.enable_trace_log = int(mainconf.enable_trace_log)
-            self.__class__.tracefile = os.path.join(mainconf.logdir, mainconf.tracefile)
-            self.__class__.max_tracefile_size = int(mainconf.max_tracefile_size) * 1024 * 1024
-            self.__class__.max_tracefile_backups = int(mainconf.max_tracefile_backups)
+            klass.enable_trace_log = int(mainconf.enable_trace_log)
+            klass.tracefile = os.path.join(mainconf.logdir, mainconf.tracefile)
+            klass.max_tracefile_size = int(mainconf.max_tracefile_size) * 1024 * 1024
+            klass.max_tracefile_backups = int(mainconf.max_tracefile_backups)
             # Scheduler Logfile
-            self.__class__.enable_scheduler_log = int(mainconf.enable_scheduler_log)
-            self.__class__.scheduler_logformat = mainconf.scheduler_logformat
-            self.__class__.scheduler_logfile = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
-            self.__class__.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
-            self.__class__.max_scheduler_logfile_backups = int(mainconf.max_scheduler_logfile_backups)
+            klass.enable_scheduler_log = int(mainconf.enable_scheduler_log)
+            klass.scheduler_logformat = mainconf.scheduler_logformat
+            klass.scheduler_logfile = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
+            klass.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
+            klass.max_scheduler_logfile_backups = int(mainconf.max_scheduler_logfile_backups)
             # Videocache Cleaner Logfile
-            self.__class__.enable_cleaner_log = int(mainconf.enable_cleaner_log)
-            self.__class__.cleaner_logformat = mainconf.cleaner_logformat
-            self.__class__.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
-            self.__class__.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
-            self.__class__.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
+            klass.enable_cleaner_log = int(mainconf.enable_cleaner_log)
+            klass.cleaner_logformat = mainconf.cleaner_logformat
+            klass.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
+            klass.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
+            klass.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
             # DB Logfile
-            self.__class__.enable_db_query_log = int(mainconf.enable_db_query_log)
-            self.__class__.db_query_logformat = mainconf.db_query_logformat
-            self.__class__.db_query_logfile = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
-            self.__class__.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
-            self.__class__.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
+            klass.enable_db_query_log = int(mainconf.enable_db_query_log)
+            klass.db_query_logformat = mainconf.db_query_logformat
+            klass.db_query_logfile = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
+            klass.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
+            klass.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
 
             # Filelist Database
-            self.__class__.video_file_table_name = 'video_files'
-            self.__class__.video_queue_table_name = 'video_queue'
-            self.__class__.youtube_cpn_table_name = 'youtube_cpns'
+            klass.video_file_table_name = 'video_files'
+            klass.video_queue_table_name = 'video_queue'
+            klass.youtube_cpn_table_name = 'youtube_cpns'
 
             # Network
-            self.__class__.cache_host = str(mainconf.cache_host).strip()
+            klass.cache_host = str(mainconf.cache_host).strip()
             proxy = mainconf.proxy.strip()
             proxy_username = mainconf.proxy_username.strip()
             proxy_password = mainconf.proxy_password.strip()
-            self.__class__.max_cache_speed = int(mainconf.max_cache_speed) * 1024
-            self.__class__.id = ''
+            klass.max_cache_speed = int(mainconf.max_cache_speed) * 1024
+            klass.id = ''
 
             # Other
-            self.__class__.pid = os.getpid()
+            klass.pid = os.getpid()
 
-            self.__class__.min_android_app_size = int(mainconf.min_android_app_size)
-            self.__class__.max_android_app_size = int(mainconf.max_android_app_size)
+            klass.min_android_app_size = int(mainconf.min_android_app_size)
+            klass.max_android_app_size = int(mainconf.max_android_app_size)
         except Exception, e:
             syslog_msg('Could not load options from configuration file! Debug: '  + traceback.format_exc().replace('\n', ''))
             return None
 
         # Website specific options
         try:
-            [ (setattr(self.__class__, 'enable_' + website_id + '_cache', int(eval('mainconf.enable_' + website_id + '_cache'))), setattr(self.__class__, website_id + '_cache_dir', eval('mainconf.' + website_id + '_cache_dir'))) for website_id in self.websites ]
+            klass.website_cache_dir = {}
+            klass.enabled_websites = {}
+            for website_id in klass.websites:
+                klass.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
+                klass.enabled_websites[website_id] = int(eval('mainconf.enable_' + website_id + '_cache'))
+            klass.enabled_website_keys = filter(lambda x: klass.enabled_websites[x], klass.enabled_websites.keys())
 
-            self.__class__.website_cache_dir = {}
-            for website_id in self.websites:
-                self.__class__.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
-
-            self.__class__.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
-            self.__class__.min_youtube_views = int(mainconf.min_youtube_views)
-            self.__class__.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
-            self.__class__.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
-            self.__class__.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
-            self.__class__.enable_youtube_partial_caching = int(mainconf.enable_youtube_partial_caching)
+            klass.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
+            klass.min_youtube_views = int(mainconf.min_youtube_views)
+            klass.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
+            klass.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
+            klass.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
+            klass.enable_youtube_partial_caching = int(mainconf.enable_youtube_partial_caching)
             if generate_crossdomain_files:
-                if not self.__class__.enable_youtube_partial_caching:
-                    self.arg_drop_list['youtube'].append('range')
-                    for dir in self.__class__.base_dir_list:
+                if not klass.enable_youtube_partial_caching:
+                    klass.arg_drop_list['youtube'].append('range')
+                    for dir in klass.base_dir_list:
                         os.path.isfile(os.path.join(dir, 'youtube_crossdomain.xml')) and os.unlink(os.path.join(dir, 'youtube_crossdomain.xml'))
                 else:
-                    for dir in self.__class__.base_dir_list:
-                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), self.__class__.videocache_user, True)
+                    for dir in klass.base_dir_list:
+                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), klass.videocache_user, True)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
@@ -235,10 +236,10 @@ class VideocacheOptions:
         # Create a list of cache directories available
         try:
             base_dirs = {}
-            for website_id in self.websites:
-                base_dirs[website_id] = [os.path.join(dir, eval('self.__class__.' + website_id + '_cache_dir')) for dir in self.__class__.base_dir_list]
-            base_dirs['tmp'] = [os.path.join(dir, self.__class__.temp_dir) for dir in self.__class__.base_dir_list]
-            self.__class__.base_dirs = base_dirs
+            for website_id in klass.websites:
+                base_dirs[website_id] = [os.path.join(dir, klass.website_cache_dir[website_id]) for dir in klass.base_dir_list]
+            base_dirs['tmp'] = [os.path.join(dir, klass.temp_dir) for dir in klass.base_dir_list]
+            klass.base_dirs = base_dirs
         except Exception, e:
             syslog_msg('Could not build a list of cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
@@ -247,49 +248,46 @@ class VideocacheOptions:
         if not skip_disk_size_calculation:
             try:
                 base_dir_thresholds = {}
-                for cache_dir in self.__class__.base_dir_list:
+                for cache_dir in klass.base_dir_list:
                     size = partition_size(cache_dir)
                     base_dir_thresholds[cache_dir] = { 'low' : int(size * cache_swap_low / 100.0), 'high' : int(size * cache_swap_high / 100.0) }
-                self.__class__.base_dir_thresholds = base_dir_thresholds
+                klass.base_dir_thresholds = base_dir_thresholds
             except Exception, e:
                 syslog_msg('Could not calculate partition size for cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))
                 return None
 
         try:
-            self.__class__.cache_alias = 'videocache'
-            self.__class__.cache_url = 'http://' + self.__class__.cache_host + '/'
-            cache_host_parts = self.__class__.cache_host.split(':')
+            klass.cache_alias = 'videocache'
+            klass.cache_url = 'http://' + klass.cache_host + '/'
+            cache_host_parts = klass.cache_host.split(':')
             if len(cache_host_parts) == 1:
-                self.__class__.cache_host_ip = cache_host_parts[0]
-                self.__class__.cache_host_port = 80
+                klass.cache_host_ip = cache_host_parts[0]
             elif len(cache_host_parts) == 2:
-                self.__class__.cache_host_ip = cache_host_parts[0]
-                self.__class__.cache_host_port = int(cache_host_parts[1])
+                klass.cache_host_ip = cache_host_parts[0]
             else:
-                self.__class__.cache_host_ip = None
-                self.__class__.cache_host_port = None
+                klass.cache_host_ip = None
         except Exception, e:
             syslog_msg('Could not generate Cache URL for serving videos from cache. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         try:
-            self.__class__.proxy = None
-            self.__class__.this_proxy = None
+            klass.proxy = None
+            klass.this_proxy = None
             if proxy:
                 if proxy_username and proxy_password:
                     proxy_parts = urlparse.urlsplit(proxy)
-                    self.__class__.proxy = 'http://%s:%s@%s/' % (proxy_username, proxy_password, proxy)
+                    klass.proxy = 'http://%s:%s@%s/' % (proxy_username, proxy_password, proxy)
                 else:
-                    self.__class__.proxy = 'http://%s/' % proxy
+                    klass.proxy = 'http://%s/' % proxy
             if this_proxy:
-                self.__class__.this_proxy = 'http://%s/' % (this_proxy)
+                klass.this_proxy = 'http://%s/' % (this_proxy)
         except Exception, e:
             syslog_msg('Could not set proxy for caching videos. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
 
         # HTTP Headers for caching videos
-        self.__class__.redirect_code = '302'
-        self.__class__.std_headers = [
+        klass.redirect_code = '302'
+        klass.std_headers = [
             {
                 'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2) Gecko/20100115 Firefox/3.6',
                 'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
@@ -369,60 +367,67 @@ class VideocacheOptions:
                 'Accept-Language': 'en-us',
             },
         ]
-        self.__class__.num_std_headers = len(self.__class__.std_headers)
+        klass.num_std_headers = len(klass.std_headers)
 
-        self.__class__.initialized = True
-        self.__class__.halt = False
+        klass.initialized = True
+        klass.halt = False
 
-    def set_loggers(self):
+    @classmethod
+    def set_loggers(klass):
+        if klass.loggers_set:
+            return
+
         # Set loggers
         try:
-            for key in self.format_map:
-                self.__class__.logformat = self.__class__.logformat.replace(key, self.format_map[key])
-                self.__class__.scheduler_logformat = self.__class__.scheduler_logformat.replace(key, self.format_map[key])
-                self.__class__.cleaner_logformat = self.__class__.cleaner_logformat.replace(key, self.format_map[key])
-                self.__class__.db_query_logformat = self.__class__.db_query_logformat.replace(key, self.format_map[key])
+            for key in klass.format_map:
+                klass.logformat = klass.logformat.replace(key, klass.format_map[key])
+                klass.scheduler_logformat = klass.scheduler_logformat.replace(key, klass.format_map[key])
+                klass.cleaner_logformat = klass.cleaner_logformat.replace(key, klass.format_map[key])
+                klass.db_query_logformat = klass.db_query_logformat.replace(key, klass.format_map[key])
             # Main Videocache Logfile
-            if self.__class__.enable_videocache_log:
-                self.__class__.vc_logger = logging.Logger('VideocacheLog')
-                self.__class__.vc_logger.setLevel(logging.DEBUG)
-                vc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.logfile, mode = 'a', maxBytes = self.__class__.max_logfile_size, backupCount = self.__class__.max_logfile_backups)
-                self.__class__.vc_logger.addHandler(vc_log_handler)
+            if klass.enable_videocache_log:
+                klass.vc_logger = logging.Logger('VideocacheLog')
+                klass.vc_logger.setLevel(logging.DEBUG)
+                vc_log_handler = logging.handlers.RotatingFileHandler(klass.logfile, mode = 'a', maxBytes = klass.max_logfile_size, backupCount = klass.max_logfile_backups)
+                klass.vc_logger.addHandler(vc_log_handler)
 
             # Scheduler Logfile
-            if self.__class__.enable_scheduler_log:
-                self.__class__.vcs_logger = logging.Logger('VideocacheSchedulerLog')
-                self.__class__.vcs_logger.setLevel(logging.DEBUG)
-                vcs_log_handler = logging.handlers.RotatingFileHandler(self.__class__.scheduler_logfile, mode = 'a', maxBytes = self.__class__.max_scheduler_logfile_size, backupCount = self.__class__.max_scheduler_logfile_backups)
-                self.__class__.vcs_logger.addHandler(vcs_log_handler)
+            if klass.enable_scheduler_log:
+                klass.vcs_logger = logging.Logger('VideocacheSchedulerLog')
+                klass.vcs_logger.setLevel(logging.DEBUG)
+                vcs_log_handler = logging.handlers.RotatingFileHandler(klass.scheduler_logfile, mode = 'a', maxBytes = klass.max_scheduler_logfile_size, backupCount = klass.max_scheduler_logfile_backups)
+                klass.vcs_logger.addHandler(vcs_log_handler)
 
             # Trace log
-            if self.__class__.enable_trace_log:
-                self.__class__.trace_logger = logging.Logger('VideocacheTraceLog')
-                self.__class__.trace_logger.setLevel(logging.DEBUG)
-                trace_log_handler = logging.handlers.RotatingFileHandler(self.__class__.tracefile, mode = 'a', maxBytes = self.__class__.max_tracefile_size, backupCount = self.__class__.max_tracefile_backups)
-                self.__class__.trace_logger.addHandler(trace_log_handler)
+            if klass.enable_trace_log:
+                klass.trace_logger = logging.Logger('VideocacheTraceLog')
+                klass.trace_logger.setLevel(logging.DEBUG)
+                trace_log_handler = logging.handlers.RotatingFileHandler(klass.tracefile, mode = 'a', maxBytes = klass.max_tracefile_size, backupCount = klass.max_tracefile_backups)
+                klass.trace_logger.addHandler(trace_log_handler)
 
             # Videocache Cleaner Logfile
-            if self.__class__.enable_cleaner_log:
-                self.__class__.vcc_logger = logging.Logger('VideocacheCleanerLog')
-                self.__class__.vcc_logger.setLevel(logging.DEBUG)
-                vcc_log_handler = logging.handlers.RotatingFileHandler(self.__class__.cleaner_logfile, mode = 'a', maxBytes = self.__class__.max_cleaner_logfile_size, backupCount = self.__class__.max_cleaner_logfile_backups)
-                self.__class__.vcc_logger.addHandler(vcc_log_handler)
+            if klass.enable_cleaner_log:
+                klass.vcc_logger = logging.Logger('VideocacheCleanerLog')
+                klass.vcc_logger.setLevel(logging.DEBUG)
+                vcc_log_handler = logging.handlers.RotatingFileHandler(klass.cleaner_logfile, mode = 'a', maxBytes = klass.max_cleaner_logfile_size, backupCount = klass.max_cleaner_logfile_backups)
+                klass.vcc_logger.addHandler(vcc_log_handler)
 
             # DB Logfile
-            if self.__class__.enable_db_query_log:
-                self.__class__.db_logger = logging.Logger('DatabaseLog')
-                self.__class__.db_logger.setLevel(logging.DEBUG)
-                db_log_handler = logging.handlers.RotatingFileHandler(self.__class__.db_query_logfile, mode = 'a', maxBytes = self.__class__.max_db_query_logfile_size, backupCount = self.__class__.max_db_query_logfile_backups)
-                self.__class__.db_logger.addHandler(db_log_handler)
+            if klass.enable_db_query_log:
+                klass.db_logger = logging.Logger('DatabaseLog')
+                klass.db_logger.setLevel(logging.DEBUG)
+                db_log_handler = logging.handlers.RotatingFileHandler(klass.db_query_logfile, mode = 'a', maxBytes = klass.max_db_query_logfile_size, backupCount = klass.max_db_query_logfile_backups)
+                klass.db_logger.addHandler(db_log_handler)
 
         except Exception, e:
             syslog_msg('Could not set logging! Debug: '  + traceback.format_exc().replace('\n', ''))
-            return None
-        return True
+            klass.halt = True
+        loggers_set = True
 
-    def reset(self):
-        self.__class__.initialized = False
-        self.initialize()
+    @classmethod
+    def reset(klass):
+        klass.initialized = False
+        klass.loggers_set = False
+        klass.halt = True
+        klass.initialize(klass.config_file, klass.generate_crossdomain_files, klass.skip_disk_size_calculation)
 

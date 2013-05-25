@@ -11,20 +11,12 @@ __docformat__ = 'plaintext'
 from iniparse import INIConfig
 from iniparse.config import Undefined
 
-import os
-
 class VideocacheConfig:
-    """
-    This class reads videocache.conf configuration file and sets all the option
-    so that they are available via Options class.
-    """
-
-    def __init__(self, config_file = '/etc/videocache.conf', root = '/'):
+    def __init__(self, config_file = '/etc/videocache.conf'):
         self.config_file = config_file
-        self.root = root
 
     def read(self):
-        config = INIConfig(open(os.path.join(self.root, self.config_file)))
+        config = INIConfig(open(self.config_file))
         vcconf = VideocacheConf()
 
         # Pick up options' values from videocache.conf or set default if they are
@@ -35,20 +27,10 @@ class VideocacheConfig:
         return config.main
 
 class Option:
-    """
-    Used to set default values for options if they are not defined or commented
-    in videocache.conf configuration file.
-    """
-
     def __init__(self, default_value = None):
         self.default_value = default_value
 
 class VideocacheConf:
-    """
-    All the global options should be set in this class otherwise they
-    will not be available in Options class.
-    """
-
     # Options not in config file
     queue_dump_file = Option('videocache.queue')
     # Global Options
@@ -90,7 +72,7 @@ class VideocacheConf:
     cache_swap_low = Option(92)
     cache_swap_high = Option(97)
     disk_cleanup_strategy = Option(1)
-    cache_dir_filelist_rebuild_interval = Option(86400)
+    filelist_rebuild_interval = Option(86400)
 
     # Logging
     logdir = Option('/var/log/videocache/')

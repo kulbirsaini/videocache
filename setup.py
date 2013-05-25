@@ -16,7 +16,7 @@ import re
 import sys
 import traceback
 
-def red(msg):#{{{
+def red(msg):
     return "\033[1;31m%s\033[0m" % msg
 
 def blue(msg):
@@ -32,10 +32,10 @@ def print_message_and_abort(message):
 def log_traceback():
     print blue('\n' + '-' * 25 + 'Traceback Begin' + '-' * 25)
     print traceback.format_exc(),
-    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')#}}}
+    print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
 
 # Setup specific functions
-def setup_error(error_code):#{{{
+def setup_error(error_code):
     """Report error while updating/installing videocache with proper error code."""
 
     messages = {}
@@ -86,21 +86,21 @@ Please see http://cachevideos.com/#install for more information or getting help.
     messages['squid_access_log'] = "(--squid-access-log)  Squid access.log file path specified using --squid-access-log option doesn't start with a /"
     if error_code in messages:
         return messages[error_code]
-    return ''#}}}
+    return ''
 
-def setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, quiet, working_dir, hostname, username, password, database):#{{{
+def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, quiet, working_dir, hostname, username, password, database):
     """Perform the setup."""
-    install_dir = apply_install_root(root, '/usr/share/videocache/')
-    etc_dir = apply_install_root(root, '/etc/')
-    usr_sbin_dir = apply_install_root(root, '/usr/sbin/')
-    init_dir = apply_install_root(root, '/etc/init.d/')
+    install_dir = '/usr/share/videocache/'
+    etc_dir = '/etc/'
+    usr_sbin_dir = '/usr/sbin/'
+    init_dir = '/etc/init.d/'
 
     install_error = blue("\n\n" + setup_error('install'))
 
     dirs_to_be_created = [install_dir, etc_dir, usr_sbin_dir, init_dir]
 
     if apache_conf_dir != '':
-        dirs_to_be_created += [apply_install_root(root, apache_conf_dir)]
+        dirs_to_be_created += [apache_conf_dir]
 
     for dir in dirs_to_be_created:
         if not create_or_update_dir(dir, None, 0755, quiet):
@@ -228,11 +228,10 @@ In case of any bugs or problems, visit http://cachevideos.com/ and contact us.""
     file = open(os.path.join(working_dir, 'instructions.txt'), 'w')
     file.write(msg)
     file.close
-    return#}}}
+    return
 
-def process_options(parser):#{{{
+def process_options(parser):
     parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
-    parser.add_option('-p', '--prefix', dest = 'vc_root', type='string', help = 'Specify an alternate root location for videocache', default = '/')
     parser.add_option('-e', '--client-email', dest = 'client_email', type='string', help = 'Email address using which Videocache was purchased.')
     parser.add_option('-u', '--squid-user', dest = 'squid_user', type='string', help = 'User who runs Squid daemon.')
     parser.add_option('--skip-vc-conf', dest = 'skip_vc_conf', action='store_true', help = 'Skip creating Videocache configuration file.', default = False)
@@ -245,16 +244,16 @@ def process_options(parser):#{{{
     parser.add_option('--db-username', dest = 'db_username', type='string', help = 'Enter username for database access')
     parser.add_option('--db-password', dest = 'db_password', type='string', help = 'Enter password for database access')
     parser.add_option('--db-database', dest = 'db_database', type='string', help = 'Enter database name for videocache')
-    return parser.parse_args()#}}}
+    return parser.parse_args()
 
-def is_valid_path(path, file = True):#{{{
+def is_valid_path(path, file = True):
     if file and path.endswith('/'):
         return False
     if re.compile('^/([^\/]+\/){1,7}[^\/]+\/?$').match(path):
         return True
-    return False#}}}
+    return False
 
-def verify_options(options, args):#{{{
+def verify_options(options, args):
     if os.geteuid() != 0:
         print_message_and_abort(red(setup_error('uid')))
 
@@ -283,7 +282,7 @@ def verify_options(options, args):#{{{
     if messages != '':
         messages = blue("One or more validation errors occurred. Please fix them and try running setup.py again.\n") + red(messages) + "\n"
         print_message_and_abort(messages)
-    return#}}}
+    return
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -313,13 +312,8 @@ if __name__ == '__main__':
     if options.skip_apache_conf:
         options.apache_conf_dir = ''
 
-    if options.vc_root[0] != '/':
-        root = os.path.join(os.getcwd(), options.vc_root)
-    else:
-        root = options.vc_root
-
     try:
-        o = VideocacheOptions(config_file, '/', False, True)
+        o = VideocacheOptions(config_file, True, True)
     except Exception, e:
         log_traceback()
         print_message_and_abort(red("\nCould not read options from configuration file located at %s ." % config_file) + green("\nIf you contact us regarding this error, please send the Trace above."))
@@ -328,5 +322,5 @@ if __name__ == '__main__':
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
     email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, verbose, hostname, username, password, database = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_access_log, options.verbose, options.db_hostname, options.db_username, options.db_password, options.db_database
-    setup_vc(o, root, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, not verbose, working_dir, hostname, username, password, database)
+    setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, not verbose, working_dir, hostname, username, password, database)
 

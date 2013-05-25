@@ -12,8 +12,8 @@ from fsop import *
 from functools import wraps
 from Queue import Empty
 
-import cgi
 import datetime
+import logging
 import multiprocessing
 import os
 import pwd
@@ -27,10 +27,17 @@ import urllib
 import urllib2
 import urlparse
 
+# Alias urllib2.open to urllib2.urlopen
+urllib2.open = urllib2.urlopen
+
 VALIDATE_DOMAIN_PORT_REGEX = re.compile('^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,6}(:[0-9]{1,5})?$')
 VALIDATE_EMAIL_REGEX = re.compile('^[^@\ ]+@([A-Za-z0-9]+.){1,3}[A-Za-z]{2,6}$')
 VALIDATE_IP_ADDRESS_REGEX = re.compile('^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))$')
 VALIDATE_MAC_ADDRESS_REGEX = re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I)
+
+LOG_LEVEL_INFO = logging.getLevelName(logging.INFO)
+LOG_LEVEL_ERR = logging.getLevelName(logging.ERROR)
+LOG_LEVEL_WARN = logging.getLevelName(logging.WARN)
 
 class TimeoutError(Exception):
     pass
@@ -87,6 +94,23 @@ def blue(msg):
 def green(msg):
     return "\033[1;32m%s\033[0m" % msg#}}}
 
+def syslog_msg(msg):
+    syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)
+
+def build_message(params):
+    cur_time = time.time()
+    local_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.localtime())
+    gmt_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.gmtime())
+    return params.get('logformat', '') % { 'timestamp' : int(cur_time), 'timestamp_ms' : round(cur_time, 3), 'localtime' : local_time, 'gmt_time' : gmt_time, 'process_id' : params.get('process_id', '-'), 'levelname' : params.get('levelname', '-'), 'client_ip' : params.get('client_ip', '-'), 'website_id' : params.get('website_id', '-').upper(), 'code' : params.get('code', '-'), 'video_id' : params.get('video_id', '-'), 'size' : params.get('size', '-'), 'message' : params.get('message', '-'), 'debug' : params.get('debug', '-') }
+
+def refine_url(url, arg_drop_list = []):
+    """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
+    if len(arg_drop_list) == 0:
+        return url
+    query = urlparse.urlsplit(url)[3]
+    new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
+    return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
+
 def current_time():
     return int(time.time())
 
@@ -95,20 +119,6 @@ def datetime_to_timestamp(t):
 
 def timestamp_to_datetime(t):
     return datetime.datetime.fromtimestamp(float(t))
-
-def is_integer(number):
-    try:
-        int(number)
-        return True
-    except:
-        return False
-
-def is_float(number):
-    try:
-        float(number)
-        return True
-    except:
-        return False
 
 def is_valid_domain_port(name):
     if VALIDATE_DOMAIN_PORT_REGEX.match(name):
@@ -149,22 +159,19 @@ def is_valid_user(user):
     except:
         return False
 
-def syslog_msg(msg):
-    syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)
+def is_integer(number):
+    try:
+        int(number)
+        return True
+    except:
+        return False
 
-def build_message(params):
-    cur_time = time.time()
-    local_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.localtime())
-    gmt_time = time.strftime(params.get('timeformat', '%d/%b/%Y:%H:%M:%S'), time.gmtime())
-    return params.get('logformat', '') % { 'timestamp' : int(cur_time), 'timestamp_ms' : round(cur_time, 3), 'localtime' : local_time, 'gmt_time' : gmt_time, 'process_id' : params.get('process_id', '-'), 'levelname' : params.get('levelname', '-'), 'client_ip' : params.get('client_ip', '-'), 'website_id' : params.get('website_id', '-').upper(), 'code' : params.get('code', '-'), 'video_id' : params.get('video_id', '-'), 'size' : params.get('size', '-'), 'message' : params.get('message', '-'), 'debug' : params.get('debug', '-') }
-
-def refine_url(url, arg_drop_list = []):
-    """Returns a refined url with all the arguments mentioned in arg_drop_list dropped."""
-    if len(arg_drop_list) == 0:
-        return url
-    query = urlparse.urlsplit(url)[3]
-    new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
-    return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
+def is_float(number):
+    try:
+        float(number)
+        return True
+    except:
+        return False
 
 def is_ascii(string):
     try:
@@ -343,9 +350,12 @@ def is_port_open(ip, port):
     except:
         return False
 
-def test_url(url):
+def test_url(url, proxy = None):
     try:
-        request = urllib2.urlopen(url)
+        opener = urllib2
+        if proxy:
+            opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy }))
+        request = opener.open(url)
         request.close()
         return True
     except Exception, e:
@@ -368,13 +378,3 @@ def cache_period_s2lh(cache_period):
             return map(lambda x: { 'start' : x[0], 'end' : x[1] }, map(lambda x: map(lambda y: [int(z) for z in y.split(':')], x.split('-')), [i.strip().replace(' ', '') for i in cache_period.strip().split(',')]))
     except Exception, e:
         return False
-
-def uuid_number():
-    try:
-        import binascii, os
-        return binascii.b2a_hex(os.urandom(8))
-    except Exception, e:
-        import random, time
-        random.seed(time.time())
-        return hex(random.getrandbits(64))[2:-1]
-

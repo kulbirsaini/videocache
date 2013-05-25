@@ -9,18 +9,13 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from error_codes import *
 
-import datetime
-import logging
 import os
-os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
-try:
-    import MySQLdb
-except:
-    pass
 import time
 import traceback
+
+os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
+import MySQLdb
 
 def get_db_connection(num_tries = 0):
     if num_tries == 3:
@@ -402,17 +397,17 @@ class VideoFile(Model):
 
 def info(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.INFO), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id})
         o.vc_logger.info(build_message(params))
 
 def error(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.ERROR), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id})
         o.vc_logger.error(build_message(params))
 
 def warn(params = {}):
     if o.enable_videocache_log:
-        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : logging.getLevelName(logging.WARN), 'process_id' : process_id})
+        params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id})
         o.vc_logger.debug(build_message(params))
 
 def trace(params = {}):
@@ -436,3 +431,4 @@ def log_query(query):
 
 def create_tables():
     return VideoFile.create_table() and VideoQueue.create_table() and YoutubeCPN.create_table()
+
