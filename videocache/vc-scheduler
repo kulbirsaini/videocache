@@ -490,13 +490,15 @@ def tail_file(filename, finder_list = [], any_find = True):
 def watch_access_log():
     info({ 'code' : 'ACCESS_LOG_WATCH_START', 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
 
-    time.sleep(15)
+    warning = False
     while True:
-        if not os.path.isfile(o.squid_access_log):
-            warn({ 'code' : 'ACCESS_LOG_NOT_FOUND', 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 5 minutes.' })
-        else:
+        if os.path.isfile(o.squid_access_log):
+            if warning: info({ 'code' : 'ACCESS_LOG_FOUND', 'message' : 'Found squid access.log at ' + o.squid_access_log })
             break
-        time.sleep(300)
+        else:
+            if warning: warn({ 'code' : 'ACCESS_LOG_NOT_FOUND', 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 30 seconds.' })
+        warning = True
+        time.sleep(30)
 
     global local_cpn_pool, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
@@ -989,6 +991,9 @@ class VideoPoolDaemon(VideocacheDaemon):
         try:
             self.o.set_loggers()
             process_id = os.getpid()
+
+            if not o.enable_access_log_monitoring:
+                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because enable_access_log_monitoring is set to 0 in /etc/videocache.conf.' })
 
             if o.offline_mode:
                 info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
