@@ -900,149 +900,82 @@ def write_pid_file(pids):
     except Exception, e:
         wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.scheduler_pidfile + ' is writable by Squid daemon user.', 'debug' : str(e) })
 
+def thread_starter(thread, func, cur_time, last_run_at, run_interval):
+    try:
+        if thread and thread.isAlive():
+            return thread, last_run_at
+        elif cur_time - last_run_at > run_interval:
+            thread = LoggingThread(target = func, name = func.__name__)
+            thread.start()
+            return thread, cur_time
+    except Exception, e:
+        wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+    return False, last_run_at
+
+def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, process_list):
+    try:
+        if thread:
+            if thread.is_alive():
+                return thread, last_run_at
+            elif thread.pid in process_list:
+                process_list.remove(thread.pid)
+
+        if not (thread and thread.is_alive()) and cur_time - last_run_at > run_interval:
+            thread = multiprocessing.Process(target = func, name = func.__name__)
+            thread.start()
+            if thread.pid not in process_list:
+                process_list.append(thread.pid)
+            return thread, cur_time
+    except Exception, e:
+        wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+    return False, last_run_at
+
 def task_scheduler():
     process_list = []
     write_pid_file(process_list)
     now = time.time()
+    refine_cache_periods()
 
     # cache_thread_scheduler
-    last_cts_at = 0
-    cts_thread = None
-    cts_thread_pid = None
-    cts_interval = 15
+    last_cts_at, cts_thread, cts_interval = 0, None, 15
 
     # cleanup_cpn_pool
-    last_ccp_at = 0
-    ccp_thread = None
-    ccp_thread_pid = None
-    ccp_interval = 120
+    last_ccp_at, ccp_thread, ccp_interval = 0, None, 120
 
     # cleanup_video_queue
-    last_cvq_at = now - 570
-    cvq_thread = None
-    cvq_thread_pid = None
-    cvq_interval = 600
+    last_cvq_at, cvq_thread, cvq_interval = now - 570, None, 600
 
     # cleanup_cache
-    last_cc_at = now - 220
-    cc_thread = None
-    ccp_thread_pid = None
-    cc_interval = 300
+    last_cc_at, cc_thread, cc_interval = now - 220, None, 300
 
     # rebuild_filelist
-    last_rf_at = now - (o.filelist_rebuild_interval - 50)
-    rf_thread = None
-    rf_thread_pid = None
-    rf_interval = o.filelist_rebuild_interval
+    last_rf_at, rf_thread, rf_interval = now - (o.filelist_rebuild_interval - 50), None, o.filelist_rebuild_interval
 
     # submit_system_info
-    last_ssi_at = now - 21500
-    ssi_thread = None
-    ssi_thread_pid = None
-    ssi_interval = 21600
+    last_ssi_at, ssi_thread, ssi_interval = now - 21500, None, 21600
 
     # cleanup_video
-    last_cv_at = now - 1770
-    cv_thread = None
-    cv_thread_pid = None
-    cv_interval = 1800
+    last_cv_at, cv_thread, cv_interval = now - 1770, None, 1800
 
     # cpn_monitor
-    last_cm_at = now - 55
-    cm_thread = None
-    cm_thread_pid = None
-    cm_interval = 60
+    last_cm_at, cm_thread, cm_interval = now - 55, None, 60
 
     # log_hit_monitor
-    last_hm_at = now - 165
-    hm_thread = None
-    hm_thread_pid = None
-    hm_interval = 170
-
-    refine_cache_periods()
+    last_hm_at, hm_thread, hm_interval = now - 165, None, 170
 
     while True:
         cur_time = time.time()
         write_pid_file(process_list)
-        try:
-            if not (cts_thread and cts_thread.isAlive()) and cur_time - last_cts_at > cts_interval:
-                cts_thread = LoggingThread(target = cache_thread_scheduler, name = 'cache_thread_scheduler')
-                last_cts_at = cur_time
-                cts_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if not (ccp_thread and ccp_thread.isAlive()) and cur_time - last_ccp_at > ccp_interval:
-                ccp_thread = LoggingThread(target = cleanup_cpn_pool, name = 'cleanup_cpn_pool')
-                last_ccp_at = cur_time
-                ccp_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if not (cvq_thread and cvq_thread.isAlive()) and cur_time - last_cvq_at > cvq_interval:
-                cvq_thread = LoggingThread(target = cleanup_video_queue, name = 'cleanup_video_queue')
-                last_cvq_at = cur_time
-                cvq_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if not (cc_thread and cc_thread.isAlive()) and cur_time - last_cc_at > cc_interval:
-                cc_thread = LoggingThread(target = cleanup_cache, name = 'cleanup_cache')
-                last_cc_at = cur_time
-                cc_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if rf_thread_pid in process_list and rf_thread and not rf_thread.is_alive():
-                process_list.remove(rf_thread_pid)
-                rf_thread_pid = None
-            if not (rf_thread and rf_thread.is_alive()) and cur_time - last_rf_at > rf_interval:
-                rf_thread = multiprocessing.Process(target = rebuild_filelist, name = 'watch_log_hit')
-                last_rf_at = cur_time
-                rf_thread.start()
-                rf_thread_pid = rf_thread.pid
-                if rf_thread_pid not in process_list:
-                    process_list.append(rf_thread_pid)
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if not (ssi_thread and ssi_thread.isAlive()) and cur_time - last_ssi_at > ssi_interval:
-                ssi_thread = LoggingThread(target = submit_system_info, name = 'submit_system_info')
-                last_ssi_at = cur_time
-                ssi_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-        try:
-            if not (cv_thread and cv_thread.isAlive()) and cur_time - last_cv_at > cv_interval:
-                cv_thread = LoggingThread(target = cleanup_video, name = 'cleanup_video')
-                last_cv_at = cur_time
-                cv_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
+        cts_thread, last_cts_at = thread_starter(cts_thread, cache_thread_scheduler, cur_time, last_cts_at, cts_interval)
+        ccp_thread, last_ccp_at = thread_starter(ccp_thread, cleanup_cpn_pool, cur_time, last_ccp_at, ccp_interval)
+        cvq_thread, last_cvq_at = thread_starter(cvq_thread, cleanup_video_queue, cur_time, last_cvq_at, cvq_interval)
+        cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
+        ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_system_info, cur_time, last_ssi_at, ssi_interval)
+        cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
         if not o.offline_mode and o.enable_access_log_monitoring:
-            try:
-                if not (cm_thread and cm_thread.isAlive()) and cur_time - last_cm_at > cm_interval:
-                    cm_thread = LoggingThread(target = watch_access_log, name = 'watch_access_log')
-                    last_cm_at = cur_time
-                    cm_thread.start()
-            except Exception, e:
-                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
-            try:
-                if not (hm_thread and hm_thread.is_alive()) and cur_time - last_hm_at > hm_interval:
-                    hm_thread = LoggingThread(target = watch_log_hit, name = 'watch_log_hit')
-                    last_hm_at = cur_time
-                    hm_thread.start()
-            except Exception, e:
-                wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-
+            cm_thread, last_cm_at = thread_starter(cm_thread, watch_access_log, cur_time, last_cm_at, cm_interval)
+            hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
+        rf_thread, last_rf_at = multiprocess_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval, process_list)
         time.sleep(2)
 
 class VideoPoolDaemon(VideocacheDaemon):
@@ -1060,9 +993,7 @@ class VideoPoolDaemon(VideocacheDaemon):
             if o.offline_mode:
                 info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
 
-            task_scheduler_thread = LoggingThread(target = task_scheduler)
-            task_scheduler_thread.start()
-            task_scheduler_thread.join()
+            task_scheduler()
         except Exception, e:
             ent({ 'code' : 'TASK_SCHEDULER_ERR', 'message' : 'Error while starting task scheduler.' })
 
