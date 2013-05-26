@@ -205,7 +205,7 @@ Depending on the version of your Squid, open vc_squid_2.conf or vc_squid_3.conf
 in your Videocache bundle. Copy all the lines and paste them at the top of your
 Squid configuration file squid.conf.
 
-Also add the following lines at the top of your Squid config file squid.conf.
+Also, add the following lines at the top of your Squid config file squid.conf.
 #-----------------CUT FROM HERE-------------------
 %s
 #-----------------CUT TILL HERE-------------------
@@ -223,7 +223,8 @@ Go the videocache log directory /var/log/videocache/ and check various log files
 to have a look at videocache activity.
 
 Check Manual.pdf file for detailed configurations of squid, apache and videocache.
-In case of any bugs or problems, visit http://cachevideos.com/ and contact us.""" % squid_config_lines
+In case of any bugs or problems, visit http://cachevideos.com/ and contact us.
+""" % squid_config_lines
 
     file = open(os.path.join(working_dir, 'instructions.txt'), 'w')
     file.write(msg)
