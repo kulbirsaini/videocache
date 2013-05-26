@@ -264,7 +264,7 @@ def cache_youtube_video(video):
                 return
 
             if youtube_cached_url(o, video_id, website_id, fmt)[0]:
-                info({ 'code' : 'VIDEO_EXISTS', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists at ' + video_path })
+                info({ 'code' : 'VIDEO_EXISTS', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists.' })
             else:
                 video_url = url_map[fmt]
                 filename = get_youtube_filename(o, video_id, fmt)
