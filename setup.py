@@ -132,21 +132,21 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         config_data = file.read()
         file.close()
         file = open(vcsysconfig_file, 'w')
-        config_data = re.sub('\nvideocache_user[\ ]*=[^\n]*\n', '\nvideocache_user = %s\n' % user, config_data, count = 0)
-        config_data = re.sub('\nclient_email[\ ]*=[^\n]*\n', '\nclient_email = %s\n' % email, config_data, count = 0)
-        config_data = re.sub('\ncache_host[\ ]*=[^\n]*\n', '\ncache_host = %s\n' % cache_host, config_data, count = 0)
-        config_data = re.sub('\nthis_proxy[\ ]*=[^\n]*\n', '\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
-        config_data = re.sub('\nsquid_access_log[\ ]*=[^\n]*\n', '\nsquid_access_log = %s\n' % squid_access_log, config_data, count = 0)
-        config_data = re.sub('\napache_conf_dir[\ ]*=[^\n]*\n', '\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
-        config_data = re.sub('\ndb_hostname[\ ]*=[^\n]*\n', '\ndb_hostname = %s\n' % hostname, config_data, count = 0)
-        config_data = re.sub('\ndb_username[\ ]*=[^\n]*\n', '\ndb_username = %s\n' % username, config_data, count = 0)
-        config_data = re.sub('\ndb_password[\ ]*=[^\n]*\n', '\ndb_password = %s\n' % password, config_data, count = 0)
-        config_data = re.sub('\ndb_database[\ ]*=[^\n]*\n', '\ndb_database = %s\n' % database, config_data, count = 0)
+        config_data = re.sub(r'\nvideocache_user[\ ]*=[^\n]*\n', r'\nvideocache_user = %s\n' % user, config_data, count = 0)
+        config_data = re.sub(r'\nclient_email[\ ]*=[^\n]*\n', r'\nclient_email = %s\n' % email, config_data, count = 0)
+        config_data = re.sub(r'\ncache_host[\ ]*=[^\n]*\n', r'\ncache_host = %s\n' % cache_host, config_data, count = 0)
+        config_data = re.sub(r'\nthis_proxy[\ ]*=[^\n]*\n', r'\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
+        config_data = re.sub(r'\nsquid_access_log[\ ]*=[^\n]*\n', r'\nsquid_access_log = %s\n' % squid_access_log, config_data, count = 0)
+        config_data = re.sub(r'\napache_conf_dir[\ ]*=[^\n]*\n', r'\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
+        config_data = re.sub(r'\ndb_hostname[\ ]*=[^\n]*\n', r'\ndb_hostname = %s\n' % hostname, config_data, count = 0)
+        config_data = re.sub(r'\ndb_username[\ ]*=[^\n]*\n', r'\ndb_username = %s\n' % username, config_data, count = 0)
+        config_data = re.sub(r'\ndb_password[\ ]*=[^\n]*\n', r'\ndb_password = %s\n' % password, config_data, count = 0)
+        config_data = re.sub(r'\ndb_database[\ ]*=[^\n]*\n', r'\ndb_database = %s\n' % database, config_data, count = 0)
         if apache_conf_dir == '':
             skip_apache_conf = 1
         else:
             skip_apache_conf = 0
-        config_data = re.sub('\nskip_apache_conf[\ ]*=[^\n]*\n', '\nskip_apache_conf = %s\n' % skip_apache_conf, config_data, count = 0)
+        config_data = re.sub(r'\nskip_apache_conf[\ ]*=[^\n]*\n', r'\nskip_apache_conf = %s\n' % skip_apache_conf, config_data, count = 0)
         file.write(config_data)
         file.close()
 

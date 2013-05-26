@@ -198,5 +198,17 @@ if __name__ == '__main__':
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages or /var/log/syslog.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
+
+    try:
+        filedesc = open(config_file, 'r')
+        config_data = filedesc.read()
+        filedesc.close()
+        filedesc = open(config_file, 'w')
+        config_data = re.sub(r"\n#\s+version\s+:\s+([0-9\.])+\s+revision\s+([^ \n]+)\n", r"\n# version : %s revision %s\n" % (o.version, o.revision), config_data, count = 0)
+        filedesc.write(config_data)
+        filedesc.close()
+    except Exception, e:
+        pass #FIXME
+
     upgrade_vc(o, not options.verbose)
 

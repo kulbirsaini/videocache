@@ -90,7 +90,7 @@ class VideocacheOptions:
             # Options not in configuration file
             klass.queue_dump_file = mainconf.queue_dump_file
             klass.version = '2.3'
-            klass.revision = '9934b085e'
+            klass.revision = 'b127dbc3'
             # General Options
             klass.enable_videocache = int(mainconf.enable_videocache)
             klass.offline_mode = int(mainconf.offline_mode)
