@@ -120,6 +120,7 @@ class VideocacheOptions:
             klass.log_hit_threshold = int(mainconf.log_hit_threshold)
             klass.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
             klass.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
+            klass.access_log_read_timeout = int(mainconf.access_log_read_timeout)
             klass.trial = int(mainconf.trial)
             if klass.trial:
                 klass.trial = 1

@@ -454,10 +454,8 @@ def kill_tail_processes(filename, user):
         except:
             pass
 
-@with_timeout(120)
-def readline_with_timeout(q, output, finder_list = [], any_find = True):
-    try:
-        line = output.readline()
+def enqueue_output(output, message_queue, finder_list = [], any_find = True):
+    for line in iter(output.readline, ''):
         if finder_list == []:
             shall_queue = True
         else:
@@ -465,24 +463,23 @@ def readline_with_timeout(q, output, finder_list = [], any_find = True):
                 shall_queue = any(map(lambda x: line.find(x) > -1, finder_list))
             else:
                 shall_queue = all(map(lambda x: line.find(x) > -1, finder_list))
-        if shall_queue:
-            q.put(line)
-        else:
-            q.put(False)
-    except Exception, e:
-        ent({ 'code' : 'ACCESS_LOG_QUEUE_ERR', 'message' : 'Ideally, there should be no error here. If you see this, please report.', 'debug' : str(e) })
+        if shall_queue: message_queue.put(line)
 
 def tail_file(filename, finder_list = [], any_find = True):
+    message_queue = Queue()
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
+    readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find))
+    readline_thread.start()
 
     while True:
         try:
-            line = readline_with_timeout(process.stdout, finder_list, any_find)
-            if line: yield line
-        except TimeoutError, e:
-            process.stdout.close()
-            process.terminate()
+            yield message_queue.get(timeout = o.access_log_read_timeout)
+        except Empty, e:
+            os.kill(process.pid, signal.SIGTERM)
+            time.sleep(2)
             process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
+            readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find))
+            readline_thread.start()
         except Exception, e:
             wnt({ 'code' : 'TAIL_FILE_ERR', 'message' : 'Could not parse message from squid logfile ' + filename + ' Please report if you see this error frequently.', 'debug' : str(e) })
             time.slee(0.05)
