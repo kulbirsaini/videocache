@@ -158,7 +158,7 @@ def get_youtube_video_id_from_cpn(cpn, video_id):
         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
         return video_id
 
-    time.sleep(1)
+    time.sleep(0.5)
     result = YoutubeCPN.with_timeout(0.2, YoutubeCPN.first, { 'cpn' : cpn })
     if result:
         video_id = result.video_id

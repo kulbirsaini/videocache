@@ -425,9 +425,9 @@ def is_cached(video_url):
             return True
     except Exception, e:
         if 'getcode' in dir(e) and e.getcode() == 504:
-            return True
+            return False
         if 'code' in dir(e) and e.code == 504:
-            return True
+            return False
         wnt({ 'code' : 'LOG_CHECK_ERR', 'message' : 'Could not confirm if url cached in Squid ' + video_url, 'debug' : str(e) })
     return False
 
@@ -625,13 +625,13 @@ def watch_log_hit():
                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0 }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-                if cache_remote_url(video_url, tmp_path, params):
+                if timeout_exec(15, cache_remote_url, False, video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
                     move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                    VideoFile.with_timeout(0.25, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
             except Exception, e:
                 ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
         except Empty, e:

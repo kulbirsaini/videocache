@@ -42,7 +42,7 @@ LOG_LEVEL_WARN = logging.getLevelName(logging.WARN)
 class TimeoutError(Exception):
     pass
 
-def with_timeout(tmout, raise_exception = True):
+def with_timeout(tmout, f, raise_exception = True):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -78,8 +78,8 @@ def classmethod_with_timeout(tmout, raise_exception = True):
         return wrapper
     return decorator
 
-def timeout_exec(timeout, f, *args, **kwargs):
-    @with_timeout(timeout, f)
+def timeout_exec(timeout, f, raise_exception, *args, **kwargs):
+    @with_timeout(timeout, f, raise_exception)
     def _new_ret_method(q, *args, **kwargs):
         q.put(f(*args, **kwargs))
     return _new_ret_method(*args, **kwargs)
