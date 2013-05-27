@@ -790,8 +790,9 @@ def rebuild_filelist():
                 if not os.path.isdir(cur_dir):
                     continue
                 try:
+                    started_at = time.time()
                     total_files_updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
-                    info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in cache_dir : ' + cache_dir })
+                    info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in ' + str(int(time.time() - started_at)) + ' seconds for cache_dir : ' + cache_dir })
                     time.sleep(need_rest_for())
                 except Exception, e:
                     ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
