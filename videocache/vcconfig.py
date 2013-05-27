@@ -39,7 +39,7 @@ class VideocacheConf:
     enable_videocache = Option(1)
     offline_mode = Option(0)
     videocache_user = Option('squid')
-    max_cache_processes = Option(10)
+    max_cache_processes = Option(4)
     hit_threshold = Option(1)
     max_video_size = Option(0)
     min_video_size = Option(0)
