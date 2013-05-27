@@ -126,6 +126,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
         min_video_size = params.get('min_video_size', o.min_video_size)
         max_video_size = params.get('max_video_size', o.max_video_size)
+        socket_read_block_size = params.get('socket_read_block_size', o.socket_read_block_size)
 
         if not http_headers.has_key('User-Agent'):
             http_headers.update(get_random_user_agent())
@@ -163,7 +164,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         start_time = time.time()
         downloaded = 0
         while True:
-            block = conn.read(65536)
+            block = conn.read(socket_read_block_size)
             if len(block) == 0:
                 break
             if not filedesc:
@@ -590,15 +591,16 @@ def watch_log_hit():
                     warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
                     continue
 
-                cached = False
                 if website_id == 'youtube':
-                    youtube_params = { 'strict_mode' : True, 'cache_check_only' : True }
-                    if o.enable_youtube_partial_caching: youtube_params.update(get_youtube_video_range_from_query(query))
-                    if youtube_cached_url(o, video_id, website_id, format, youtube_params)[0]:
-                        cached = True
+                    filename = get_youtube_filename(o, video_id, format, get_youtube_video_range_from_query(query))
                 else:
-                    if eval(website_id + '_cached_url(o, video_id, website_id, format)')[0]:
+                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
+
+                cached = False
+                for directory in o.base_dirs[website_id]:
+                    if os.path.isfile(os.path.join(directory, filename)):
                         cached = True
+                        break
 
                 if cached:
                     continue
@@ -613,13 +615,9 @@ def watch_log_hit():
                 if cache_dir == False:
                     continue
 
-                if website_id == 'youtube':
-                    filename = get_youtube_filename(o, video_id, format, youtube_params)
-                else:
-                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
-                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0 }
+                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152 }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if timeout_exec(15, cache_remote_url, False, video_url, tmp_path, params):

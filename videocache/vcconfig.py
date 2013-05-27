@@ -59,6 +59,7 @@ class VideocacheConf:
     max_queue_size_per_plugin = Option(1024)
     max_log_hit_monitor_queue_size = Option(65536)
     access_log_read_timeout = Option(120)
+    socket_read_block_size = Option(65536)
     trial = Option(0)
 
     # Apache

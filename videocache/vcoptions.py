@@ -121,6 +121,7 @@ class VideocacheOptions:
             klass.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
             klass.max_log_hit_monitor_queue_size = int(mainconf.max_log_hit_monitor_queue_size)
             klass.access_log_read_timeout = int(mainconf.access_log_read_timeout)
+            klass.socket_read_block_size = int(mainconf.socket_read_block_size)
             klass.trial = int(mainconf.trial)
             if klass.trial:
                 klass.trial = 1
