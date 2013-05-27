@@ -197,18 +197,22 @@ def copy_dir(source, dest, quiet = True):
         if not quiet: print "Failed to copy : " + source + " > " + dest
         return False
 
-def move_file(source_file, target_file):
+def move_file(source_file, target_file, quiet = True):
     """Moves file from source_file to target_file."""
     try:
         shutil.move(source_file, target_file)
+        if not quiet: print "Moved : " + source_file + " > " + target_file
         return True
     except:
+        if not quiet: print "Failed to remove : " + target_file
         return False
 
-def remove_file(target_file):
+def remove_file(target_file, quiet = True):
     try:
         if os.path.isfile(target_file): os.unlink(target_file)
+        if not quiet: print "Removed : " + target_file
         return True
     except:
+        if not quiet: print "Failed to remove : " + target_file
         return False
 

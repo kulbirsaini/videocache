@@ -105,7 +105,7 @@ class VideocacheOptions:
             klass.cache_periods = cache_period_s2lh(mainconf.cache_period)
             klass.info_server = mainconf.info_server
             klass.video_server = mainconf.video_server
-            this_proxy = mainconf.this_proxy.strip()
+            klass.this_proxy = mainconf.this_proxy.strip()
             klass.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
             klass.squid_access_log = mainconf.squid_access_log
             klass.file_mode = 0644
@@ -153,35 +153,46 @@ class VideocacheOptions:
             # Logging
             klass.logdir = mainconf.logdir
             klass.timeformat = mainconf.timeformat
-            klass.scheduler_pidfile = os.path.join(mainconf.logdir, mainconf.scheduler_pidfile)
+            klass.pidfile = mainconf.pidfile
+            klass.pidfile_path = os.path.join(mainconf.logdir, mainconf.pidfile)
             # Mail Videocache Logfile
             klass.enable_videocache_log = int(mainconf.enable_videocache_log)
             klass.logformat = mainconf.logformat
-            klass.logfile = os.path.join(mainconf.logdir, mainconf.logfile)
-            klass.max_logfile_size = int(mainconf.max_logfile_size) * 1024 * 1024
+            klass.logfile = mainconf.logfile
+            klass.logfile_path = os.path.join(mainconf.logdir, mainconf.logfile)
+            klass.max_logfile_size = int(mainconf.max_logfile_size)
+            klass.max_logfile_size_in_bytes = int(mainconf.max_logfile_size) * 1024 * 1024
             klass.max_logfile_backups = int(mainconf.max_logfile_backups)
             # Trace file
             klass.enable_trace_log = int(mainconf.enable_trace_log)
-            klass.tracefile = os.path.join(mainconf.logdir, mainconf.tracefile)
-            klass.max_tracefile_size = int(mainconf.max_tracefile_size) * 1024 * 1024
+            klass.tracefile = mainconf.tracefile
+            klass.tracefile_path = os.path.join(mainconf.logdir, mainconf.tracefile)
+            klass.max_tracefile_size = int(mainconf.max_tracefile_size)
+            klass.max_tracefile_size_in_bytes = int(mainconf.max_tracefile_size) * 1024 * 1024
             klass.max_tracefile_backups = int(mainconf.max_tracefile_backups)
             # Scheduler Logfile
             klass.enable_scheduler_log = int(mainconf.enable_scheduler_log)
             klass.scheduler_logformat = mainconf.scheduler_logformat
-            klass.scheduler_logfile = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
-            klass.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
+            klass.scheduler_logfile = mainconf.scheduler_logfile
+            klass.scheduler_logfile_path = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
+            klass.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size)
+            klass.max_scheduler_logfile_size_in_bytes = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
             klass.max_scheduler_logfile_backups = int(mainconf.max_scheduler_logfile_backups)
             # Videocache Cleaner Logfile
             klass.enable_cleaner_log = int(mainconf.enable_cleaner_log)
             klass.cleaner_logformat = mainconf.cleaner_logformat
-            klass.cleaner_logfile = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
-            klass.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
+            klass.cleaner_logfile = mainconf.cleaner_logfile
+            klass.cleaner_logfile_path = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
+            klass.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size)
+            klass.max_cleaner_logfile_size_in_bytes = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
             klass.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
             # DB Logfile
             klass.enable_db_query_log = int(mainconf.enable_db_query_log)
             klass.db_query_logformat = mainconf.db_query_logformat
-            klass.db_query_logfile = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
-            klass.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
+            klass.db_query_logfile = mainconf.db_query_logfile
+            klass.db_query_logfile_path = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
+            klass.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size)
+            klass.max_db_query_logfile_size_in_bytes = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
             klass.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
 
             # Filelist Database
@@ -191,9 +202,9 @@ class VideocacheOptions:
 
             # Network
             klass.cache_host = str(mainconf.cache_host).strip()
-            proxy = mainconf.proxy.strip()
-            proxy_username = mainconf.proxy_username.strip()
-            proxy_password = mainconf.proxy_password.strip()
+            klass.proxy = mainconf.proxy.strip()
+            klass.proxy_username = mainconf.proxy_username.strip()
+            klass.proxy_password = mainconf.proxy_password.strip()
             klass.max_cache_speed = int(mainconf.max_cache_speed) * 1024
             klass.id = ''
 
@@ -271,16 +282,16 @@ class VideocacheOptions:
             return None
 
         try:
-            klass.proxy = None
-            klass.this_proxy = None
-            if proxy:
-                if proxy_username and proxy_password:
-                    proxy_parts = urlparse.urlsplit(proxy)
-                    klass.proxy = 'http://%s:%s@%s/' % (proxy_username, proxy_password, proxy)
+            klass.proxy_server = None
+            klass.this_proxy_server = None
+            if klass.proxy:
+                if klass.proxy_username and klass.proxy_password:
+                    proxy_parts = urlparse.urlsplit(klass.proxy)
+                    klass.proxy_server = 'http://%s:%s@%s/' % (klass.proxy_username, klass.proxy_password, klass.proxy)
                 else:
-                    klass.proxy = 'http://%s/' % proxy
-            if this_proxy:
-                klass.this_proxy = 'http://%s/' % (this_proxy)
+                    klass.proxy_server = 'http://%s/' % klass.proxy
+            if klass.this_proxy:
+                klass.this_proxy_server = 'http://%s/' % (klass.this_proxy)
         except Exception, e:
             syslog_msg('Could not set proxy for caching videos. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None
@@ -388,35 +399,35 @@ class VideocacheOptions:
             if klass.enable_videocache_log:
                 klass.vc_logger = logging.Logger('VideocacheLog')
                 klass.vc_logger.setLevel(logging.DEBUG)
-                vc_log_handler = logging.handlers.RotatingFileHandler(klass.logfile, mode = 'a', maxBytes = klass.max_logfile_size, backupCount = klass.max_logfile_backups)
+                vc_log_handler = logging.handlers.RotatingFileHandler(klass.logfile_path, mode = 'a', maxBytes = klass.max_logfile_size_in_bytes, backupCount = klass.max_logfile_backups)
                 klass.vc_logger.addHandler(vc_log_handler)
 
             # Scheduler Logfile
             if klass.enable_scheduler_log:
                 klass.vcs_logger = logging.Logger('VideocacheSchedulerLog')
                 klass.vcs_logger.setLevel(logging.DEBUG)
-                vcs_log_handler = logging.handlers.RotatingFileHandler(klass.scheduler_logfile, mode = 'a', maxBytes = klass.max_scheduler_logfile_size, backupCount = klass.max_scheduler_logfile_backups)
+                vcs_log_handler = logging.handlers.RotatingFileHandler(klass.scheduler_logfile_path, mode = 'a', maxBytes = klass.max_scheduler_logfile_size_in_bytes, backupCount = klass.max_scheduler_logfile_backups)
                 klass.vcs_logger.addHandler(vcs_log_handler)
 
             # Trace log
             if klass.enable_trace_log:
                 klass.trace_logger = logging.Logger('VideocacheTraceLog')
                 klass.trace_logger.setLevel(logging.DEBUG)
-                trace_log_handler = logging.handlers.RotatingFileHandler(klass.tracefile, mode = 'a', maxBytes = klass.max_tracefile_size, backupCount = klass.max_tracefile_backups)
+                trace_log_handler = logging.handlers.RotatingFileHandler(klass.tracefile_path, mode = 'a', maxBytes = klass.max_tracefile_size_in_bytes, backupCount = klass.max_tracefile_backups)
                 klass.trace_logger.addHandler(trace_log_handler)
 
             # Videocache Cleaner Logfile
             if klass.enable_cleaner_log:
                 klass.vcc_logger = logging.Logger('VideocacheCleanerLog')
                 klass.vcc_logger.setLevel(logging.DEBUG)
-                vcc_log_handler = logging.handlers.RotatingFileHandler(klass.cleaner_logfile, mode = 'a', maxBytes = klass.max_cleaner_logfile_size, backupCount = klass.max_cleaner_logfile_backups)
+                vcc_log_handler = logging.handlers.RotatingFileHandler(klass.cleaner_logfile_path, mode = 'a', maxBytes = klass.max_cleaner_logfile_size_in_bytes, backupCount = klass.max_cleaner_logfile_backups)
                 klass.vcc_logger.addHandler(vcc_log_handler)
 
             # DB Logfile
             if klass.enable_db_query_log:
                 klass.db_logger = logging.Logger('DatabaseLog')
                 klass.db_logger.setLevel(logging.DEBUG)
-                db_log_handler = logging.handlers.RotatingFileHandler(klass.db_query_logfile, mode = 'a', maxBytes = klass.max_db_query_logfile_size, backupCount = klass.max_db_query_logfile_backups)
+                db_log_handler = logging.handlers.RotatingFileHandler(klass.db_query_logfile_path, mode = 'a', maxBytes = klass.max_db_query_logfile_size_in_bytes, backupCount = klass.max_db_query_logfile_backups)
                 klass.db_logger.addHandler(db_log_handler)
 
         except Exception, e:

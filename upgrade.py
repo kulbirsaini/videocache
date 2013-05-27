@@ -11,7 +11,9 @@ __docformat__ = 'plaintext'
 from optparse import OptionParser
 
 import os
+import re
 import sys
+import time
 import traceback
 
 def red(msg):
@@ -58,7 +60,7 @@ Please see http://cachevideos.com/#install for more information or getting help.
         return messages[error_code]
     return ''
 
-def upgrade_vc(o, quiet):
+def upgrade_vc(o, working_dir, backup_config_file, quiet):
     """Perform the setup."""
     install_dir = '/usr/share/videocache/'
     etc_dir = '/etc/'
@@ -72,13 +74,13 @@ def upgrade_vc(o, quiet):
     if not o.skip_apache_conf:
         dirs_to_be_created += [o.apache_conf_dir]
 
-    for dir in dirs_to_be_created:
-        if not create_or_update_dir(dir, None, 0755, quiet):
-            print_message_and_abort(red("Could not create directory %s" % dir) + upgrade_error)
+    for directory in dirs_to_be_created:
+        if not create_or_update_dir(directory, None, 0755, quiet):
+            print_message_and_abort(red("Could not create directory %s" % directory) + upgrade_error)
 
-    for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
-        if not create_or_update_dir(dir, o.videocache_user, 0755, quiet):
-            print_message_and_abort(red("Could not create directory %s" % dir) + upgrade_error)
+    for directory in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
+        if not create_or_update_dir(directory, o.videocache_user, 0755, quiet):
+            print_message_and_abort(red("Could not create directory %s" % directory) + upgrade_error)
 
     # Copy core videocache plugin code to /usr/share/videocache/ .
     if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir, quiet):
@@ -108,6 +110,35 @@ def upgrade_vc(o, quiet):
     except Exception, e:
         log_traceback()
         print_message_and_abort(upgrade_error)
+
+    if not copy_file(config_file, backup_config_file, quiet):
+        print_message_and_abort(red("Could not backup %s to %s.\nAborting upgrade." % (config_file, backup_config_file)))
+
+    sysconfig_file = os.path.join(working_dir, 'videocache-sysconfig.conf')
+    if not copy_file(sysconfig_file, config_file, quiet):
+        print red("Could not copy %s to %s.\nTrying to restore %s from backup.\n" % (sysconfig_file, config_file, config_file))
+        if not copy_file(backup_config_file, config_file, quiet):
+            print_message_and_abort(red("Failed to restore %s from %s.\nPlease do it manually. Aborting upgrade." % (config_file, backup_config_file)))
+        sys.exit(1)
+
+    try:
+        filedesc = open(config_file, 'r')
+        config_data = filedesc.read()
+        filedesc.close()
+        filedesc = open(config_file, 'w')
+        VALID_OPTION_NAME_REGEX = re.compile('^[a-z][a-z0-9_]+$')
+        for option_name in filter(lambda x: VALID_OPTION_NAME_REGEX.search(x), dir(o)):
+            config_data = re.sub(r'\n%s[\ ]*=[^\n]*\n' % option_name, r'\n%s = %s\n' % (option_name, getattr(o, option_name)), config_data, count = 0)
+        filedesc.write(config_data)
+        filedesc.close()
+    except Exception, e:
+        log_traceback()
+        print red("Could not upgrade config file. Trying to restore %s from backup.\n" % config_file) + green("\nIf you contact us regarding this error, please send the Trace above.")
+        if not copy_file(backup_config_file, config_file, quiet):
+            print_message_and_abort(red("Failed to restore %s from %s.\nPlease do it manually. Aborting upgrade." % (config_file, backup_config_file)))
+        sys.exit(1)
+
+    remove_file(backup_config_file, quiet)
 
     try:
         src_vc_update = os.path.join(install_dir, 'vc-update')
@@ -171,6 +202,7 @@ if __name__ == '__main__':
     working_dir = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
     videocache_dir = os.path.join(working_dir, 'videocache')
     config_file = '/etc/videocache.conf'
+    backup_config_file = config_file + time.strftime('.%Y%m%d%H%M%S')
 
     if not os.path.isfile(config_file):
         print_message_and_abort(red("\nCound not locate Videocache config file at " + config_file + ".\nLooks like you don't have Videocache installed.\nPlease try to use installer script install.sh to install Videocache."))
@@ -198,17 +230,5 @@ if __name__ == '__main__':
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages or /var/log/syslog.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
-
-    try:
-        filedesc = open(config_file, 'r')
-        config_data = filedesc.read()
-        filedesc.close()
-        filedesc = open(config_file, 'w')
-        config_data = re.sub(r"\n#\s+version\s+:\s+([0-9\.])+\s+revision\s+([^ \n]+)\n", r"\n# version : %s revision %s\n" % (o.version, o.revision), config_data, count = 0)
-        filedesc.write(config_data)
-        filedesc.close()
-    except Exception, e:
-        pass #FIXME
-
-    upgrade_vc(o, not options.verbose)
+    upgrade_vc(o, working_dir, backup_config_file, not options.verbose)
 

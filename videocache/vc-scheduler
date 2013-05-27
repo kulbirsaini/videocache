@@ -122,7 +122,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         video_id = params.get('video_id', '-')
         website_id = params.get('website_id', '-')
         http_headers = params.get('http_headers', get_random_user_agent())
-        proxy = params.get('proxy', o.proxy)
+        proxy = params.get('proxy', o.proxy_server)
         max_cache_speed = params.get('max_cache_speed', o.max_cache_speed)
         min_video_size = params.get('min_video_size', o.min_video_size)
         max_video_size = params.get('max_video_size', o.max_video_size)
@@ -202,7 +202,7 @@ def cache_youtube_video(video):
         if not fmt:
             fmt = '34'
         cur_cache_dir = get_next_cache_dir()
-        proxy = o.proxy
+        proxy = o.proxy_server
         http_headers = get_random_user_agent()
 
         if not cur_cache_dir:
@@ -549,7 +549,7 @@ def get_youtube_video_id_from_cpn(cpn, video_id, website_id):
 def watch_log_hit():
     global local_cpn_pool, log_hit_queue
 
-    if not o.this_proxy:
+    if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
@@ -622,7 +622,7 @@ def watch_log_hit():
                     filename = eval('get_' + website_id + '_filename(o, video_id, format)')
                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
-                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy, 'max_cache_speed' : 0 }
+                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0 }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if cache_remote_url(video_url, tmp_path, params):
@@ -896,11 +896,11 @@ def cleanup_cpn_pool():
 
 def write_pid_file(pids):
     try:
-        fobject = open(o.scheduler_pidfile, 'w')
+        fobject = open(o.pidfile_path, 'w')
         fobject.write(','.join(map(lambda x: str(x), pids)))
         fobject.close()
     except Exception, e:
-        wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.scheduler_pidfile + ' is writable by Squid daemon user.', 'debug' : str(e) })
+        wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.pidfile_path + ' is writable by Squid daemon user.', 'debug' : str(e) })
 
 def thread_starter(thread, func, cur_time, last_run_at, run_interval):
     try:
@@ -1008,7 +1008,7 @@ def cleanup_processes():
     except:
         pass
     try:
-        for pid in map(lambda x: int(x), filter(lambda x: is_integer(x), open(o.scheduler_pidfile, 'r').read().strip().split(','))):
+        for pid in map(lambda x: int(x), filter(lambda x: is_integer(x), open(o.pidfile_path, 'r').read().strip().split(','))):
             try:
                 os.kill(pid, signal.SIGTERM)
             except:
@@ -1016,7 +1016,7 @@ def cleanup_processes():
     except:
         pass
     try:
-        os.unlink(o.scheduler_pidfile)
+        os.unlink(o.pidfile_path)
     except:
         pass
 
@@ -1057,8 +1057,8 @@ if __name__ == '__main__':
         stdout = sys.stdout
         stderr = sys.stderr
         this_opener = None
-        if o.this_proxy:
-            this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy }))
+        if o.this_proxy_server:
+            this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))
 
         # Compiled regexes
         PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')
