@@ -623,13 +623,14 @@ def watch_log_hit():
             time.slee(0.05)
 
 def update_disk_space():
-    global base_dir_disk_space
+    global base_dir_disk_space, cleanup_cache_needed
     for cache_dir in o.base_dir_list:
         space_available = free_space(cache_dir)
         space_used = partition_used(cache_dir)
         base_dir_disk_space[cache_dir] = { 'free_space' : space_available, 'use' : True }
         if space_used >= o.base_dir_thresholds[cache_dir]['high']:
             base_dir_disk_space[cache_dir].update({ 'use' : False })
+            cleanup_cache_needed = True
 
 def get_next_cache_dir():
     global last_base_dir_used, last_disk_space_update_at, disk_space_update_interval, sorted_disk_space
@@ -811,6 +812,7 @@ def cleanup_video():
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_cache():
+    global cleanup_cache_needed
     cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
@@ -842,6 +844,8 @@ def cleanup_cache():
         except Exception, e:
             cent({ 'code' : 'CLEANER_ERR', 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
     cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
+    cleanup_cache_needed = False
+    update_disk_space()
 
 def cleanup_video_queue():
     cut_off_time = time.time() - o.video_queue_lifetime
@@ -921,6 +925,7 @@ def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, proc
     return False, last_run_at
 
 def task_scheduler():
+    global cleanup_cache_needed
     process_list = []
     write_pid_file(process_list)
     now = time.time()
@@ -959,7 +964,8 @@ def task_scheduler():
         cts_thread, last_cts_at = thread_starter(cts_thread, cache_thread_scheduler, cur_time, last_cts_at, cts_interval)
         ccp_thread, last_ccp_at = thread_starter(ccp_thread, cleanup_cpn_pool, cur_time, last_ccp_at, ccp_interval)
         cvq_thread, last_cvq_at = thread_starter(cvq_thread, cleanup_video_queue, cur_time, last_cvq_at, cvq_interval)
-        cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
+        if cleanup_cache_needed:
+            cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
         ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_system_info, cur_time, last_ssi_at, ssi_interval)
         cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
         if not o.offline_mode and o.enable_access_log_monitoring:
@@ -1041,6 +1047,7 @@ if __name__ == '__main__':
         last_base_dir_used = 0
         last_disk_space_update_at = 0
         disk_space_update_interval = 120
+        cleanup_cache_needed = False
         sorted_disk_space = None
         local_cpn_pool = {}
         exit = False

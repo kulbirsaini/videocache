@@ -16,6 +16,7 @@ ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/c
 MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
 multiprocessing_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/multiprocessing.tar.gz?raw=true'
 importlib_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/importlib.tar.gz?raw=true'
+cloghandler_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/cloghandler.tar.gz?raw=true'
 
 # Common Functions
 blue_without_newline() {
@@ -444,7 +445,7 @@ python_import_test() {
 python - <<END
 import importlib, sys
 missing_modules = []
-for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'cloghandler', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
     try:
         importlib.import_module(module)
     except Exception, e:
@@ -466,6 +467,7 @@ python_code() {
   check_python_dev
   install_and_verify_python_module netifaces
   install_and_verify_python_module ctypes
+  install_and_verify_python_module cloghandler
   install_and_verify_python_module importlib
   install_and_verify_python_module multiprocessing
 

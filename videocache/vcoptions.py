@@ -9,14 +9,45 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
+from fsop import create_dir
 from store import partition_size
 from vcconfig import VideocacheConfig
+
+from cloghandler import ConcurrentRotatingFileHandler
+from logging.handlers import BaseRotatingHandler
 
 import logging
 import logging.handlers
 import os
 import traceback
 import urlparse
+
+class MyConcurrentRotatingFileHandler(ConcurrentRotatingFileHandler):
+    def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
+                 encoding=None, debug=True, supress_abs_warn=False):
+        try:
+            BaseRotatingHandler.__init__(self, filename, mode, encoding)
+        except TypeError: # Due to a different logging release without encoding support  (Python 2.4.1 and earlier?)
+            BaseRotatingHandler.__init__(self, filename, mode)
+            self.encoding = encoding
+
+        self._rotateFailed = False
+        self.maxBytes = maxBytes
+        self.backupCount = backupCount
+        # Prevent multiple extensions on the lock file (Only handles the normal "*.log" case.)
+        lock_dir = os.path.join(os.path.dirname(filename), '.lock')
+        if not os.path.isdir(lock_dir):
+            create_dir(lock_dir)
+        log_filename = os.path.basename(filename)
+        if log_filename.endswith(".log"):
+            lock_file = os.path.join(lock_dir, log_filename[:-4])
+        else:
+            lock_file = os.path.join(lock_dir, log_filename)
+        self.stream_lock = open(lock_file + ".lock", "w")
+
+        # For debug mode, swap out the "_degrade()" method with a more a verbose one.
+        if debug:
+            self._degrade = self._degrade_debug
 
 class VideocacheOptions:
     loggers_set = False
@@ -163,14 +194,14 @@ class VideocacheOptions:
             klass.logfile = mainconf.logfile
             klass.logfile_path = os.path.join(mainconf.logdir, mainconf.logfile)
             klass.max_logfile_size = int(mainconf.max_logfile_size)
-            klass.max_logfile_size_in_bytes = int(mainconf.max_logfile_size) * 1024 * 1024
+            klass.max_logfile_size_in_bytes = int(mainconf.max_logfile_size) * 1048576
             klass.max_logfile_backups = int(mainconf.max_logfile_backups)
             # Trace file
             klass.enable_trace_log = int(mainconf.enable_trace_log)
             klass.tracefile = mainconf.tracefile
             klass.tracefile_path = os.path.join(mainconf.logdir, mainconf.tracefile)
             klass.max_tracefile_size = int(mainconf.max_tracefile_size)
-            klass.max_tracefile_size_in_bytes = int(mainconf.max_tracefile_size) * 1024 * 1024
+            klass.max_tracefile_size_in_bytes = int(mainconf.max_tracefile_size) * 1048576
             klass.max_tracefile_backups = int(mainconf.max_tracefile_backups)
             # Scheduler Logfile
             klass.enable_scheduler_log = int(mainconf.enable_scheduler_log)
@@ -178,7 +209,7 @@ class VideocacheOptions:
             klass.scheduler_logfile = mainconf.scheduler_logfile
             klass.scheduler_logfile_path = os.path.join(mainconf.logdir, mainconf.scheduler_logfile)
             klass.max_scheduler_logfile_size = int(mainconf.max_scheduler_logfile_size)
-            klass.max_scheduler_logfile_size_in_bytes = int(mainconf.max_scheduler_logfile_size) * 1024 * 1024
+            klass.max_scheduler_logfile_size_in_bytes = int(mainconf.max_scheduler_logfile_size) * 1048576
             klass.max_scheduler_logfile_backups = int(mainconf.max_scheduler_logfile_backups)
             # Videocache Cleaner Logfile
             klass.enable_cleaner_log = int(mainconf.enable_cleaner_log)
@@ -186,7 +217,7 @@ class VideocacheOptions:
             klass.cleaner_logfile = mainconf.cleaner_logfile
             klass.cleaner_logfile_path = os.path.join(mainconf.logdir, mainconf.cleaner_logfile)
             klass.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size)
-            klass.max_cleaner_logfile_size_in_bytes = int(mainconf.max_cleaner_logfile_size) * 1024 * 1024
+            klass.max_cleaner_logfile_size_in_bytes = int(mainconf.max_cleaner_logfile_size) * 1048576
             klass.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
             # DB Logfile
             klass.enable_db_query_log = int(mainconf.enable_db_query_log)
@@ -194,7 +225,7 @@ class VideocacheOptions:
             klass.db_query_logfile = mainconf.db_query_logfile
             klass.db_query_logfile_path = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
             klass.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size)
-            klass.max_db_query_logfile_size_in_bytes = int(mainconf.max_db_query_logfile_size) * 1024 * 1024
+            klass.max_db_query_logfile_size_in_bytes = int(mainconf.max_db_query_logfile_size) * 1048576
             klass.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
 
             # Filelist Database
@@ -401,35 +432,35 @@ class VideocacheOptions:
             if klass.enable_videocache_log:
                 klass.vc_logger = logging.Logger('VideocacheLog')
                 klass.vc_logger.setLevel(logging.DEBUG)
-                vc_log_handler = logging.handlers.RotatingFileHandler(klass.logfile_path, mode = 'a', maxBytes = klass.max_logfile_size_in_bytes, backupCount = klass.max_logfile_backups)
+                vc_log_handler = MyConcurrentRotatingFileHandler(klass.logfile_path, mode = 'a', maxBytes = klass.max_logfile_size_in_bytes, backupCount = klass.max_logfile_backups)
                 klass.vc_logger.addHandler(vc_log_handler)
 
             # Scheduler Logfile
             if klass.enable_scheduler_log:
                 klass.vcs_logger = logging.Logger('VideocacheSchedulerLog')
                 klass.vcs_logger.setLevel(logging.DEBUG)
-                vcs_log_handler = logging.handlers.RotatingFileHandler(klass.scheduler_logfile_path, mode = 'a', maxBytes = klass.max_scheduler_logfile_size_in_bytes, backupCount = klass.max_scheduler_logfile_backups)
+                vcs_log_handler = MyConcurrentRotatingFileHandler(klass.scheduler_logfile_path, mode = 'a', maxBytes = klass.max_scheduler_logfile_size_in_bytes, backupCount = klass.max_scheduler_logfile_backups)
                 klass.vcs_logger.addHandler(vcs_log_handler)
 
             # Trace log
             if klass.enable_trace_log:
                 klass.trace_logger = logging.Logger('VideocacheTraceLog')
                 klass.trace_logger.setLevel(logging.DEBUG)
-                trace_log_handler = logging.handlers.RotatingFileHandler(klass.tracefile_path, mode = 'a', maxBytes = klass.max_tracefile_size_in_bytes, backupCount = klass.max_tracefile_backups)
+                trace_log_handler = MyConcurrentRotatingFileHandler(klass.tracefile_path, mode = 'a', maxBytes = klass.max_tracefile_size_in_bytes, backupCount = klass.max_tracefile_backups)
                 klass.trace_logger.addHandler(trace_log_handler)
 
             # Videocache Cleaner Logfile
             if klass.enable_cleaner_log:
                 klass.vcc_logger = logging.Logger('VideocacheCleanerLog')
                 klass.vcc_logger.setLevel(logging.DEBUG)
-                vcc_log_handler = logging.handlers.RotatingFileHandler(klass.cleaner_logfile_path, mode = 'a', maxBytes = klass.max_cleaner_logfile_size_in_bytes, backupCount = klass.max_cleaner_logfile_backups)
+                vcc_log_handler = MyConcurrentRotatingFileHandler(klass.cleaner_logfile_path, mode = 'a', maxBytes = klass.max_cleaner_logfile_size_in_bytes, backupCount = klass.max_cleaner_logfile_backups)
                 klass.vcc_logger.addHandler(vcc_log_handler)
 
             # DB Logfile
             if klass.enable_db_query_log:
                 klass.db_logger = logging.Logger('DatabaseLog')
                 klass.db_logger.setLevel(logging.DEBUG)
-                db_log_handler = logging.handlers.RotatingFileHandler(klass.db_query_logfile_path, mode = 'a', maxBytes = klass.max_db_query_logfile_size_in_bytes, backupCount = klass.max_db_query_logfile_backups)
+                db_log_handler = MyConcurrentRotatingFileHandler(klass.db_query_logfile_path, mode = 'a', maxBytes = klass.max_db_query_logfile_size_in_bytes, backupCount = klass.max_db_query_logfile_backups)
                 klass.db_logger.addHandler(db_log_handler)
 
         except Exception, e:

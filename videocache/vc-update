@@ -68,7 +68,7 @@ def update_vc(o, install_dir, quiet):
         if not create_or_update_dir(dir, None, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + error)
 
-    for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
+    for dir in sum([o.base_dir_list] + [[o.logdir, os.path.join(o.logdir, '.lock')]] + [v for (k, v) in o.base_dirs.items()], []):
         if not create_or_update_dir(dir, o.videocache_user, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + error)
 

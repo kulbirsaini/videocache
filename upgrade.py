@@ -199,6 +199,21 @@ if __name__ == '__main__':
     parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
     options, args = parser.parse_args()
 
+    try:
+        import importlib
+    except Exception, e:
+        print_message_and_abort(red("\nSome Python modules required for videocache to run are missing.\nPlease try installing Videocache which will automatically install required modules."))
+
+    missing_modules = []
+    for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'cloghandler', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+        try:
+            importlib.import_module(module)
+        except Exception, e:
+            missing_modules.append(module)
+
+    if len(missing_modules) > 0:
+        print_message_and_abort(red("\nPython module(s) [" + ', '.join(missing_modules) + "] is/are missing.\nPlease try to upgrade after installing required module(s)."))
+
     working_dir = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
     videocache_dir = os.path.join(working_dir, 'videocache')
     config_file = '/etc/videocache.conf'

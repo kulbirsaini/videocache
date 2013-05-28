@@ -106,7 +106,7 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         if not create_or_update_dir(dir, None, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + install_error)
 
-    for dir in sum([o.base_dir_list] + [[o.logdir]] + [v for (k, v) in o.base_dirs.items()], []):
+    for dir in sum([o.base_dir_list] + [[o.logdir, os.path.join(o.logdir, '.lock')]] + [v for (k, v) in o.base_dirs.items()], []):
         if not create_or_update_dir(dir, user, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + install_error)
 
