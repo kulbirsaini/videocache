@@ -632,11 +632,14 @@ def update_disk_space():
             base_dir_disk_space[cache_dir].update({ 'use' : False })
 
 def get_next_cache_dir():
-    global last_base_dir_used, last_disk_space_update_at, disk_space_update_interval
+    global last_base_dir_used, last_disk_space_update_at, disk_space_update_interval, sorted_disk_space
     now = time.time()
     if now - last_disk_space_update_at > disk_space_update_interval:
         last_disk_space_update_at = now
         update_disk_space()
+        if o.base_dir_selection == 3:
+            vk = [(v['free_space'], k) for k, v in base_dir_disk_space.items()]
+            sorted_disk_space = sorted(vk, reverse = True)
     if o.base_dir_selection == 1:
         for cache_dir in o.base_dir_list:
             if base_dir_disk_space[cache_dir]['use']:
@@ -647,8 +650,7 @@ def get_next_cache_dir():
                 last_base_dir_used = o.base_dir_list.index(cache_dir)
                 return cache_dir
     elif o.base_dir_selection == 3:
-        vk = [(v['free_space'], k) for k, v in base_dir_disk_space.items()]
-        for v, cache_dir in sorted(vk, reverse = True):
+        for v, cache_dir in sorted_disk_space:
             if base_dir_disk_space[cache_dir]['use']:
                 last_base_dir_used = o.base_dir_list.index(cache_dir)
                 return cache_dir
@@ -1039,6 +1041,7 @@ if __name__ == '__main__':
         last_base_dir_used = 0
         last_disk_space_update_at = 0
         disk_space_update_interval = 120
+        sorted_disk_space = None
         local_cpn_pool = {}
         exit = False
         process_id = '-'
