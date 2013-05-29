@@ -22,7 +22,7 @@ def check_aol_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (host.find('videos.5min.com') > -1 or host.find('stream.aol.com') > -1) and (VALIDATE_AOL_VIDEO_REGEX1.search(path) or VALIDATE_AOL_VIDEO_REGEX2.search(path)):
+    if (host.find('.5min.com') > -1 or host.find('stream.aol.com') > -1) and (VALIDATE_AOL_VIDEO_REGEX1.search(path) or VALIDATE_AOL_VIDEO_REGEX2.search(path)):
         try:
             video_id = urllib.quote('_'.join(path.strip('/').split('/')[-2:]))
         except Exception, e:
