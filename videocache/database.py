@@ -17,7 +17,7 @@ import traceback
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 import MySQLdb
 
-def get_db_connection(num_tries = 0, hostname = None, username = None, password = None, database = None):
+def get_db_connection(hostname = None, username = None, password = None, database = None, num_tries = 0):
     if num_tries == 3:
         return (None, None)
     if not hostname: hostname = o.db_hostname
@@ -34,7 +34,7 @@ def get_db_connection(num_tries = 0, hostname = None, username = None, password 
         try:
             if db_connection.errno() == 2006 or db_connection.errno() == 2013:
                 time.sleep(0.15)
-                get_db_connection(num_tries + 1, hostname, username, password, database)
+                get_db_connection(hostname, username, password, database, num_tries + 1)
         except:
             return (None, None)
 
