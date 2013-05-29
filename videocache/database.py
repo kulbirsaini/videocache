@@ -17,11 +17,15 @@ import traceback
 os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 import MySQLdb
 
-def get_db_connection(num_tries = 0):
+def get_db_connection(num_tries = 0, hostname = None, username = None, password = None, database = None):
     if num_tries == 3:
         return (None, None)
+    if not hostname: hostname = o.db_hostname
+    if not username: username = o.db_username
+    if not password: password = o.db_password
+    if not database: database = o.db_database
     try:
-        db_connection = MySQLdb.connect(o.db_hostname, o.db_username, o.db_password, o.db_database)
+        db_connection = MySQLdb.connect(hostname, username, password, database)
         db_cursor = db_connection.cursor()
         db_connection.autocommit(True)
         db_connection.ping()
@@ -30,7 +34,7 @@ def get_db_connection(num_tries = 0):
         try:
             if db_connection.errno() == 2006 or db_connection.errno() == 2013:
                 time.sleep(0.15)
-                get_db_connection(num_tries + 1)
+                get_db_connection(num_tries + 1, hostname, username, password, database)
         except:
             return (None, None)
 
@@ -255,9 +259,9 @@ class YoutubeCPN(Model):
         exec((Model.function_template_find_by % (field, field)).strip())
 
     @classmethod
-    def create_table(klass):
+    def create_table(klass, hostname = None, username = None, password = None, database = None):
         try:
-            db_connection, db_cursor = get_db_connection()
+            db_connection, db_cursor = get_db_connection(hostname, username, password, database)
             if db_connection and db_cursor:
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
@@ -297,9 +301,9 @@ class VideoQueue(Model):
         exec((Model.function_template_find_by % (field, field)).strip())
 
     @classmethod
-    def create_table(klass):
+    def create_table(klass, hostname = None, username = None, password = None, database = None):
         try:
-            db_connection, db_cursor = get_db_connection()
+            db_connection, db_cursor = get_db_connection(hostname, username, password, database)
             if db_connection and db_cursor:
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
@@ -352,9 +356,9 @@ class VideoFile(Model):
             self.filepath = None
 
     @classmethod
-    def create_table(klass):
+    def create_table(klass, hostname = None, username = None, password = None, database = None):
         try:
-            db_connection, db_cursor = get_db_connection()
+            db_connection, db_cursor = get_db_connection(hostname, username, password, database)
             if db_connection and db_cursor:
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
@@ -429,6 +433,6 @@ def log_query(query):
     if o.enable_db_query_log:
         o.db_logger.info(build_message({ 'logformat' : o.db_query_logformat, 'message' : query }))
 
-def create_tables():
-    return VideoFile.create_table() and VideoQueue.create_table() and YoutubeCPN.create_table()
+def create_tables(hostname = None, username = None, password = None, database = None):
+    return VideoFile.create_table(hostname, username, password, database) and VideoQueue.create_table(hostname, username, password, database) and YoutubeCPN.create_table(hostname, username, password, database)
 

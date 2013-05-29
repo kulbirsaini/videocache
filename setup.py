@@ -165,8 +165,8 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
     # Create tables for filelist database
     try:
         initialize_database(o)
-        if not create_tables():
-            print_message_and_abort(red("Could not create database tables for filelist db"))
+        if not create_tables(hostname, username, password, database):
+            print_message_and_abort(red("Could not create database tables"))
     except Exception, e:
         log_traceback()
         print_message_and_abort(install_error)
