@@ -84,30 +84,30 @@ class VideocacheConf:
     enable_videocache_log = Option(1)
     logformat = Option('%tl %p %s %i %w %c %v %m %d')
     logfile = Option('videocache.log')
-    max_logfile_size = Option(10)
-    max_logfile_backups = Option(10)
+    max_logfile_size = Option(50)
+    max_logfile_backups = Option(4)
     # Scheduler Logfile
     enable_scheduler_log = Option(1)
     scheduler_logformat = Option('%tl %p %s %i %w %c %v %m %d')
     scheduler_logfile = Option('scheduler.log')
-    max_scheduler_logfile_size = Option(10)
-    max_scheduler_logfile_backups = Option(5)
+    max_scheduler_logfile_size = Option(50)
+    max_scheduler_logfile_backups = Option(1)
     # Videocache Cleaner Logfile
     enable_cleaner_log = Option(1)
     cleaner_logformat = Option('%tl %p %s %w %c %v %m %d')
     cleaner_logfile = Option('cleaner.log')
-    max_cleaner_logfile_size = Option(10)
+    max_cleaner_logfile_size = Option(5)
     max_cleaner_logfile_backups = Option(1)
     # Trace file
     enable_trace_log = Option(1)
     tracefile = Option('trace.log')
-    max_tracefile_size = Option(10)
+    max_tracefile_size = Option(5)
     max_tracefile_backups = Option(1)
     # DB logfile
     enable_db_query_log = Option(0)
     db_query_logformat = Option('%tl %m')
     db_query_logfile = Option('database.log')
-    max_db_query_logfile_size = Option(10)
+    max_db_query_logfile_size = Option(5)
     max_db_query_logfile_backups = Option(1)
 
     # Network

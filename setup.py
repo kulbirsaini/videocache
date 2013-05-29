@@ -110,6 +110,10 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         if not create_or_update_dir(dir, user, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + install_error)
 
+    # move pidfile.txt to lock dir
+    if os.path.isfile(os.path.join(o.logdir, o.pidfile)):
+        move_file(os.path.join(o.logdir, o.pidfile), o.pidfile_path, quiet)
+
     # Copy core videocache plugin code to /usr/share/videocache/ .
     if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir, quiet):
         print_message_and_abort(red("Could not copy Videocache to installation directory %s" % install_dir) + install_error)

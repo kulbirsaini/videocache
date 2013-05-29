@@ -187,7 +187,7 @@ class VideocacheOptions:
             klass.logdir = mainconf.logdir
             klass.timeformat = mainconf.timeformat
             klass.pidfile = mainconf.pidfile
-            klass.pidfile_path = os.path.join(mainconf.logdir, mainconf.pidfile)
+            klass.pidfile_path = os.path.join(mainconf.logdir, '.lock', mainconf.pidfile)
             # Mail Videocache Logfile
             klass.enable_videocache_log = int(mainconf.enable_videocache_log)
             klass.logformat = mainconf.logformat

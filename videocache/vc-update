@@ -72,6 +72,10 @@ def update_vc(o, install_dir, quiet):
         if not create_or_update_dir(dir, o.videocache_user, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % dir) + error)
 
+    # move pidfile.txt to lock dir
+    if os.path.isfile(os.path.join(o.logdir, o.pidfile)):
+        move_file(os.path.join(o.logdir, o.pidfile), o.pidfile_path, quiet)
+
     # Generate Apache webserver configuration file for videocache.
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, o.cache_host, o.hide_cache_dirs, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + error)

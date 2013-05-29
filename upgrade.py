@@ -82,6 +82,10 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
         if not create_or_update_dir(directory, o.videocache_user, 0755, quiet):
             print_message_and_abort(red("Could not create directory %s" % directory) + upgrade_error)
 
+    # move pidfile.txt to lock dir
+    if os.path.isfile(os.path.join(o.logdir, o.pidfile)):
+        move_file(os.path.join(o.logdir, o.pidfile), o.pidfile_path, quiet)
+
     # Copy core videocache plugin code to /usr/share/videocache/ .
     if not copy_dir(os.path.join(working_dir, 'videocache'), install_dir, quiet):
         print_message_and_abort(red("Could not copy Videocache to installation directory %s" % install_dir) + upgrade_error)
