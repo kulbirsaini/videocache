@@ -12,7 +12,8 @@ import re
 import urllib
 import urlparse
 
-VALIDATE_CNN_VIDEO_EXT_REGEX = re.compile('(.*)/(.*)\.(flv|mp4)')
+VALIDATE_CNN_DOMAIN_REGEX = re.compile('cnn-[a-zA-Z0-9]?[a-zA-Z0-9]?[a-zA-Z0-9]?\.akamaihd\.net')
+VALIDATE_CNN_VIDEO_EXT_REGEX = re.compile('cnn\/.*_([0-9]+)_.*\.(mp4|flv).*bitrate=([0-9]+)')
 
 def check_cnn_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'cnn', None, '', True, True
@@ -21,9 +22,10 @@ def check_cnn_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if host.find('cdn.turner.com') > -1 and VALIDATE_CNN_VIDEO_EXT_REGEX.search(path) and (path.find('.flv') > -1 or path.find('.mp4') > -1):
+    if VALIDATE_CNN_DOMAIN_REGEX.search(host) and VALIDATE_CNN_VIDEO_EXT_REGEX.search(path):
         try:
-            video_id = urllib.quote(path.strip('/').split('/')[-1])
+            match = VALIDATE_CNN_VIDEO_EXT_REGEX.search(path).groups()
+            video_id = urllib.quote(match[0] + '_' + match[2] + '.' + match[1])
         except Exception, e:
             pass
     else:

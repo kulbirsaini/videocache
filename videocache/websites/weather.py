@@ -13,7 +13,7 @@ import re
 import urllib
 import urlparse
 
-VALIDATE_WEATHER_VIDEO_REGEX = re.compile('v\/wxcom\/[a-zA-Z0-9]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
+VALIDATE_WEATHER_VIDEO_REGEX = re.compile('v\/wxcom\/[a-zA-Z0-9_]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 VALIDATE_WEATHER_ARG_REGEX = re.compile('videoId=[0-9]+&')
 
 def check_weather_video(o, url, host = None, path = None, query = None):
@@ -25,8 +25,7 @@ def check_weather_video(o, url, host = None, path = None, query = None):
 
     if host.find('v.imwx.com') > -1 and VALIDATE_WEATHER_VIDEO_REGEX.search(path) and VALIDATE_WEATHER_ARG_REGEX.search(query):
         try:
-            dict = cgi.parse_qs(query)
-            video_id = urllib.quote(dict['videoId'][0])
+            video_id = urllib.quote(path.strip().split('/')[-1])
         except Exception, e:
             pass
     else:

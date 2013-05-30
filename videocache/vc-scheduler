@@ -385,7 +385,7 @@ def cache(video):
 def schedule():
     try:
         if o.offline_mode or not is_caching_time(): return
-        if VideoQueue.with_timeout(1, VideoQueue.count, { 'active' : True }) > o.max_cache_processes: return
+        if VideoQueue.with_timeout(1, VideoQueue.count, { 'active' : True }) >= o.max_cache_processes: return
 
         video = VideoQueue.with_timeout(0.5, VideoQueue.last, { 'order' : 'access_count', 'cacheable' : True, 'active' : False })
         if not video: return
@@ -433,11 +433,15 @@ def is_cached(video_url):
     return False
 
 def arg_drop_exception(website_id, params, arg):
-    if website_id == 'hardsextube' and arg == 'start' and params['start'][0] == '0':
+    if website_id == 'hardsextube' and arg == 'start' and params[arg][0] == '0':
         return True
-    if website_id == 'dailymotion' and arg == 'seek' and params['seek'][0] == '0':
+    if website_id == 'dailymotion' and arg == 'seek' and params[arg][0] == '0':
         return True
-    if website_id == 'redtube' and arg == 'ec_seek' and params['ec_seek'][0] == '0':
+    if website_id == 'wrzuta' and arg == 'sec-offset' and params[arg][0] == '0':
+        return True
+    if website_id == 'redtube' and arg == 'ec_seek' and params[arg][0] == '0':
+        return True
+    if website_id == 'vimeo' and arg == 'aktimeoffset' and params[arg][0] == '0':
         return True
     if website_id == 'aol' and arg in ['set', 'timeoffset', 'aktimeoffset'] and params[arg][0] in ['0', '0.0']:
         return True
@@ -505,7 +509,7 @@ def watch_access_log():
     global local_cpn_pool, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
     access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'application/octet-stream', 'application/vnd.android.package-archive' ]
+    log_hit_track_lines = [ ' video/', ' audio/', ' text/plain', 'application/octet-stream', ' application/vnd.android.package-archive' ]
 
     started_at = time.time()
     log_hits = 0
