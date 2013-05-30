@@ -12,7 +12,6 @@ import re
 import urllib
 import urlparse
 
-VALIDATE_HARDSEXTUBE_DOMAIN_REGEX = re.compile('vs[a-z0-9]?[a-z0-9]?[a-z0-9]?\.hardsextube\.com')
 VALIDATE_HARDSEXTUBE_VIDEO_EXT_REGEX = re.compile('(.*)\/(.*)\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_hardsextube_video(o, url, host = None, path = None, query = None):
@@ -22,7 +21,7 @@ def check_hardsextube_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if VALIDATE_HARDSEXTUBE_DOMAIN_REGEX.search(host) and VALIDATE_HARDSEXTUBE_VIDEO_EXT_REGEX.search(path):
+    if host.find('.hardsextube.com') > -1 and VALIDATE_HARDSEXTUBE_VIDEO_EXT_REGEX.search(path):
         try:
             video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:

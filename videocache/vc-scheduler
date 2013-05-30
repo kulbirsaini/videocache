@@ -437,6 +437,8 @@ def arg_drop_exception(website_id, params, arg):
         return True
     if website_id == 'dailymotion' and arg == 'seek' and params['seek'][0] == '0':
         return True
+    if website_id == 'redtube' and arg == 'ec_seek' and params['ec_seek'][0] == '0':
+        return True
     if website_id == 'aol' and arg in ['set', 'timeoffset', 'aktimeoffset'] and params[arg][0] in ['0', '0.0']:
         return True
     return False
@@ -503,7 +505,7 @@ def watch_access_log():
     global local_cpn_pool, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
     access_log_track_lines = [ '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/stream_204?', '.youtube.com/get_video?' ]
-    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'flv-application/octet-stream', 'application/vnd.android.package-archive' ]
+    log_hit_track_lines = [ 'video/', 'audio/', 'text/plain', 'application/octet-stream', 'application/vnd.android.package-archive' ]
 
     started_at = time.time()
     log_hits = 0

@@ -12,9 +12,7 @@ import re
 import urllib
 import urlparse
 
-VALIDATE_PORNHUB_DOMAIN_REGEX = re.compile('nyc-v[a-z0-9]?[a-z0-9]?[a-z0-9]?\.pornhub\.com')
-VALIDATE_PORNHUB_VIDEO_REGEX1 = re.compile('(.*)/videos/[0-9]{3}/[0-9]{3}/[0-9]{3}/[0-9]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
-VALIDATE_PORNHUB_VIDEO_REGEX2 = re.compile('videos/(.*)/[0-9]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
+VALIDATE_PORNHUB_VIDEO_REGEX = re.compile('videos/(.*)/[a-zA-Z0-9_]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_pornhub_video(o, url, host = None, path = None, query = None):
     matched, website_id, video_id, format, search, queue = True, 'pornhub', None, '', True, True
@@ -23,7 +21,7 @@ def check_pornhub_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if (host.find('.video.pornhub.phncdn.com') > -1 or VALIDATE_PORNHUB_DOMAIN_REGEX.search(host)) and (VALIDATE_PORNHUB_VIDEO_REGEX1.search(path) or VALIDATE_PORNHUB_VIDEO_REGEX2.search(path)):
+    if (host.find('.video.pornhub.phncdn.com') > -1 or host.find('.pornhub.com') > -1) and VALIDATE_PORNHUB_VIDEO_REGEX.search(path):
         try:
             video_id = urllib.quote(path.strip('/').split('/')[-1])
         except Exception, e:
