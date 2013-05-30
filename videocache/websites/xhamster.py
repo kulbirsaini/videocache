@@ -14,6 +14,7 @@ import sys
 import urllib
 import urlparse
 
+VALIDATE_XHAMSTER_DOMAIN_REGEX = re.compile('-xh.clients.cdn[0-9a-zA-Z]?[0-9a-zA-Z]?[0-9a-zA-Z]?.com')
 VALIDATE_XHAMSTER_VIDEO_REGEX1 = re.compile('(.*)key=[a-zA-Z0-9]+(.*)\.flv')
 VALIDATE_XHAMSTER_VIDEO_REGEX2 = re.compile('(.*)key=[a-zA-Z0-9]+(.*)\.flv')
 VALIDATE_XHAMSTER_VIDEO_REGEX3 = re.compile('data\/(.*)\.flv')
@@ -29,12 +30,12 @@ def check_xhamster_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    if is_valid_ip(host) and VALIDATE_XHAMSTER_VIDEO_REGEX1.search(path):
+    if VALIDATE_XHAMSTER_DOMAIN_REGEX.search(host) and VALIDATE_XHAMSTER_VIDEO_REGEX3.search(path):
+        pass
+    elif is_valid_ip(host) and VALIDATE_XHAMSTER_VIDEO_REGEX1.search(path):
         queue = False
     elif host.find('.xhcdn.com') > -1 and VALIDATE_XHAMSTER_VIDEO_REGEX2.search(path):
         search = False
-    elif host.find('-xh.clients.cdn12.com') > -1 and VALIDATE_XHAMSTER_VIDEO_REGEX3.search(path):
-        pass
     else:
         matched = False
 
