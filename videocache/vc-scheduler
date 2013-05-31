@@ -539,15 +539,24 @@ def watch_access_log():
 def watch_log_hit():
     global local_cpn_pool, log_hit_queue
 
+    corrupt_urls = []
+    last_cu_at = 0
+    cu_interval = 600
     if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
     while True:
+        now = time.time()
+        if now - last_cu_at > cu_interval:
+            last_cu_at = now
+            corrupt_urls = []
         try:
             line = log_hit_queue.get(timeout = 120)
             try:
                 video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
+                if video_url in corrupt_urls:
+                    continue
                 fragments = urlparse.urlsplit(video_url)
                 [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
@@ -592,7 +601,7 @@ def watch_log_hit():
                 if website_id == 'youtube':
                     youtube_range = get_youtube_video_range_from_query(query)
                     expected_size = youtube_range['end'] - youtube_range['start']
-                    filename = get_youtube_filename(o, video_id, format, )
+                    filename = get_youtube_filename(o, video_id, format, youtube_range)
                 else:
                     filename = eval('get_' + website_id + '_filename(o, video_id, format)')
 
@@ -624,7 +633,8 @@ def watch_log_hit():
                     size = os.path.getsize(tmp_path)
                     if expected_size > 1024 and abs(expected_size - size) > 1024:
                         os.unlink(tmp_path)
-                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer' })
+                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Expected : ' + str(expected_size) + ' Received : ' + str(size) })
+                        corrupt_urls.append(video_url)
                     else:
                         move_file(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)
