@@ -163,6 +163,7 @@ class VideocacheOptions:
             klass.hide_cache_dirs = int(mainconf.hide_cache_dirs)
 
             # Filesystem
+            klass.base_dir = mainconf.base_dir
             klass.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
             klass.temp_dir = mainconf.temp_dir.lstrip('/')
             klass.base_dir_selection = int(mainconf.base_dir_selection)
