@@ -539,24 +539,25 @@ def watch_access_log():
 def watch_log_hit():
     global local_cpn_pool, log_hit_queue
 
-    corrupt_urls = []
-    last_cu_at = 0
-    cu_interval = 600
+    local_urls = []
+    last_lu_at = 0
+    lu_interval = 120
     if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
     while True:
         now = time.time()
-        if now - last_cu_at > cu_interval:
-            last_cu_at = now
-            corrupt_urls = []
+        if now - last_lu_at > lu_interval:
+            last_lu_at = now
+            local_urls = local_urls[-3:]
         try:
             line = log_hit_queue.get(timeout = 120)
             try:
                 video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
-                if video_url in corrupt_urls:
+                if video_url in local_urls:
                     continue
+                local_urls.append(video_url)
                 fragments = urlparse.urlsplit(video_url)
                 [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
@@ -634,7 +635,6 @@ def watch_log_hit():
                     if expected_size > 1024 and abs(expected_size - size) > 1024:
                         os.unlink(tmp_path)
                         info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Expected : ' + str(expected_size) + ' Received : ' + str(size) })
-                        corrupt_urls.append(video_url)
                     else:
                         move_file(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)
