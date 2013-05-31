@@ -413,6 +413,21 @@ def cache_thread_scheduler():
     else:
         warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
 
+def purge_object(video_url):
+    global this_opener
+    if not this_opener:
+        return False
+    try:
+        request = PurgeRequest(url = video_url)
+        head_conn = this_opener.open(request)
+        if 'getcode' in dir(head_conn) and head_conn.getcode() == 200:
+            return True
+        if 'code' in dir(head_conn) and head_conn.code == 200:
+            return True
+    except Exception, e:
+        pass
+    return False
+
 def is_cached(video_url):
     global this_opener
     if not this_opener:
@@ -650,6 +665,7 @@ def watch_log_hit():
                     if expected_size > 1024 and abs(expected_size - size) > 1024:
                         os.unlink(tmp_path)
                         info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Filename : ' + filename + ' Expected : ' + str(expected_size) + ' Received : ' + str(size) })
+                        purge_object(video_url)
                     else:
                         move_file(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)

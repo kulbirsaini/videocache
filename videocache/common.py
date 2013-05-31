@@ -207,6 +207,11 @@ class HeadRequest(urllib2.Request):
     def get_method(self):
         return 'HEAD'
 
+# Extending urllib2 to support HTTP PURGE requests to PURGE objects from Squid cache.
+class PurgeRequest(urllib2.Request):
+    def get_method(self):
+        return 'PURGE'
+
 # Videocache setup/update specific functions
 def print_message_and_abort(message):
     print >>sys.stderr, message
