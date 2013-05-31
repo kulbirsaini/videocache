@@ -588,8 +588,11 @@ def watch_log_hit():
                     warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
                     continue
 
+                expected_size = None
                 if website_id == 'youtube':
-                    filename = get_youtube_filename(o, video_id, format, get_youtube_video_range_from_query(query))
+                    youtube_range = get_youtube_video_range_from_query(query)
+                    expected_size = youtube_range['end'] - youtube_range['start']
+                    filename = get_youtube_filename(o, video_id, format, )
                 else:
                     filename = eval('get_' + website_id + '_filename(o, video_id, format)')
 
@@ -619,11 +622,15 @@ def watch_log_hit():
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if timeout_exec(15, cache_remote_url, False, video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
-                    move_file(tmp_path, video_path)
-                    os.chmod(video_path, o.file_mode)
-                    os.utime(video_path, None)
-                    VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                    if expected_size > 1024 and abs(expected_size - size) > 1024:
+                        os.unlink(tmp_path)
+                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer' })
+                    else:
+                        move_file(tmp_path, video_path)
+                        os.chmod(video_path, o.file_mode)
+                        os.utime(video_path, None)
+                        VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                        info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
             except Exception, e:
                 ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
         except Empty, e:
