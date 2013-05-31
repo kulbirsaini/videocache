@@ -519,7 +519,13 @@ def watch_access_log():
         try:
             if any(map(lambda x: line.find(x) > -1, access_log_track_lines)):
                 try:
-                    url = re.findall(URL_EXTRACT_REGEX, line)[0]
+                    url = None
+                    for line_part in line.split():
+                        if 'http://' in line_part:
+                            url = line_part
+                            break
+                    if not url:
+                        continue
                     video_id, cpn = get_youtube_video_id_and_cpn(url)
                     if video_id != None and cpn != None:
                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
@@ -540,24 +546,27 @@ def watch_log_hit():
     global local_cpn_pool, log_hit_queue
 
     local_urls = []
-    last_lu_at = 0
-    lu_interval = 120
+    local_urls_count = 0
     if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
     while True:
-        now = time.time()
-        if now - last_lu_at > lu_interval:
-            last_lu_at = now
-            local_urls = local_urls[-3:]
+        if local_urls_count > 500:
+            local_urls = local_urls[-50:]
+            local_urls_count = len(local_urls)
         try:
             line = log_hit_queue.get(timeout = 120)
             try:
-                video_url = re.findall(URL_EXTRACT_REGEX, line)[0]
-                if video_url in local_urls:
+                video_url = None
+                for line_part in line.split():
+                    if 'http://' in line_part:
+                        video_url = line_part
+                        break
+                if not video_url or video_url in local_urls:
                     continue
                 local_urls.append(video_url)
+                local_urls_count += 1
                 fragments = urlparse.urlsplit(video_url)
                 [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
@@ -618,7 +627,7 @@ def watch_log_hit():
                 if is_cached(video_url):
                     info({ 'code' : 'LOG_HIT_CONFIRMED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
                 else:
-                    info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is not present in local squid cache anymore' })
+                    info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Either video is not present in squid cache anymore or the connection was closed before video buffer could complete.' })
                     continue
 
                 cache_dir = get_next_cache_dir()
@@ -634,7 +643,7 @@ def watch_log_hit():
                     size = os.path.getsize(tmp_path)
                     if expected_size > 1024 and abs(expected_size - size) > 1024:
                         os.unlink(tmp_path)
-                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Expected : ' + str(expected_size) + ' Received : ' + str(size) })
+                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Filename : ' + filename + ' Expected : ' + str(expected_size) + ' Received : ' + str(size) })
                     else:
                         move_file(tmp_path, video_path)
                         os.chmod(video_path, o.file_mode)
@@ -1087,7 +1096,6 @@ if __name__ == '__main__':
 
         # Compiled regexes
         PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')
-        URL_EXTRACT_REGEX = re.compile('(http://[^\s]+)')
 
         try:
             import ctypes
