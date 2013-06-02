@@ -258,6 +258,7 @@ class VideocacheOptions:
             for website_id in klass.websites:
                 klass.website_cache_dir[website_id] = eval('mainconf.' + website_id + '_cache_dir')
                 klass.enabled_websites[website_id] = int(eval('mainconf.enable_' + website_id + '_cache'))
+                setattr(klass, 'enable_' + website_id + '_cache', klass.enabled_websites[website_id])
             klass.enabled_website_keys = filter(lambda x: klass.enabled_websites[x], klass.enabled_websites.keys())
 
             klass.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))

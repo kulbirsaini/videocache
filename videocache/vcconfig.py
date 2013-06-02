@@ -129,7 +129,7 @@ class VideocacheConf:
     enable_youtube_html5_videos = Option(1)
     enable_youtube_3d_videos = Option(1)
     enable_youtube_partial_caching = Option(1)
-    max_youtube_video_quality = Option('720p')
+    max_youtube_video_quality = Option('720')
     min_youtube_views = Option(100)
     youtube_cache_dir = Option('youtube')
 
