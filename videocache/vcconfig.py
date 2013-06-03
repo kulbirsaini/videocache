@@ -169,6 +169,10 @@ class VideocacheConf:
     enable_vimeo_cache = Option(1)
     vimeo_cache_dir = Option('vimeo')
 
+    # Vube.com Specific Options
+    enable_vube_cache = Option(1)
+    vube_cache_dir = Option('vube')
+
     # Weather.com Specific Options
     enable_weather_cache = Option(1)
     weather_cache_dir = Option('weather')

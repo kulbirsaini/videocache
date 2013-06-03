@@ -331,6 +331,7 @@ cache_facebook_video = cache_generalized
 cache_metacafe_video = cache_generalized
 cache_myspace_video = cache_generalized
 cache_vimeo_video = cache_generalized
+cache_vube_video = cache_generalized
 cache_wrzuta_video = cache_generalized
 cache_youku_video = cache_generalized
 
