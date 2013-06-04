@@ -698,7 +698,7 @@ def update_disk_space():
             cleanup_cache_needed = True
 
 def get_next_cache_dir():
-    global last_base_dir_used, last_disk_space_update_at, disk_space_update_interval, sorted_disk_space
+    global last_base_dir_used, last_disk_space_update_at, disk_space_update_interval, sorted_disk_space, last_cache_dir_warn_at, cache_dir_warn_interval
     now = time.time()
     if now - last_disk_space_update_at > disk_space_update_interval:
         last_disk_space_update_at = now
@@ -721,7 +721,9 @@ def get_next_cache_dir():
                 last_base_dir_used = o.base_dir_list.index(cache_dir)
                 return cache_dir
 
-    warn({'code' : 'CACHE_DIR_FULL', 'message' : 'All your cache directories have reached the disk availability threshold.'})
+    if now - last_cache_dir_warn_at > cache_dir_warn_interval:
+        last_cache_dir_warn_at = now
+        warn({'code' : 'CACHE_DIR_FULL', 'message' : 'All your cache directories have reached the disk availability threshold.'})
     return False
 
 def need_rest_for():
@@ -882,11 +884,11 @@ def cleanup_cache():
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
     for cache_dir in o.base_dir_list:
-        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 50' % (VideoFile.table_name, cache_dir.rstrip('/'), o.cleanup_order)
+        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 100' % (VideoFile.table_name, cache_dir.rstrip('/'), o.cleanup_order)
         try:
             if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
                 while True:
-                    count, results = VideoFile.with_timeout(1, VideoFile.execute, query)
+                    count, results = VideoFile.with_timeout(4, VideoFile.execute, query)
                     if len(results) < 5:
                         cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
@@ -1118,6 +1120,8 @@ if __name__ == '__main__':
         disk_space_update_interval = 120
         cleanup_cache_needed = False
         sorted_disk_space = None
+        last_cache_dir_warn_at = 0
+        cache_dir_warn_interval = 60
         local_cpn_pool = {}
         exit = False
         process_id = '-'
