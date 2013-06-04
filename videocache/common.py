@@ -10,11 +10,10 @@ __docformat__ = 'plaintext'
 
 from fsop import *
 from functools import wraps
-from Queue import Empty
+from Queue import Empty, Queue
 
 import datetime
 import logging
-import multiprocessing
 import os
 import pwd
 import re
@@ -26,6 +25,13 @@ import traceback
 import urllib
 import urllib2
 import urlparse
+
+try:
+    import multiprocessing
+    from multiprocessing import synchronize
+    multiprocessing_enabled = True
+except:
+    multiprocessing_enabled = False
 
 # Alias urllib2.open to urllib2.urlopen
 urllib2.open = urllib2.urlopen
@@ -46,17 +52,25 @@ def with_timeout(tmout, raise_exception = True):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            q = multiprocessing.Queue()
-            subproc = multiprocessing.Process(target=f, args=(q,) + args, kwargs=kwargs)
-            t = time.time()
-            subproc.start()
-            subproc.join(tmout)
-            subproc.terminate()
-            try:
-                return q.get(timeout = 0.1)
-            except Empty:
-                if raise_exception: raise TimeoutError
-                return False
+            if multiprocessing_enabled:
+                q = multiprocessing.Queue()
+                subproc = multiprocessing.Process(target=f, args=(q,) + args, kwargs=kwargs)
+                subproc.start()
+                subproc.join(tmout)
+                subproc.terminate()
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+            else:
+                q = Queue()
+                f(q, *args, **kwargs)
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
         return wrapper
     return decorator
 
@@ -64,17 +78,25 @@ def classmethod_with_timeout(tmout, raise_exception = True):
     def decorator(f):
         @wraps(f)
         def wrapper(klass, *args, **kwargs):
-            q = multiprocessing.Queue()
-            subproc = multiprocessing.Process(target=f, args=(klass, q) + args, kwargs=kwargs)
-            t = time.time()
-            subproc.start()
-            subproc.join(tmout)
-            subproc.terminate()
-            try:
-                return q.get(timeout = 0.1)
-            except Empty:
-                if raise_exception: raise TimeoutError
-                return False
+            if multiprocessing_enabled:
+                q = multiprocessing.Queue()
+                subproc = multiprocessing.Process(target=f, args=(klass, q) + args, kwargs=kwargs)
+                subproc.start()
+                subproc.join(tmout)
+                subproc.terminate()
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+            else:
+                q = Queue()
+                f(klass, q, *args, **kwargs)
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
         return wrapper
     return decorator
 
@@ -85,14 +107,14 @@ def timeout_exec(timeout, f, raise_exception, *args, **kwargs):
     return _new_ret_method(*args, **kwargs)
 
 # Colored messages on terminal
-def red(msg):#{{{
+def red(msg):
     return "\033[1;31m%s\033[0m" % msg
 
 def blue(msg):
     return "\033[1;36m%s\033[0m" % msg
 
 def green(msg):
-    return "\033[1;32m%s\033[0m" % msg#}}}
+    return "\033[1;32m%s\033[0m" % msg
 
 def syslog_msg(msg):
     syslog.syslog(syslog.LOG_ERR | syslog.LOG_DAEMON, msg)

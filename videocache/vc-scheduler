@@ -22,7 +22,6 @@ from Queue import Queue, Empty
 import cgi
 import cookielib
 import glob
-import multiprocessing
 import pwd
 import random
 import signal
@@ -33,6 +32,13 @@ import time
 import traceback
 import urllib2
 import urlparse
+
+try:
+    import multiprocessing
+    from multiprocessing import synchronize
+    multiprocessing_enabled = True
+except:
+    multiprocessing_enabled = False
 
 # Cookie processor and default socket timeout
 cj = cookielib.CookieJar()
@@ -955,7 +961,7 @@ def write_pid_file(pids):
 
 def thread_starter(thread, func, cur_time, last_run_at, run_interval):
     try:
-        if thread and thread.isAlive():
+        if thread and thread.is_alive():
             return thread, last_run_at
         elif cur_time - last_run_at > run_interval:
             thread = LoggingThread(target = func, name = func.__name__)
@@ -970,13 +976,17 @@ def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, proc
         if thread:
             if thread.is_alive():
                 return thread, last_run_at
-            elif thread.pid in process_list:
-                process_list.remove(thread.pid)
+            elif multiprocessing_enabled:
+                elif thread.pid in process_list:
+                    process_list.remove(thread.pid)
 
         if not (thread and thread.is_alive()) and cur_time - last_run_at > run_interval:
-            thread = multiprocessing.Process(target = func, name = func.__name__)
+            if multiprocessing_enabled:
+                thread = multiprocessing.Process(target = func, name = func.__name__)
+            else:
+                thread = LoggingThread(target = func, name = func.__name__)
             thread.start()
-            if thread.pid not in process_list:
+            if multiprocessing_enabled and thread.pid not in process_list:
                 process_list.append(thread.pid)
             return thread, cur_time
     except Exception, e:
