@@ -557,7 +557,8 @@ def watch_access_log():
                 log_hits += 1
                 if log_hit_queue.full():
                     warn({ 'code' : 'LOG_HIT_QUEUE_FULL', 'message' : 'Videocache is receiving ' + str(int(log_hits / (time.time() - started_at))) + ' requests per second for to check against squid cache. Please report if you see this issue.' })
-                    log_hit_queue.get(timeout = 0.1)
+                    log_hit_queue = Queue(o.max_log_hit_monitor_queue_size)
+                    log_hits = 0
                 log_hit_queue.put(line)
         except Exception, e:
             ent({ 'code' : 'ACCESS_LOG_READ_ERR', 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
