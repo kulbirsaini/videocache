@@ -977,7 +977,7 @@ def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, proc
             if thread.is_alive():
                 return thread, last_run_at
             elif multiprocessing_enabled:
-                elif thread.pid in process_list:
+                if thread.pid in process_list:
                     process_list.remove(thread.pid)
 
         if not (thread and thread.is_alive()) and cur_time - last_run_at > run_interval:
