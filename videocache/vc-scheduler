@@ -701,6 +701,7 @@ def get_next_cache_dir():
         if o.base_dir_selection == 3:
             vk = [(v['free_space'], k) for k, v in base_dir_disk_space.items()]
             sorted_disk_space = sorted(vk, reverse = True)
+
     if o.base_dir_selection == 1:
         for cache_dir in o.base_dir_list:
             if base_dir_disk_space[cache_dir]['use']:
@@ -902,6 +903,8 @@ def cleanup_cache(from_command_line = False):
                             if os.path.isfile(filepath):
                                 os.unlink(filepath)
                                 cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
+                                if from_command_line:
+                                    print 'Removed ' + filepath
                         try:
                             VideoFile.with_timeout(1, VideoFile.destroy_by, { 'id' : delete_ids })
                         except Exception, e:
