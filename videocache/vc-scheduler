@@ -667,7 +667,7 @@ def watch_log_hit():
                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152 }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-                if timeout_exec(15, cache_remote_url, False, video_url, tmp_path, params):
+                if timeout_exec(5, cache_remote_url, False, video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
                     if expected_size > 1024 and abs(expected_size - size) > 1024:
                         os.unlink(tmp_path)
