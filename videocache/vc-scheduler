@@ -901,10 +901,15 @@ def cleanup_cache(from_command_line = False):
                             website_id, filename = result[1], result[2]
                             filepath = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
                             if os.path.isfile(filepath):
-                                os.unlink(filepath)
-                                cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
-                                if from_command_line:
-                                    print 'Removed ' + filepath
+                                try:
+                                    os.unlink(filepath)
+                                    cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
+                                    if from_command_line:
+                                        print 'Removed ' + filepath
+                                except Exception, e:
+                                    ent({ 'code' : 'FILE_UNLINK_ERR', 'website_id' : website_id, 'message' : 'Error in removing file ' + filepath, 'debug' : str(e) })
+                                    if from_command_line:
+                                        print 'Error in removing file ' + filepath
                         try:
                             VideoFile.with_timeout(1, VideoFile.destroy_by, { 'id' : delete_ids })
                         except Exception, e:
