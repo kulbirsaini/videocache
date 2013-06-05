@@ -669,16 +669,11 @@ def watch_log_hit():
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if timeout_exec(5, cache_remote_url, False, video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
-                    if expected_size > 1024 and abs(expected_size - size) > 1024:
-                        os.unlink(tmp_path)
-                        info({ 'code' : 'CORRUPT_CACHE', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Most probably client closed connection before complete buffer. Filename : ' + filename + ' Expected : ' + str(expected_size) + ' Received : ' + str(size) })
-                        purge_object(video_url)
-                    else:
-                        move_file(tmp_path, video_path)
-                        os.chmod(video_path, o.file_mode)
-                        os.utime(video_path, None)
-                        VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                        info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                    move_file(tmp_path, video_path)
+                    os.chmod(video_path, o.file_mode)
+                    os.utime(video_path, None)
+                    VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
             except Exception, e:
                 ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
         except Empty, e:
