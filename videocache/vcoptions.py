@@ -121,7 +121,7 @@ class VideocacheOptions:
             # Options not in configuration file
             klass.queue_dump_file = mainconf.queue_dump_file
             klass.version = '2.3'
-            klass.revision = '633bc346d5'
+            klass.revision = 'g1306a29'
             # General Options
             klass.enable_videocache = int(mainconf.enable_videocache)
             klass.offline_mode = int(mainconf.offline_mode)
@@ -414,6 +414,12 @@ class VideocacheOptions:
             },
         ]
         klass.num_std_headers = len(klass.std_headers)
+
+        klass.vc_logger = None
+        klass.vcs_logger = None
+        klass.trace_logger = None
+        klass.vcc_logger = None
+        klass.db_logger = None
 
         klass.initialized = True
         klass.halt = False

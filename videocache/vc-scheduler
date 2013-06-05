@@ -49,37 +49,37 @@ socket.setdefaulttimeout(90)
 urllib2.open = urllib2.urlopen
 
 def info(params = {}):
-    if o.enable_scheduler_log:
+    if o.enable_scheduler_log and o.vcs_logger:
         params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id })
         o.vcs_logger.info(build_message(params))
 
 def error(params = {}):
-    if o.enable_scheduler_log:
+    if o.enable_scheduler_log and o.vcs_logger:
         params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id })
         o.vcs_logger.error(build_message(params))
 
 def warn(params = {}):
-    if o.enable_scheduler_log:
+    if o.enable_scheduler_log and o.vcs_logger:
         params.update({ 'logformat' : o.scheduler_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id })
         o.vcs_logger.debug(build_message(params))
 
 def cleaner_info(params = {}):
-    if o.enable_cleaner_log:
+    if o.enable_cleaner_log and o.vcc_logger:
         params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id})
         o.vcc_logger.info(build_message(params))
 
 def cleaner_error(params = {}):
-    if o.enable_cleaner_log:
+    if o.enable_cleaner_log and o.vcc_logger:
         params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id})
         o.vcc_logger.error(build_message(params))
 
 def cleaner_warn(params = {}):
-    if o.enable_cleaner_log:
+    if o.enable_cleaner_log and o.vcc_logger:
         params.update({ 'logformat' : o.cleaner_logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id})
         o.vcc_logger.debug(build_message(params))
 
 def trace(params = {}):
-    if o.enable_trace_log:
+    if o.enable_trace_log and o.trace_logger:
         params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
         o.trace_logger.info(build_message(params))
 
@@ -861,9 +861,10 @@ def flush_video_queue():
             if count < 25:
                 break
             time.sleep(need_rest_for())
-        info({'code' : 'QUEUE_FLUSH', 'message' : 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'})
+        print 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'
     except Exception, e:
-        ent({ 'code' : 'QUEUE_FLUSH_ERR', 'message' : 'Error occured while flushing scheduler queue.', 'debug' : str(e) })
+        print 'Error occured while flushing scheduler queue.', str(e)
+        print traceback.format_exc()
     for cache_dir in o.base_dir_list:
         queue_file = os.path.join(cache_dir, o.queue_dump_file)
         if os.path.isfile(queue_file):
@@ -878,9 +879,11 @@ def cleanup_video():
     except Exception, e:
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
-def cleanup_cache():
+def cleanup_cache(from_command_line = False):
     global cleanup_cache_needed
     cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
+    if from_command_line:
+        print 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones'
     delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
 
     for cache_dir in o.base_dir_list:
@@ -891,6 +894,8 @@ def cleanup_cache():
                     count, results = VideoFile.with_timeout(4, VideoFile.execute, query)
                     if len(results) < 5:
                         cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                        if from_command_line:
+                            print 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.'
                         warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                         break
                     for chunked_results in chunks(results, 25):
@@ -906,13 +911,22 @@ def cleanup_cache():
                             VideoFile.with_timeout(1, VideoFile.destroy_by, { 'id' : delete_ids })
                         except Exception, e:
                             ent({ 'code' : 'FILE_DELETE_ERR', 'website_id' : website_id, 'message' : 'Error in deleting videos from database ' + str(delete_ids), 'debug' : str(e) })
+                            if from_command_line:
+                                print 'Error in deleting videos from database ' + str(delete_ids), str(e)
+                                print traceback.format_exc()
                         time.sleep(need_rest_for())
                     if partition_used(cache_dir) < o.base_dir_thresholds[cache_dir]['low']: break
         except Exception, e:
             cent({ 'code' : 'CLEANER_ERR', 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
-    cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
+            if from_command_line:
+                print 'Error occured while cleaning cache directory ' + cache_dir, str(e)
+                print traceback.format_exc()
     cleanup_cache_needed = False
-    update_disk_space()
+    cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
+    if from_command_line:
+        print 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones'
+    else:
+        update_disk_space()
 
 def cleanup_video_queue():
     cut_off_time = time.time() - o.video_queue_lifetime
@@ -1153,7 +1167,6 @@ if __name__ == '__main__':
         if options.sig in ['flush', 'clean']:
             os.setgid(uid)
             os.setuid(uid)
-            o.set_loggers()
 
         if options.sig == 'start':
             daemon.start()
@@ -1168,7 +1181,7 @@ if __name__ == '__main__':
         elif options.sig == 'flush':
             flush_video_queue()
         elif options.sig == 'clean':
-            cleanup_cache()
+            cleanup_cache(True)
         else:
             sys.stderr.write('Unknown signal received. See --help for more options.\n')
     else:

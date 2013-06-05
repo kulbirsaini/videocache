@@ -400,22 +400,22 @@ class VideoFile(Model):
         return VideoFile.execute(query)
 
 def info(params = {}):
-    if o.enable_videocache_log:
+    if o.enable_videocache_log and o.vcs_logger:
         params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_INFO, 'process_id' : process_id})
-        o.vc_logger.info(build_message(params))
+        o.vcs_logger.info(build_message(params))
 
 def error(params = {}):
-    if o.enable_videocache_log:
+    if o.enable_videocache_log and o.vcs_logger:
         params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_ERR, 'process_id' : process_id})
-        o.vc_logger.error(build_message(params))
+        o.vcs_logger.error(build_message(params))
 
 def warn(params = {}):
-    if o.enable_videocache_log:
+    if o.enable_videocache_log and o.vcs_logger:
         params.update({ 'logformat' : o.logformat, 'timeformat' : o.timeformat, 'levelname' : LOG_LEVEL_WARN, 'process_id' : process_id})
-        o.vc_logger.debug(build_message(params))
+        o.vcs_logger.debug(build_message(params))
 
 def trace(params = {}):
-    if o.enable_trace_log:
+    if o.enable_trace_log and o.trace_logger:
         params.update({ 'logformat' : o.trace_logformat, 'timeformat' : o.timeformat, 'process_id' : process_id })
         o.trace_logger.info(build_message(params))
 
@@ -430,7 +430,7 @@ def wnt(params = {}):
     trace(params)
 
 def log_query(query):
-    if o.enable_db_query_log:
+    if o.enable_db_query_log and o.db_logger:
         o.db_logger.info(build_message({ 'logformat' : o.db_query_logformat, 'message' : query }))
 
 def create_tables(hostname = None, username = None, password = None, database = None):
