@@ -339,6 +339,7 @@ cache_imdb_video = cache_generalized
 cache_metacafe_video = cache_generalized
 cache_myspace_video = cache_generalized
 cache_veoh_video = cache_generalized
+cache_videobash_video = cache_generalized
 cache_vimeo_video = cache_generalized
 cache_vube_video = cache_generalized
 cache_wrzuta_video = cache_generalized
@@ -468,6 +469,8 @@ def arg_drop_exception(website_id, params, arg):
     if website_id == 'vimeo' and arg == 'aktimeoffset' and params[arg][0] == '0':
         return True
     if website_id == 'aol' and arg in ['set', 'timeoffset', 'aktimeoffset'] and params[arg][0] in ['0', '0.0']:
+        return True
+    if website_id == 'videobash' and arg == 'start' and params[arg][0] == '0':
         return True
     if website_id == 'xtube' and arg in ['start', 'fs', 'ms'] and params[arg][0] in ['0', '0.0']:
         return True

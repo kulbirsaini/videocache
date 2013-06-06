@@ -173,6 +173,10 @@ class VideocacheConf:
     enable_veoh_cache = Option(1)
     veoh_cache_dir = Option('veoh')
 
+    # videobash.com
+    enable_videobash_cache = Option(1)
+    videobash_cache_dir = Option('videobash')
+
     # Vimeo.com Specific Options
     enable_vimeo_cache = Option(1)
     vimeo_cache_dir = Option('vimeo')
