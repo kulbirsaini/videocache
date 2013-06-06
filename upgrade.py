@@ -163,7 +163,7 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
         log_traceback()
         print_message_and_abort(upgrade_error)
 
-    squid_config_lines = "access_log %s\nacl purge method PURGE\nacl this_machine src 127.0.0.1 %s \nhttp_access allow purge this_machine\nhttp_access deny purge\nhttp_access allow this_machine" % (o.squid_access_log, get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "access_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (o.squid_access_log, get_ip_addresses().replace(',', ' '))
 
     print green("Videocache upgraded successfully. Please follow the following instructions now.\n")
     print blue("----------------------------------Step 1-----------------------------------------")
