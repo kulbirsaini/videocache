@@ -169,6 +169,10 @@ class VideocacheConf:
     enable_myspace_cache = Option(1)
     myspace_cache_dir = Option('myspace')
 
+    # Veoh.com
+    enable_veoh_cache = Option(1)
+    veoh_cache_dir = Option('veoh')
+
     # Vimeo.com Specific Options
     enable_vimeo_cache = Option(1)
     vimeo_cache_dir = Option('vimeo')

@@ -9,7 +9,6 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import re
-import urllib
 import urlparse
 
 VALIDATE_VIMEO_VIDEO_EXT_REGEX = re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
@@ -23,7 +22,7 @@ def check_vube_video(o, url, host = None, path = None, query = None):
 
     if host.find('video.thestaticvube.com') > -1 and VALIDATE_VIMEO_VIDEO_EXT_REGEX.search(path):
         try:
-            video_id = urllib.quote(path.strip('/').split('/')[-1])
+            video_id = path.strip('/').split('/')[-1]
         except Exception, e:
             pass
     else:
