@@ -157,6 +157,10 @@ class VideocacheConf:
     enable_facebook_cache = Option(1)
     facebook_cache_dir = Option('facebook')
 
+    # www.imdb.com
+    enable_imdb_cache = Option(1)
+    imdb_cache_dir = Option('imdb')
+
     # Metacafe.com Specific Options
     enable_metacafe_cache = Option(1)
     metacafe_cache_dir = Option('metacafe')

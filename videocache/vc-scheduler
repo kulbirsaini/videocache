@@ -133,6 +133,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
         min_video_size = params.get('min_video_size', o.min_video_size)
         max_video_size = params.get('max_video_size', o.max_video_size)
         socket_read_block_size = params.get('socket_read_block_size', o.socket_read_block_size)
+        log_error = params.get('log_error', True)
 
         if not http_headers.has_key('User-Agent'):
             http_headers.update(get_random_user_agent())
@@ -160,7 +161,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
                     info({ 'code' : 'VIDEO_TOO_SMALL', 'message' : 'Video size is smaller than the min size allowed. Skipping.', 'video_id' : video_id, 'website_id' : website_id, 'size' : video_size })
                     status = True
         except Exception, e:
-            wnt({ 'code' : 'CONNECTION_INFO_ERR', 'message' : 'Error while getting connection info.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            if log_error: wnt({ 'code' : 'CONNECTION_INFO_ERR', 'message' : 'Error while getting connection info.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
 
         if status:
             conn.close()
@@ -186,20 +187,20 @@ def cache_remote_url(remote_url, target_file, params = {}):
 
         target_file_size = os.path.getsize(target_file)
         if video_size != -1 and target_file_size < 0.97 * video_size:
-            error({ 'code' : 'PARTIAL_CACHE_ERR', 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
+            if log_error: error({ 'code' : 'PARTIAL_CACHE_ERR', 'message' : 'Video could not be cached completely. Expected: ' + str(video_size) + ', Got: ' + str(target_file_size), 'video_id' : video_id, 'website_id' : website_id })
             remove_file(target_file)
             return False
     except urllib2.HTTPError, e:
         remove_file(target_file)
         try:
-            ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            if log_error: ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error : ' + str(e.code) + '. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
         except:
-            ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+            if log_error: ent({ 'code' : 'CACHE_HTTP_ERR', 'message' : 'HTTP error. An error occured while caching the video at '  + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
             return False
     except Exception, e:
         remove_file(target_file)
-        ent({ 'code' : 'CACHE_ERR', 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
+        if log_error: ent({ 'code' : 'CACHE_ERR', 'message' : 'Could not cache the video at ' + remote_url + '.', 'debug' : str(e), 'video_id' : video_id, 'website_id' : website_id })
         return False
     return True
 
@@ -334,6 +335,7 @@ cache_bing_video = cache_generalized
 cache_bliptv_video = cache_generalized
 cache_breakcom_video = cache_generalized
 cache_facebook_video = cache_generalized
+cache_imdb_video = cache_generalized
 cache_metacafe_video = cache_generalized
 cache_myspace_video = cache_generalized
 cache_vimeo_video = cache_generalized
@@ -447,9 +449,9 @@ def is_cached(video_url):
             return True
     except Exception, e:
         if 'getcode' in dir(e) and e.getcode() == 504:
-            return False
+            return 2
         if 'code' in dir(e) and e.code == 504:
-            return False
+            return 2
         wnt({ 'code' : 'LOG_CHECK_ERR', 'message' : 'Could not confirm if url cached in Squid ' + video_url, 'debug' : str(e) })
     return False
 
@@ -652,8 +654,13 @@ def watch_log_hit():
                 if cached:
                     continue
 
-                if is_cached(video_url):
+                is_cached_result = is_cached(video_url)
+                log_error = True
+                if is_cached_result == True:
                     info({ 'code' : 'LOG_HIT_CONFIRMED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
+                elif is_cached_result == 2:
+                    info({ 'code' : 'LOG_HIT_UNCERTAIN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video may be present in local squid cache. Will try anyway.' })
+                    log_error = False
                 else:
                     info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Either video is not present in squid cache anymore or the connection was closed before video buffer could complete.' })
                     continue
@@ -664,7 +671,7 @@ def watch_log_hit():
 
                 tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
                 video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
-                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152 }
+                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
                 if timeout_exec(5, cache_remote_url, False, video_url, tmp_path, params):
