@@ -147,6 +147,7 @@ class VideocacheOptions:
             klass.cpn_lifetime = 1800
             klass.video_queue_lifetime = int(mainconf.video_queue_lifetime)
             klass.active_queue_lifetime = int(mainconf.active_queue_lifetime)
+            klass.tmp_file_lifetime = int(mainconf.tmp_file_lifetime)
             klass.hit_time_threshold = int(mainconf.hit_time_threshold)
             klass.log_hit_threshold = int(mainconf.log_hit_threshold)
             klass.max_queue_size_per_plugin = int(mainconf.max_queue_size_per_plugin)
@@ -165,7 +166,7 @@ class VideocacheOptions:
             # Filesystem
             klass.base_dir = mainconf.base_dir
             klass.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
-            klass.temp_dir = mainconf.temp_dir.lstrip('/')
+            klass.temp_dir = mainconf.temp_dir.strip('/').split('/')[-1]
             klass.base_dir_selection = int(mainconf.base_dir_selection)
             klass.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
             if klass.disk_cleanup_strategy == 2:
@@ -284,7 +285,7 @@ class VideocacheOptions:
             base_dirs = {}
             for website_id in klass.websites:
                 base_dirs[website_id] = [os.path.join(dir, klass.website_cache_dir[website_id]) for dir in klass.base_dir_list]
-            base_dirs['tmp'] = [os.path.join(dir, klass.temp_dir) for dir in klass.base_dir_list]
+            base_dirs[klass.temp_dir] = [os.path.join(dir, klass.temp_dir) for dir in klass.base_dir_list]
             klass.base_dirs = base_dirs
         except Exception, e:
             syslog_msg('Could not build a list of cache directories. Debug: ' + traceback.format_exc().replace('\n', ''))

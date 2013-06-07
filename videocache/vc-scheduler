@@ -562,7 +562,7 @@ def watch_access_log():
                     video_id, cpn = get_youtube_video_id_and_cpn(url)
                     if video_id != None and cpn != None:
                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                        YoutubeCPN.with_timeout(0.25, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
+                        YoutubeCPN.with_timeout(0.35, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
                 except Exception, e:
                     ent({ 'code' : 'ACCESS_LOG_PARSE_ERR', 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
             elif find_any_in_line(line, log_hit_track_lines):
@@ -685,6 +685,8 @@ def watch_log_hit():
                     os.utime(video_path, None)
                     VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+                else:
+                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
             except Exception, e:
                 ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
         except Empty, e:
@@ -981,6 +983,22 @@ def cleanup_cpn_pool():
     except Exception, e:
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
+def cleanup_tmp():
+    info({ 'code' : 'TMP_DIR_CLEANUP_START', 'message' : 'Removing orphaned files from tmp directories' })
+    now = time.time()
+    for tmp_dir in o.base_dirs[o.temp_dir]:
+        remove_count = 0
+        filenames = glob.glob(os.path.join(tmp_dir, '*'))
+        for filename in filenames:
+            if os.path.isfile(filename) and (now - os.stat(filename).st_mtime) > o.tmp_file_lifetime:
+                remove_count += 1
+                try:
+                    os.unlink(filename)
+                except:
+                    pass
+        if len(filenames): info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
+    info({ 'code' : 'TMP_DIR_CLEANUP_Finish', 'message' : 'Removed orphaned files from tmp directories' })
+
 def write_pid_file(pids):
     try:
         fobject = open(o.pidfile_path, 'w')
@@ -1057,6 +1075,9 @@ def task_scheduler():
     # log_hit_monitor
     last_hm_at, hm_thread, hm_interval = now - 165, None, 170
 
+    # cleanup_tmp
+    last_ct_at, ct_thread, ct_interval = now - 290, None, 300
+
     while True:
         cur_time = time.time()
         write_pid_file(process_list)
@@ -1071,6 +1092,7 @@ def task_scheduler():
         if not o.offline_mode and o.enable_access_log_monitoring:
             cm_thread, last_cm_at = thread_starter(cm_thread, watch_access_log, cur_time, last_cm_at, cm_interval)
             hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
+        ct_thread, last_ct_at = thread_starter(ct_thread, cleanup_tmp, cur_time, last_ct_at, ct_interval)
         rf_thread, last_rf_at = multiprocess_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval, process_list)
         time.sleep(2)
 

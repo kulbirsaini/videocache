@@ -54,6 +54,7 @@ class VideocacheConf:
     db_database = Option('videocache')
     video_queue_lifetime = Option(3600 * 24)
     active_queue_lifetime = Option(3600)
+    tmp_file_lifetime = Option(600)
     hit_time_threshold = Option(30)
     log_hit_threshold = Option(300)
     max_queue_size_per_plugin = Option(1024)
