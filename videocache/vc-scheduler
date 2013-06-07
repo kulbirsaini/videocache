@@ -494,6 +494,7 @@ def kill_tail_processes(filename, user):
 
 def enqueue_output(output, message_queue, finder_list = [], any_find = True):
     for line in iter(output.readline, ''):
+        line = line.strip()
         if finder_list == []:
             shall_queue = True
         else:
@@ -638,7 +639,7 @@ def watch_log_hit():
                         video_id = old_video_id
 
                 if not video_id:
-                    warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler.' })
+                    warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
                     continue
 
                 expected_size = None
@@ -997,7 +998,7 @@ def cleanup_tmp():
                 except:
                     pass
         if len(filenames): info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
-    info({ 'code' : 'TMP_DIR_CLEANUP_Finish', 'message' : 'Removed orphaned files from tmp directories' })
+    info({ 'code' : 'TMP_DIR_CLEANUP_FINISH', 'message' : 'Removed orphaned files from tmp directories' })
 
 def write_pid_file(pids):
     try:
