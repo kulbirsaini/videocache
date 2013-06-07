@@ -13,6 +13,7 @@ from functools import wraps
 from Queue import Empty, Queue
 
 import datetime
+import errno
 import logging
 import os
 import pwd
@@ -29,8 +30,32 @@ import urlparse
 try:
     import multiprocessing
     from multiprocessing import synchronize
+
+    if sys.version_info < (2, 7):
+        class Popen(multiprocessing.forking.Popen):
+            def poll(self, flag = os.WNOHANG):
+                if self.returncode is None:
+                    while True:
+                        try:
+                            pid, sts = os.waitpid(self.pid, flag)
+                        except OSError as e:
+                            if e.errno == errno.EINTR:
+                                continue
+                            return None
+                        else:
+                            break
+                    if pid == self.pid:
+                        if os.WIFSIGNALED(sts):
+                            self.returncode = -os.WTERMSIG(sts)
+                        else:
+                            assert os.WIFEXITED(sts)
+                            self.returncode = os.WEXITSTATUS(sts)
+                return self.returncode
+        multiprocessing.Process._Popen = Popen
+
     multiprocessing_enabled = True
 except:
+    print traceback.format_exc()
     multiprocessing_enabled = False
 
 # Alias urllib2.open to urllib2.urlopen

@@ -110,6 +110,7 @@ class VideocacheOptions:
         klass.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         klass.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
         klass.arg_drop_list = {'android' : [], 'youtube': ['noflv', 'begin'], 'aol': ['timeoffset', 'set', 'aktimeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'dailymotion': ['start'], 'facebook': [], 'imdb' : [], 'metacafe': [], 'myspace': [], 'veoh' : ['ms'], 'videobash' : ['start'], 'vimeo': ['aktimeoffset'], 'vube' : [], 'weather': [], 'wrzuta': ['sec-offset'], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start', 'fs', 'ms'], 'redtube': ['ec_seek'], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start', 'ms'], 'xhamster': ['start'], 'xtube': ['start', 'fs', 'ms'], 'xvideos': ['fs'], 'youporn': ['fs', 'ms']}
+        klass.log_hit_uncertain_exceptions = [ 'imdb' ]
 
         try:
             mainconf =  VideocacheConfig(config_file).read()
