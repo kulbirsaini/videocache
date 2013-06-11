@@ -211,7 +211,7 @@ def squid_part():
                                     break
 
                                 if website_id == 'youtube':
-                                    cpn = get_youtube_cpn_from_query(query)
+                                    cpn = get_youtube_cpn_from_query_or_path(query, path)
                                     if len(video_id) == 11:
                                         local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
 
@@ -219,7 +219,7 @@ def squid_part():
                                     if website_id == 'youtube':
                                         youtube_params = {}
                                         if o.enable_youtube_partial_caching:
-                                            youtube_params.update(get_youtube_video_range_from_query(query))
+                                            youtube_params.update(get_youtube_video_range_from_query_or_path(query, path))
                                             if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
                                         (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                         if not found:

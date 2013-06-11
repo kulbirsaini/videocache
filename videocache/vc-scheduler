@@ -622,7 +622,7 @@ def watch_log_hit():
 
                 if website_id == 'youtube':
                     old_video_id = video_id
-                    cpn = get_youtube_cpn_from_query(query)
+                    cpn = get_youtube_cpn_from_query_or_path(query, path)
                     if cpn in local_cpn_pool:
                         local_cpn_pool[cpn]['last_used'] = time.time()
                         video_id = local_cpn_pool[cpn]['video_id']
@@ -644,7 +644,7 @@ def watch_log_hit():
 
                 expected_size = None
                 if website_id == 'youtube':
-                    youtube_range = get_youtube_video_range_from_query(query)
+                    youtube_range = get_youtube_video_range_from_query_or_path(query, path)
                     expected_size = youtube_range['end'] - youtube_range['start']
                     filename = get_youtube_filename(o, video_id, format, youtube_range)
                 else:

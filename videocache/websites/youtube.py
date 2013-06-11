@@ -18,29 +18,41 @@ VALIDATE_YOUTUBE_VIDEO_ID_REGEX = re.compile('^[a-zA-Z0-9_\-]+$')
 VALIDATE_YOUTUBE_DOMAIN_REGEX = re.compile('\.(youtube|youtube-nocookie)\.com')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX1 = re.compile('\/(v|e|embed)\/([0-9a-zA-Z_-]{11})')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX2 = re.compile('\/feeds\/api\/videos\/([0-9a-zA-Z_-]{11})\/')
+YOUTUBE_VIDEO_ID_EXTRACT_REGEX3 = re.compile('\/(id|video_id|docid|v)\/([a-zA-Z0-9_\-]+)\/')
+YOUTUBE_CPN_EXTRACT_REGEX = re.compile('\/cpn\/([a-zA-Z0-9_\-]+)\/')
+YOUTUBE_FORMAT_EXTRACT_REGEX = re.compile('\/(itag|fmt)\/([0-9]+)\/')
+YOUTUBE_VIDEO_RANGE_EXTRACT_REGEX = re.compile('\/range\/([0-9]+)-([0-9]+)\/')
 
 # Functions related to Youtube video ID and video format
-def get_youtube_video_id_from_query(query):
-    dict = cgi.parse_qs(query)
+def get_youtube_video_id_from_query_or_path(query, path):
+    params = cgi.parse_qs(query)
     video_id = ''
-    if 'video_id' in dict and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(dict['video_id'][0]) and len(dict['video_id'][0]) <= 56:
-        video_id = dict['video_id'][0]
-    elif 'docid' in dict and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(dict['docid'][0]) and len(dict['docid'][0]) <= 56:
-        video_id = dict['docid'][0]
-    elif 'id' in dict and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(dict['id'][0]) and len(dict['id'][0]) <= 56:
-        video_id = dict['id'][0]
-    elif 'v' in dict and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(dict['v'][0]) and len(dict['v'][0]) <= 56:
-        video_id = dict['v'][0]
+    if 'video_id' in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params['video_id'][0]) and len(params['video_id'][0]) <= 56:
+        video_id = params['video_id'][0]
+    elif 'docid' in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params['docid'][0]) and len(params['docid'][0]) <= 56:
+        video_id = params['docid'][0]
+    elif 'id' in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params['id'][0]) and len(params['id'][0]) <= 56:
+        video_id = params['id'][0]
+    elif 'v' in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params['v'][0]) and len(params['v'][0]) <= 56:
+        video_id = params['v'][0]
+    else:
+        match = YOUTUBE_VIDEO_ID_EXTRACT_REGEX3.search(path)
+        if match and len(match.groups()) == 2:
+            video_id = match.groups()[1]
 
     video_id = urllib.quote(video_id)
     if video_id == '': video_id = None
     return video_id
 
-def get_youtube_cpn_from_query(query):
-    dict = cgi.parse_qs(query)
+def get_youtube_cpn_from_query_or_path(query, path):
+    params = cgi.parse_qs(query)
     cpn = ''
-    if 'cpn' in dict:
-        cpn = dict['cpn'][0]
+    if 'cpn' in params:
+        cpn = params['cpn'][0]
+    else:
+        match = YOUTUBE_CPN_EXTRACT_REGEX.search(path)
+        if match and len(match.groups()) == 1:
+            cpn = match.groups()[0]
 
     if cpn == '': cpn = None
     return cpn
@@ -50,31 +62,35 @@ def get_youtube_video_id(url):
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    return get_youtube_video_id_from_query(query)
+    return get_youtube_video_id_from_query_or_path(query, path)
 
 def get_youtube_cpn(url):
     """Youtube Specific"""
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    return get_youtube_cpn_from_query(query)
+    return get_youtube_cpn_from_query_or_path(query, path)
 
 def get_youtube_video_id_and_cpn(url):
     """Youtube Specific"""
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    return [ get_youtube_video_id_from_query(query), get_youtube_cpn_from_query(query) ]
+    return [ get_youtube_video_id_from_query_or_path(query, path), get_youtube_cpn_from_query_or_path(query, path) ]
 
-def get_youtube_video_format_from_query(query):
-    dict = cgi.parse_qs(query)
+def get_youtube_video_format_from_query_or_path(query, path):
+    params = cgi.parse_qs(query)
     format = ''
-    if 'itag' in dict:
-        format = dict['itag'][0]
-    elif 'fmt' in dict:
-        format = dict['fmt'][0]
-    elif 'layout' in dict and dict['layout'][0].lower() == 'mobile':
+    if 'itag' in params:
+        format = params['itag'][0]
+    elif 'fmt' in params:
+        format = params['fmt'][0]
+    elif 'layout' in params and params['layout'][0].lower() == 'mobile':
         format = '18'
+    else:
+        match = YOUTUBE_FORMAT_EXTRACT_REGEX.search(path)
+        if match and len(match.groups()) == 2:
+            format = match.groups()[1]
 
     return format
 
@@ -83,23 +99,30 @@ def get_youtube_video_format(url):
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    return get_youtube_video_format_from_query(query)
+    return get_youtube_video_format_from_query_or_path(query, path)
 
-def get_youtube_video_range_from_query(query):
-    dict = cgi.parse_qs(query)
+def get_youtube_video_range_from_query_or_path(query, path):
+    params = cgi.parse_qs(query)
     start = end = 0
-    if 'range' in dict:
+    if 'range' in params:
         try:
-            start, end = [int(i) for i in dict.get('range', ['0-0'])[0].split('-')]
+            start, end = [int(i) for i in params.get('range', ['0-0'])[0].split('-')]
         except Exception, e:
             pass
+    else:
+        match = YOUTUBE_VIDEO_RANGE_EXTRACT_REGEX.search(path)
+        if match and len(match.groups()) == 2:
+            try:
+                start, end = int(match.groups()[0]), int(match.groups()[1])
+            except Exception, e:
+                pass
     return { 'start' : start, 'end' : end }
 
 def get_youtube_video_range(url):
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    return get_youtube_video_range_from_query(query)
+    return get_youtube_video_range_from_query_or_path(query, path)
 
 def get_youtube_filename(o, video_id, format, bit_range = {}):
     fmt = ext = suffix = ''
@@ -175,18 +198,18 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    format = get_youtube_video_format_from_query(query)
+    format = get_youtube_video_format_from_query_or_path(query, path)
 
     # Actual video content
     if path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
-        video_id = get_youtube_video_id_from_query(query)
-        if get_youtube_video_range_from_query(query)['start'] > 2500000: queue = False
+        video_id = get_youtube_video_id_from_query_or_path(query, path)
+        if get_youtube_video_range_from_query_or_path(query, path)['start'] > 2500000: queue = False
     # Normal youtube videos in web browser
     elif path.find('stream_204') > -1 and query.find('view=0') > -1 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
-        video_id = get_youtube_video_id_from_query(query)
+        video_id = get_youtube_video_id_from_query_or_path(query, path)
         search = False
     elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
-        video_id = get_youtube_video_id_from_query(query)
+        video_id = get_youtube_video_id_from_query_or_path(query, path)
         search = False
     # Embedded youtube videos
     elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX1.search(path) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
