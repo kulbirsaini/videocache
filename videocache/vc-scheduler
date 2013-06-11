@@ -898,11 +898,11 @@ def cleanup_cache(from_command_line = False):
 
     for cache_dir in o.base_dir_list:
         tries = 0
-        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" ORDER BY %s LIMIT 50' % (VideoFile.table_name, cache_dir.rstrip('/'), o.cleanup_order)
+        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" AND access_time < "%s" ORDER BY %s LIMIT 100' % (VideoFile.table_name, cache_dir.rstrip('/'), timestamp_to_datetime(time.time() - 3600), o.cleanup_order)
         if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
             while True:
                 try:
-                    count, results = VideoFile.with_timeout(3, VideoFile.execute, query)
+                    count, results = VideoFile.with_timeout(4.5, VideoFile.execute, query)
                     if len(results) == 0 and tries <= 2:
                         tries += 1
                         time.sleep(need_rest_for())
