@@ -177,8 +177,8 @@ class VideocacheOptions:
             else:
                 klass.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
             klass.filelist_rebuild_interval = int(mainconf.filelist_rebuild_interval)
-            cache_swap_low = min(max(int(mainconf.cache_swap_low), 30), 90)
-            cache_swap_high = min(max(int(mainconf.cache_swap_high), 40), 93)
+            cache_swap_low = min(max(int(mainconf.cache_swap_low), 30), 94)
+            cache_swap_high = min(max(int(mainconf.cache_swap_high), 40), 96)
             if cache_swap_low > cache_swap_high:
                 cache_swap_low, cache_swap_high = cache_swap_high, cache_swap_low
             elif cache_swap_low == cache_swap_high:
