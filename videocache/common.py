@@ -38,7 +38,7 @@ try:
                     while True:
                         try:
                             pid, sts = os.waitpid(self.pid, flag)
-                        except OSError as e:
+                        except OSError, e:
                             if e.errno == errno.EINTR:
                                 continue
                             return None
