@@ -543,7 +543,7 @@ def watch_access_log():
         time.sleep(30)
 
     global local_cpn_pool, log_hit_queue
-    filename, finder_list, any_find = o.squid_access_log, [ ' GET ' ], True
+    filename, finder_list, any_find = o.squid_access_log, [ 'GET ' ], True
     access_log_track_lines = [ '.youtube.com/stream_204?', '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/get_video?' ]
     log_hit_track_lines = [ ' video/', ' text/plain', 'application/octet-stream', ' audio/', ' application/vnd.android.package-archive' ]
 
@@ -679,7 +679,7 @@ def watch_log_hit():
                 params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
                 if website_id == 'android':
                     params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-                if timeout_exec(5, cache_remote_url, False, video_url, tmp_path, params):
+                if timeout_exec(10, cache_remote_url, False, video_url, tmp_path, params):
                     size = os.path.getsize(tmp_path)
                     move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
@@ -898,11 +898,11 @@ def cleanup_cache(from_command_line = False):
 
     for cache_dir in o.base_dir_list:
         tries = 0
-        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" AND access_time < "%s" ORDER BY %s LIMIT 100' % (VideoFile.table_name, cache_dir.rstrip('/'), timestamp_to_datetime(time.time() - 3600), o.cleanup_order)
+        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" AND access_time < "%s" ORDER BY %s LIMIT 10000' % (VideoFile.table_name, cache_dir.rstrip('/'), timestamp_to_datetime(time.time() - 3600), o.cleanup_order)
         if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
             while True:
                 try:
-                    count, results = VideoFile.with_timeout(4.5, VideoFile.execute, query)
+                    count, results = VideoFile.execute(query)
                     if len(results) == 0 and tries <= 2:
                         tries += 1
                         time.sleep(need_rest_for())
