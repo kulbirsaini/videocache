@@ -294,7 +294,7 @@ def cache_youtube_video(video):
 
 def cache_generalized(video):
     try:
-        video_id, website_id, url = video.video_id, video.website_id, video.url
+        video_id, website_id, url, fmt = video.video_id, video.website_id, video.url, video.format
         cur_cache_dir = get_next_cache_dir()
 
         if not (url and cur_cache_dir):
@@ -310,8 +310,8 @@ def cache_generalized(video):
         original_url = url
         url = refine_url(url, o.arg_drop_list[website_id])
         try:
-            if os.path.exists(video_path):
-                info({ 'code' : 'VIDEO_EXISTS', 'message' : 'Video already exists at ' + video_path + '.', 'website_id' : website_id, 'video_id' : video_id })
+            if eval(website_id + '_cached_url(o, video_id, website_id, fmt)')[0]:
+                info({ 'code' : 'VIDEO_EXISTS', 'message' : 'Video already exists', 'website_id' : website_id, 'video_id' : video_id })
             else:
                 if cache_remote_url(url, tmp_path, {'video_id' : video_id, 'website_id' : website_id}):
                     size = os.path.getsize(tmp_path)
