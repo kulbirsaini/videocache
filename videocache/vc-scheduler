@@ -521,7 +521,7 @@ def tail_file(filename, finder_list = [], any_find = True):
             readline_thread.start()
         except Exception, e:
             wnt({ 'code' : 'TAIL_FILE_ERR', 'message' : 'Could not parse message from squid logfile ' + filename + ' Please report if you see this error frequently.', 'debug' : str(e) })
-            time.slee(0.05)
+            time.sleep(0.05)
 
 def find_any_in_line(line, finder_list):
     for finder in finder_list:
@@ -575,7 +575,7 @@ def watch_access_log():
                 log_hit_queue.put(line)
         except Exception, e:
             ent({ 'code' : 'ACCESS_LOG_READ_ERR', 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
-            time.slee(0.05)
+            time.sleep(0.05)
 
 def watch_log_hit():
     global local_cpn_pool, log_hit_queue
@@ -694,7 +694,7 @@ def watch_log_hit():
             pass
         except Exception, e:
             ent({ 'code' : 'LOG_READ_ERR', 'message' : 'Error during reading message from log queue.', 'debug' : str(e) })
-            time.slee(0.05)
+            time.sleep(0.05)
 
 def update_disk_space():
     global base_dir_disk_space, cleanup_cache_needed
