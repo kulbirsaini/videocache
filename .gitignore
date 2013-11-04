@@ -1,6 +1,5 @@
 .*.sw*
 *.pyc
-.screenrc
 instructions.txt
 test.*
 changelog

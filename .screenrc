@@ -1,0 +1,12 @@
+termcapinfo xterm|xterms|xs|rxvt ti@:te@
+defscrollback 5000
+vbell off
+autodetach on
+startup_message off
+altscreen on
+caption always
+caption string "%{kg}%-w%{wb}|%n %t|%{-}%+w"
+
+screen -t code 0 
+screen -t console 1 
+screen -t server 2
