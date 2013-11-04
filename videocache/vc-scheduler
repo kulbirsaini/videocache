@@ -544,7 +544,7 @@ def watch_access_log():
 
     global local_cpn_pool, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ 'GET ' ], True
-    access_log_track_lines = [ '.youtube.com/stream_204?', '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/get_video?' ]
+    access_log_track_lines = [ '.youtube.com/stream_204?', '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/get_video?', '.googlevideo.com/stream_204?', '.googlevideo.com/ptracking?', '.googlevideo.com/user_watch?', '.googlevideo.com/get_video?' ]
     log_hit_track_lines = [ ' video/', ' text/plain', 'application/octet-stream', ' audio/', ' application/vnd.android.package-archive' ]
 
     started_at = time.time()

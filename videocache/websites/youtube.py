@@ -15,7 +15,7 @@ import urllib
 import urlparse
 
 VALIDATE_YOUTUBE_VIDEO_ID_REGEX = re.compile('^[a-zA-Z0-9_\-]+$')
-VALIDATE_YOUTUBE_DOMAIN_REGEX = re.compile('\.(youtube|youtube-nocookie)\.com')
+VALIDATE_YOUTUBE_DOMAIN_REGEX = re.compile('\.(youtube|youtube-nocookie|googlevideo)\.com')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX1 = re.compile('\/(v|e|embed)\/([0-9a-zA-Z_-]{11})')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX2 = re.compile('\/feeds\/api\/videos\/([0-9a-zA-Z_-]{11})\/')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX3 = re.compile('\/(id|video_id|docid|v)\/([a-zA-Z0-9_\-]+)\/')
@@ -201,25 +201,25 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
     format = get_youtube_video_format_from_query_or_path(query, path)
 
     # Actual video content
-    if path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
+    if path.find('videoplayback') > -1 and path.find('get_video_info') < 0 and (host.find('.googlevideo.com') > -1 or host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
         video_id = get_youtube_video_id_from_query_or_path(query, path)
         if get_youtube_video_range_from_query_or_path(query, path)['start'] > 2500000: queue = False
     # Normal youtube videos in web browser
-    elif path.find('stream_204') > -1 and query.find('view=0') > -1 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
+    elif path.find('stream_204') > -1 and query.find('view=0') > -1 and (host.find('.googlevideo.com') > -1 or host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
         video_id = get_youtube_video_id_from_query_or_path(query, path)
         search = False
-    elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
+    elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0 and (host.find('.googlevideo.com') > -1 or host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
         video_id = get_youtube_video_id_from_query_or_path(query, path)
         search = False
     # Embedded youtube videos
-    elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX1.search(path) and path.find('get_video_info') < 0 and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
+    elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX1.search(path) and path.find('get_video_info') < 0 and (host.find('.googlevideo.com') > -1 or host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
         search = False
         try:
             video_id = YOUTUBE_VIDEO_ID_EXTRACT_REGEX1.search(path).group(2)
         except Exception, e:
             pass
     # Mobile API requests
-    elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX2.search(path) and (host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
+    elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX2.search(path) and (host.find('.googlevideo.com') > -1 or host.find('.youtube.com') > -1 or host.find('.youtube-nocookie.com') > -1 or host.find('youtu.be') > -1):
         search = False
         try:
             video_id = YOUTUBE_VIDEO_ID_EXTRACT_REGEX2.search(path).group(1)
