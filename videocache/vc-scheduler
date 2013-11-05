@@ -917,7 +917,7 @@ def cleanup_cache(from_command_line = False):
                     for chunked_results in chunks(results, 25):
                         for result in chunked_results:
                             video_file_id, website_id, filename = result[0], result[1], result[2]
-                            filepath = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
+                            filepath = os.path.join(cache_dir, o.website_cache_dir.get(website_id, website_id), filename)
                             if os.path.isfile(filepath):
                                 try:
                                     os.unlink(filepath)
