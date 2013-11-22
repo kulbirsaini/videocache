@@ -136,8 +136,6 @@ def youtube_cached_url(o, video_id, website_id, format, params = {}):
     cache_check_only = params.get('cache_check_only', False)
     found, dir, size, index, cached_url = False, '', '-', '', ''
     valid_fmts = [format]
-    if not cache_check_only:
-        valid_fmts += ['']
     if not strict_mode and o.youtube_formats.has_key(format):
         if o.enable_youtube_format_support == 1:
             cat = o.youtube_formats[format]['cat']
@@ -156,6 +154,8 @@ def youtube_cached_url(o, video_id, website_id, format, params = {}):
         valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['webm', 'webm_3d'], valid_fmts)
     if o.enable_youtube_3d_videos == 0:
         valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['regular_3d', 'webm_3d'], valid_fmts)
+    if not cache_check_only and o.enable_youtube_html5_videos != 0 and o.enable_youtube_3d_videos != 0:
+        valid_fmts += ['']
 
     for fmt in valid_fmts:
         found, filename, dir, size, index = search_youtube_video(o, video_id, website_id, fmt, params)
