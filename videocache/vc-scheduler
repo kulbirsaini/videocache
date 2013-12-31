@@ -458,6 +458,8 @@ def is_cached(video_url):
     return False
 
 def arg_drop_exception(website_id, params, arg):
+    if website_id == 'youtube' and arg == 'begin' and params[arg][0] == '0':
+        return True
     if website_id == 'hardsextube' and arg == 'start' and params[arg][0] == '0':
         return True
     if website_id == 'dailymotion' and arg == 'seek' and params[arg][0] == '0':
@@ -983,7 +985,6 @@ def cleanup_cpn_pool():
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def cleanup_tmp():
-    info({ 'code' : 'TMP_DIR_CLEANUP_START', 'message' : 'Removing orphaned files from tmp directories' })
     now = time.time()
     for tmp_dir in o.base_dirs[o.temp_dir]:
         remove_count = 0
@@ -996,7 +997,6 @@ def cleanup_tmp():
                 except:
                     pass
         if len(filenames): info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
-    info({ 'code' : 'TMP_DIR_CLEANUP_FINISH', 'message' : 'Removed orphaned files from tmp directories' })
 
 def write_pid_file(pids):
     try:
