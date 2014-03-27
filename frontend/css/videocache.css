@@ -1,0 +1,7 @@
+.navbar-nav > li > a { font-size: 24px; line-height: 40px; }
+
+header.navbar { margin-bottom: 0px; }
+header.navbar .navbar { margin-bottom: 0px }
+footer { text-align: center; padding-top: 40px; padding-bottom: 40px; margin-top: 100px; color: #777; border-top: 1px solid #e5e5e5; }
+
+#content { padding-top: 60px; padding-bottom: 60px; font-size: 20px; margin-bottom: 40px; background-color: #23b9d1; color: #fff; }
