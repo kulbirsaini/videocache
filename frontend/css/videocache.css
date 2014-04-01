@@ -15,12 +15,11 @@ footer {
 }
 /* //Sticky Footer */
 
-.navbar-nav > li > a { font-size: 24px; line-height: 40px; }
+div.centered { float: none; margin: 0 auto; }
 
 header.navbar { margin-bottom: 0px; }
-header.navbar .navbar { margin-bottom: 0px }
+header.navbar .navbar { margin-bottom: 0px; }
 footer { text-align: center; padding-top: 40px; padding-bottom: 40px; color: #777; border-top: 1px solid #e5e5e5; }
 
 #content { padding-top: 60px; padding-bottom: 60px; font-size: 20px; background-color: #23b9d1; color: #fff; }
 .login-box { margin-top: 30px; }
-

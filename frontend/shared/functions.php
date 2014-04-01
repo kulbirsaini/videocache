@@ -1,15 +1,19 @@
 <?php
 
+include('constants.php');
+
 function logout() {
   session_start();
   $_SESSION['login'] = false;
 }
 
-function redirect($page = "./") {
+function redirect($page = null) {
+  if ($page == null) { $page = ROOT_PATH; }
   header("Location: " . $page);
 }
 
-function logout_and_redirect($page = "./") {
+function logout_and_redirect($page = null) {
+  if ($page == null) { $page = ROOT_PATH; }
   logout();
   redirect($page);
 }
