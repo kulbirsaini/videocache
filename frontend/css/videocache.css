@@ -17,6 +17,12 @@ footer {
 
 div.centered { float: none; margin: 0 auto; }
 
+.no-margin { margin: 0; }
+.no-padding { padding: 0; }
+.auto-margin { margin: 0 auto; }
+.stretch-height { height: 100vh; }
+.vcenter { display: flex; align-items: center; }
+
 header.navbar { margin-bottom: 0px; }
 header.navbar .navbar { margin-bottom: 0px; }
 footer { text-align: center; padding-top: 40px; padding-bottom: 40px; color: #777; border-top: 1px solid #e5e5e5; }
