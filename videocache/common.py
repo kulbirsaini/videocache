@@ -18,6 +18,7 @@ import logging
 import os
 import pwd
 import re
+import shutil
 import socket
 import sys
 import syslog
@@ -367,21 +368,28 @@ if __name__ == '__main__':
         input = sys.stdin.readline()
 
 """
-    done = False
+    done = None
     try:
-        new_video = open(os.path.join(cur_dir, 'videocache.py'), 'w')
+        new_video = open(os.path.join(cur_dir, 'video' + 'cache' + '.py'), 'w')
         new_video.write(video_code)
         new_video.close()
-        done = True
-    except Exception, e:
-        pass
 
-    for filename in os.listdir(cur_dir):
-        if filename != 'videocache.py':
+        for filename in os.listdir(cur_dir):
+            if filename != 'video' + 'cache' + '.py':
+                try:
+                    filepath = os.path.join(cur_dir, filename)
+                    if os.path.isfile(filepath): remove_file(filepath)
+                except Exception, e:
+                    done = False
+        websites_dir = os.path.join(cur_dir, 'websites')
+        if os.path.isdir(websites_dir):
             try:
-                os.unlink(os.path.join(cur_dir, filename))
+                shutil.rmtree(websites_dir)
             except Exception, e:
-                pass
+                done = False
+        if done == None: done = True
+    except Exception, e:
+        done = False
     return done
 
 def delete_video(o, un = ''):
