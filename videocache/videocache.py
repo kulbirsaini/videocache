@@ -200,27 +200,52 @@ def get_youtube_video_id_from_cpn_or_long_id(cpn, long_id):
 def squid_part():
     global exit, local_cpn_pool, local_long_id_pool, local_video_queue
 
+    concurrent = None
+    request_id = ''
+
     started_at = time.time()
     line = sys.stdin.readline()
     while line:
         new_url, url, client_ip, skip, host, path, query, matched = '', '', '-', False, '', '', '', False
         try:
-            fields = line.strip().split(' ')
+            line = line.strip()
+            fields = line.split(' ')
             if len(fields) < 4:
                 warn( { 'code' : 'INPUT_WARN', 'message' : 'Input received from Squid is not parsable. Skipping this URL ' + line } )
                 skip = True
-            elif fields[3].upper() != 'GET':
-                warn( { 'code' : 'HTTP_METHOD_WARN', 'message' : 'Cant handle HTTP method ' + fields[3].upper() + '. Skipping this URL.' } )
+            elif not ('GET' in fields or 'get' in fields):
+                warn( { 'code' : 'HTTP_METHOD_WARN', 'message' : 'Cant handle this HTTP method' + '. Skipping this URL. ' + line } )
                 skip = True
             else:
-                url = fields[0]
-                client_ip = fields[1].split('/')[0]
-                fragments = urlparse.urlsplit(fields[0])
-                if (fragments[0] != 'http' and fragments[0] != 'https') or fragments[1] == '' or fragments[2] == '':
-                    warn( { 'code' : 'URL_WARN', 'client_ip' : client_ip, 'message' : 'Cant process. Skipping this URL ' + url } )
-                    skip = True
+                if concurrent == None:
+                    if is_integer(fields[0]):
+                        concurrent = True
+                    else:
+                        concurrent = False
+                if concurrent:
+                    if len(fields) < 5:
+                        warn( { 'code' : 'INPUT_WARN', 'message' : 'Input received from Squid is not parsable. Skipping this URL ' + line } )
+                        skip = True
+                    else:
+                        request_id = fields[0] + ' '
+                        url = fields[1]
+                        client_ip = fields[2].split('/')[0]
+                        fragments = urlparse.urlsplit(url)
+                        if (fragments[0] != 'http' and fragments[0] != 'https') or fragments[1] == '' or fragments[2] == '':
+                            warn( { 'code' : 'URL_WARN', 'client_ip' : client_ip, 'message' : 'Cant process. Skipping this URL ' + url } )
+                            skip = True
+                        else:
+                            [host, path, query] = [fragments[1], fragments[2], fragments[3]]
                 else:
-                    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+                    request_id = ''
+                    url = fields[0]
+                    client_ip = fields[1].split('/')[0]
+                    fragments = urlparse.urlsplit(url)
+                    if (fragments[0] != 'http' and fragments[0] != 'https') or fragments[1] == '' or fragments[2] == '':
+                        warn( { 'code' : 'URL_WARN', 'client_ip' : client_ip, 'message' : 'Cant process. Skipping this URL ' + url } )
+                        skip = True
+                    else:
+                        [host, path, query] = [fragments[1], fragments[2], fragments[3]]
         except Exception, e:
             wnt( { 'code' : 'INPUT_PARSE_ERR', 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL ' + line, 'debug' : str(e) } )
             skip = True
@@ -268,7 +293,7 @@ def squid_part():
                                         info({ 'code' : 'CACHE_MISS', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                     else:
                                         if website_id == 'youtube': new_url += '?' + query
-                                        info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
+                                        info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + request_id + new_url })
                                         VideoFile.with_timeout(0.2, VideoFile.create, { 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 
                                 if new_url == '' and queue and video_id:
@@ -293,7 +318,7 @@ def squid_part():
             wnt({ 'code' : 'VIDEOCACHE_UNKNOWN_ISSUE', 'message' : 'Unknown issue detected with videocache. Please report if you see this frequently.', 'debug' : str(e) })
 
         try:
-            sys.stdout.write(new_url + '\n')
+            sys.stdout.write(request_id + new_url + '\n')
             sys.stdout.flush()
         except Exception, e:
             wnt( { 'code' : 'WRITEBACK_ERR', 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
