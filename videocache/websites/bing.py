@@ -16,7 +16,7 @@ VALIDATE_BING_DOMAIN_REGEX = re.compile('msn(?:bc)?\.(.*)\.(com|net)')
 VALIDATE_BING_VIDEO_EXT_REGEX = re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)')
 
 def check_bing_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'bing', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'bing', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -30,5 +30,5 @@ def check_bing_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

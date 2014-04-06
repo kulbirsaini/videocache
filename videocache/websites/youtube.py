@@ -22,7 +22,8 @@ YOUTUBE_CPN_EXTRACT_REGEX = re.compile('\/cpn\/([a-zA-Z0-9_\-]+)\/')
 YOUTUBE_UPN_EXTRACT_REGEX = re.compile('\/upn\/([a-zA-Z0-9_\-]+)\/')
 YOUTUBE_FORMAT_EXTRACT_REGEX = re.compile('\/(itag|fmt)\/([0-9]+)\/')
 YOUTUBE_VIDEO_RANGE_EXTRACT_REGEX = re.compile('\/range\/([0-9]+)-([0-9]+)\/')
-YOUTUBE_DOMAINS = ['googlevideo.com', 'youtube.com', 'youtube-nocookie.com', 'youtu.be']
+YOUTUBE_DOMAINS = ['.googlevideo.com', '.youtube.com', '.youtube-nocookie.com', '.youtu.be']
+YOUTUBE_DOMAINS_DENY = [ 'manifest.googlevideo.com', 'manifest.youtube.com' ]
 
 # Functions related to Youtube video ID and video format
 def get_youtube_video_id_from_query(query):
@@ -35,7 +36,7 @@ def get_youtube_video_id_from_query(query):
 def get_youtube_video_id_from_path(path):
     for regex in [YOUTUBE_VIDEO_ID_EXTRACT_REGEX3, YOUTUBE_VIDEO_ID_EXTRACT_REGEX1, YOUTUBE_VIDEO_ID_EXTRACT_REGEX2]:
         match = regex.search(path)
-        if match and len(match.groups()) == 2:
+        if match and len(match.groups()) == 2 and len(match.groups()[1]) <= 56 and len(match.groups()[1]) > 8:
             return match.groups()[1]
     return None
 
@@ -217,11 +218,14 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
 def is_youtube_domain(host):
     for domain in YOUTUBE_DOMAINS:
         if host.find(domain) > -1:
+            for deny_domain in YOUTUBE_DOMAINS_DENY:
+                if host.find(deny_domain) > -1:
+                    return False
             return True
     return False
 
 def check_youtube_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'youtube', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'youtube', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -237,10 +241,13 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
         # Normal youtube videos in web browser
         elif path.find('stream_204') > -1 and query.find('view=0') > -1:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
-            search = False
-        elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1) and path.find('get_video_info') < 0:
+            search, queue, report_hit = False, False, False
+        elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1 or path.find('get_ad_tags') > -1 or path.find('get_video_info') > -1 or path.find('player_204') > -1 or path.find('ptracking') > -1 or path.find('set_awesome') > -1 or path == 's') and path.find('get_video_info') < 0:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
-            search = False
+            search, queue, report_hit = False, False, False
+        elif path.find('api/stats/') > -1 and (path.find('/delayplay') > -1 or path.find('/atr') > -1 or path.find('/playback') > -1 or path.find('/watchtime') > -1):
+            video_id = get_youtube_video_id_from_query_or_path(query, path)
+            search, queue, report_hit = False, False, False
         # Embedded youtube videos
         elif YOUTUBE_VIDEO_ID_EXTRACT_REGEX1.search(path) and path.find('get_video_info') < 0:
             search = False
@@ -262,14 +269,5 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
 
     if format in o.youtube_skip_caching_itags:
         queue = False
-    return (matched, website_id, video_id, format, search, queue)
-
-
-def test(offset = 0, limit = 1000):
-    import re
-    d = [re.compile(' (http://[^\ ]+)').search(u).groups()[0] for u in open('yt.log').read().strip().split('\n')]
-    results = []
-    for u in d[offset:offset+limit]:
-        id, c = get_youtube_video_id_and_cpn(u)
-        if id != None or c != None:
-            print [c, id]
+    queue = False #FIXME Temporary disabling youtube background caching
+    return (matched, website_id, video_id, format, search, queue, report_hit)

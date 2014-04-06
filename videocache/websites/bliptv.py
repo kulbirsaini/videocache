@@ -16,7 +16,7 @@ VALIDATE_BLIPTV_DOMAIN_REGEX = re.compile('\.video[a-z0-9]?[a-z0-9]?[a-z0-9]?\.b
 VALIDATE_BLIPTV_VIDEO_EXT_REGEX = re.compile('\.(mp4|flv|mov|mkv|avi|rm|rmvb|mp3|m4v|wmv|mpg|mpeg|3gp)')
 
 def check_bliptv_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'bliptv', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'bliptv', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -30,5 +30,5 @@ def check_bliptv_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

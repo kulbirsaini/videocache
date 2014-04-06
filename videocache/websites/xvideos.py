@@ -15,7 +15,7 @@ import urlparse
 VALIDATE_XVIDEOS_VIDEO_REGEX = re.compile('videos\/flv\/(.*)\/(.*)\.(flv|mp4)')
 
 def check_xvideos_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'xvideos', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'xvideos', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -29,5 +29,5 @@ def check_xvideos_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

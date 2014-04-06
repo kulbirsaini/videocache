@@ -17,7 +17,7 @@ VALIDATE_MYSPACE_DOMAIN_REGEX2 = re.compile('(.*)\.myspacecdn\.(.*)\.footprint\.
 VALIDATE_MYSPACE_VIDEO_EXT_REGEX = re.compile('(.*)\/[a-zA-Z0-9]+\/vid\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_myspace_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'myspace', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'myspace', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -31,5 +31,5 @@ def check_myspace_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

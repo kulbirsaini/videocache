@@ -17,7 +17,7 @@ VALIDATE_KEEZMOVIES_DOMAIN_REGEX2 = re.compile('cdn[a-z0-9]?[a-z0-9]?[a-z0-9]?\.
 VALIDATE_KEEZMOVIES_VIDEO_EXT_REGEX = re.compile('(.*)\/[0-9a-zA-Z_\-]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_keezmovies_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'keezmovies', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'keezmovies', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -31,5 +31,5 @@ def check_keezmovies_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

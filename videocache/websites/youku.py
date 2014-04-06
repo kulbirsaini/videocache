@@ -21,7 +21,7 @@ sys.path.insert(0, root_dir)
 from common import is_valid_ip
 
 def check_youku_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'youku', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'youku', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -35,5 +35,5 @@ def check_youku_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

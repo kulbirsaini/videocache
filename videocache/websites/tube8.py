@@ -15,7 +15,7 @@ import urlparse
 VALIDATE_TUBE8_VIDEO_EXT_REGEX = re.compile('\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_tube8_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'tube8', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'tube8', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -29,5 +29,5 @@ def check_tube8_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

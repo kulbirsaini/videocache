@@ -15,7 +15,7 @@ import urlparse
 VALIDATE_WRZUTA_VIDEO_REGEX = re.compile('/(w[a-zA-Z0-9]+)/[a-zA-Z0-9]+$')
 
 def check_wrzuta_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'wrzuta', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'wrzuta', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -26,5 +26,5 @@ def check_wrzuta_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

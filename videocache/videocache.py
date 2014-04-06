@@ -230,13 +230,13 @@ def squid_part():
                 if not skip and o.enable_videocache:
                     for website_id in o.websites:
                         if o.enabled_websites[website_id]:
-                            (matched, website_id, video_id, format, search, queue) = eval('check_' + website_id + '_video(o, url, host, path, query)')
+                            (matched, website_id, video_id, format, search, queue, report_hit) = eval('check_' + website_id + '_video(o, url, host, path, query)')
                             if matched:
                                 if not video_id:
                                     warn( { 'code' : 'URL_ERR', 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
                                     break
 
-                                info( { 'code' : 'URL_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
+                                if report_hit: info( { 'code' : 'URL_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : url } )
                                 if not is_ascii(video_id):
                                     non_ascci_video_id_warning(website_id, video_id, client_ip)
                                     break
@@ -267,6 +267,7 @@ def squid_part():
                                     if new_url == '':
                                         info({ 'code' : 'CACHE_MISS', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                                     else:
+                                        if website_id == 'youtube': new_url += '?' + query
                                         info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + new_url })
                                         VideoFile.with_timeout(0.2, VideoFile.create, { 'cache_dir' : dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
 

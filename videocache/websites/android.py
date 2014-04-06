@@ -13,7 +13,7 @@ import urllib
 import urlparse
 
 def check_android_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'android', None, '', True, False
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'android', None, '', True, False, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -27,5 +27,5 @@ def check_android_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

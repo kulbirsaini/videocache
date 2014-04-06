@@ -17,7 +17,7 @@ VALIDATE_WEATHER_VIDEO_REGEX = re.compile('v\/wxcom\/[a-zA-Z0-9_]+\.(flv|mp4|avi
 VALIDATE_WEATHER_ARG_REGEX = re.compile('videoId=[0-9]+&')
 
 def check_weather_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'weather', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'weather', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -31,5 +31,5 @@ def check_weather_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

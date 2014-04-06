@@ -16,7 +16,7 @@ VALIDATE_AOL_VIDEO_REGEX1 = re.compile('(.*)/[a-zA-Z0-9]+\/(.*)\.(flv|mp4)')
 VALIDATE_AOL_VIDEO_REGEX2 = re.compile('(.*)/[0-9_]+\.(flv|mp4)')
 
 def check_aol_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'aol', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'aol', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -30,5 +30,5 @@ def check_aol_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

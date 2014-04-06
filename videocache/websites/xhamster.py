@@ -24,7 +24,7 @@ sys.path.insert(0, root_dir)
 from common import is_valid_ip
 
 def check_xhamster_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'xhamster', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'xhamster', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -45,5 +45,5 @@ def check_xhamster_video(o, url, host = None, path = None, query = None):
         except Exception, e:
             pass
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

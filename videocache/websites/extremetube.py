@@ -16,7 +16,7 @@ VALIDATE_EXTREMETUBE_DOMAIN_REGEX = re.compile('cdn[a-z0-9]?[a-z0-9]?[a-z0-9]?\.
 VALIDATE_EXTREMETUBE_VIDEO_REGEX = re.compile('(.*)\/[a-zA-Z0-9_-]+\.(flv|mp4|avi|mkv|mp3|rm|rmvb|m4v|mov|wmv|3gp|mpg|mpeg)')
 
 def check_extremetube_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue = True, 'extremetube', None, '', True, True
+    matched, website_id, video_id, format, search, queue, report_hit = True, 'extremetube', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
@@ -30,5 +30,5 @@ def check_extremetube_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    return (matched, website_id, video_id, format, search, queue)
+    return (matched, website_id, video_id, format, search, queue, report_hit)
 

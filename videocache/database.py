@@ -236,7 +236,6 @@ def find_by_%s(klass, value):
         count, results = 0, []
         db_connection, db_cursor = get_db_connection()
         if db_connection and db_cursor:
-            print query
             count = db_cursor.execute(query)
             results = db_cursor.fetchall()
             db_connection.close()
