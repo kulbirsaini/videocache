@@ -546,7 +546,7 @@ def watch_access_log():
         warning = True
         time.sleep(30)
 
-    global local_cpn_pool, log_hit_queue
+    global local_cpn_pool, local_long_id_pool, log_hit_queue
     filename, finder_list, any_find = o.squid_access_log, [ 'GET ' ], True
     access_log_track_lines = [ '.youtube.com/stream_204?', '.youtube.com/ptracking?', '.youtube.com/user_watch?', '.youtube.com/get_video?', '.googlevideo.com/stream_204?', '.googlevideo.com/ptracking?', '.googlevideo.com/user_watch?', '.googlevideo.com/get_video?' ]
     log_hit_track_lines = [ ' video/', ' text/plain', 'application/octet-stream', ' audio/', ' application/vnd.android.package-archive' ]
@@ -566,8 +566,12 @@ def watch_access_log():
                         continue
                     video_id, cpn = get_youtube_video_id_and_cpn(url)
                     if video_id != None and cpn != None:
-                        local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                        YoutubeCPN.with_timeout(0.35, YoutubeCPN.create, { 'video_id' : video_id, 'cpn' : cpn })
+                        if is_long_id(video_id):
+                            local_long_id_pool[long_id] = { 'cpn' : cpn, 'last_used' : time.time() }
+                            YoutubeCPN.with_timeout(0.35, YoutubeCPN.replace, { 'long_id' : video_id, 'cpn' : cpn })
+                        else:
+                            local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
+                            YoutubeCPN.with_timeout(0.35, YoutubeCPN.replace, { 'video_id' : video_id, 'cpn' : cpn })
                 except Exception, e:
                     ent({ 'code' : 'ACCESS_LOG_PARSE_ERR', 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
             elif find_any_in_line(line, log_hit_track_lines):
@@ -581,8 +585,33 @@ def watch_access_log():
             ent({ 'code' : 'ACCESS_LOG_READ_ERR', 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
             time.sleep(0.05)
 
+def get_youtube_video_id_from_cpn_or_long_id(cpn, long_id):
+    global local_cpn_pool, local_long_id_pool
+    cpn_video_id, long_id_video_id = None, None
+    if cpn == None: cpn = ''
+    if cpn in local_cpn_pool:
+        local_cpn_pool[cpn]['last_used'] = time.time()
+        cpn_video_id = local_cpn_pool[cpn].get('video_id', None)
+    else:
+        cpn_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id_by_cpn, cpn)
+    if cpn_video_id and len(cpn_video_id) == 11:
+        return cpn_video_id
+
+    if long_id in local_long_id_pool:
+        local_long_id_pool[long_id]['last_used'] = time.time()
+        cpn = local_long_id_pool[long_id].get('cpn', '')
+        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : cpn })
+    else:
+        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : '' })
+    if long_id_video_id and len(long_id_video_id) == 11:
+        return long_id_video_id
+
+    if cpn_video_id and len(cpn_video_id) == 16: return cpn_video_id
+    if long_id_video_id and len(long_id_video_id) == 16: return long_id_video_id
+    return None
+
 def watch_log_hit():
-    global local_cpn_pool, log_hit_queue
+    global local_cpn_pool, local_long_id_pool, log_hit_queue
 
     local_urls = []
     local_urls_count = 0
@@ -624,25 +653,15 @@ def watch_log_hit():
                 if not (matched and search):
                     continue
 
-                if website_id == 'youtube':
+                if website_id == 'youtube' and len(video_id) != 11:
                     old_video_id = video_id
                     cpn = get_youtube_cpn_from_query_or_path(query, path)
-                    if cpn in local_cpn_pool:
-                        local_cpn_pool[cpn]['last_used'] = time.time()
-                        video_id = local_cpn_pool[cpn]['video_id']
+                    video_id = get_youtube_video_id_from_cpn_or_long_id(cpn, video_id)
+                    if video_id == None:
+                        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
+                        continue
 
-                    if video_id and len(video_id) != 16 and len(video_id) != 11:
-                        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos.' })
-                        video_id = None
-
-                    if old_video_id and video_id:
-                        if len(video_id) != 11 and len(old_video_id) == 16:
-                            video_id = old_video_id
-
-                    if not video_id and old_video_id and len(old_video_id) == 16:
-                        video_id = old_video_id
-
-                if not video_id:
+                if website_id != 'youtube' and not video_id:
                     warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
                     continue
 
@@ -969,12 +988,18 @@ def cleanup_video_queue():
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def cleanup_cpn_pool():
-    global local_cpn_pool
+    global local_cpn_pool, local_long_id_pool
     cut_off_time = time.time() - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
         try:
             if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
                 local_cpn_pool.pop(cpn_id, None)
+        except:
+            pass
+    for long_id in local_long_id_pool.keys():
+        try:
+            if cut_off_time > local_long_id_pool[long_id]['last_used']:
+                local_long_id_pool.pop(long_id, None)
         except:
             pass
     try:
@@ -1175,6 +1200,7 @@ if __name__ == '__main__':
         last_cache_dir_warn_at = 0
         cache_dir_warn_interval = 60
         local_cpn_pool = {}
+        local_long_id_pool = {}
         exit = False
         process_id = '-'
         stdout = sys.stdout

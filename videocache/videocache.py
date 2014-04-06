@@ -130,7 +130,7 @@ def submit_system_info():
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_local_cpn_pool(now = time.time()):
-    global local_cpn_pool
+    global local_cpn_pool, local_long_id_pool
     cut_off_time = now - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
         try:
@@ -138,12 +138,18 @@ def cleanup_local_cpn_pool(now = time.time()):
                 local_cpn_pool.pop(cpn_id, None)
         except:
             pass
+    for long_id in local_long_id_pool.keys():
+        try:
+            if cut_off_time > local_long_id_pool[long_id]['last_used']:
+                local_long_id_pool.pop(long_id, None)
+        except:
+            pass
 
 def non_ascci_video_id_warning(website_id, video_id, client_ip):
     wnt( { 'code' : 'VIDEO_ID_ENCODING', 'message' : 'Video ID contains non-ascii characters. Will not queue this.', 'debug' : str(e), 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id } )
 
 def get_youtube_video_id_from_cpn(cpn, video_id):
-    global local_cpn_pool
+    global local_cpn_pool, local_long_id_pool
     if cpn in local_cpn_pool:
         local_cpn_pool[cpn]['last_used'] = time.time()
         return local_cpn_pool[cpn]['video_id']
@@ -166,8 +172,33 @@ def get_youtube_video_id_from_cpn(cpn, video_id):
         return video_id
     return video_id
 
+def get_youtube_video_id_from_cpn_or_long_id(cpn, long_id):
+    global local_cpn_pool, local_long_id_pool
+    cpn_video_id, long_id_video_id = None, None
+    if cpn == None: cpn = ''
+    if cpn in local_cpn_pool:
+        local_cpn_pool[cpn]['last_used'] = time.time()
+        cpn_video_id = local_cpn_pool[cpn].get('video_id', None)
+    else:
+        cpn_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id_by_cpn, cpn)
+    if cpn_video_id and len(cpn_video_id) == 11:
+        return cpn_video_id
+
+    if long_id in local_long_id_pool:
+        local_long_id_pool[long_id]['last_used'] = time.time()
+        cpn = local_long_id_pool[long_id].get('cpn', '')
+        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : cpn })
+    else:
+        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : '' })
+    if long_id_video_id and len(long_id_video_id) == 11:
+        return long_id_video_id
+
+    if cpn_video_id and len(cpn_video_id) == 16: return cpn_video_id
+    if long_id_video_id and len(long_id_video_id) == 16: return long_id_video_id
+    return None
+
 def squid_part():
-    global exit, local_cpn_pool, local_video_queue
+    global exit, local_cpn_pool, local_long_id_pool, local_video_queue
 
     started_at = time.time()
     line = sys.stdin.readline()
@@ -224,7 +255,11 @@ def squid_part():
                                         (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                         if not found:
                                             old_video_id = video_id
-                                            video_id = get_youtube_video_id_from_cpn(cpn, video_id)
+                                            if is_long_id(video_id):
+                                                local_long_id_pool[video_id] = { 'cpn' : cpn, 'last_used' : time.time() }
+                                                video_id = get_youtube_video_id_from_cpn_or_long_id(cpn, video_id)
+                                                if video_id == None: video_id = old_video_id
+                                            #video_id = get_youtube_video_id_from_cpn(cpn, video_id)
                                             if old_video_id != video_id:
                                                 (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
                                     else:
@@ -285,6 +320,7 @@ if __name__ == '__main__':
 
     local_video_queue = Queue(o.max_queue_size_per_plugin)
     local_cpn_pool = {}
+    local_long_id_pool = {}
     process_id = os.getpid()
     exit = False
     initialize_database(o)

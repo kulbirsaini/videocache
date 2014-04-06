@@ -236,6 +236,7 @@ def find_by_%s(klass, value):
         count, results = 0, []
         db_connection, db_cursor = get_db_connection()
         if db_connection and db_cursor:
+            print query
             count = db_cursor.execute(query)
             results = db_cursor.fetchall()
             db_connection.close()
@@ -254,7 +255,7 @@ def find_by_%s(klass, value):
             return None
 
 class YoutubeCPN(Model):
-    fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp' }
+    fields = { 'id' : 'integer', 'video_id' : 'string', 'cpn' : 'string', 'access_time' : 'timestamp', 'long_id' : 'string', 'upn' : 'string' }
     for field in fields:
         exec((Model.function_template_find_by % (field, field)).strip())
 
@@ -266,20 +267,24 @@ class YoutubeCPN(Model):
                 # Create Tables
                 db_cursor.execute('SHOW TABLES')
                 tables = map(lambda result: result[0], db_cursor.fetchall())
-                query = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, video_id VARCHAR(128), cpn VARCHAR(128), access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)' % klass.table_name
-                if klass.table_name not in tables: db_cursor.execute(query)
+                query1 = 'DROP TABLE IF EXISTS %s' % klass.table_name
+                db_cursor.execute(query1)
+                query2 = 'CREATE TABLE IF NOT EXISTS %s (id BIGINT PRIMARY KEY AUTO_INCREMENT, video_id VARCHAR(128) NOT NULL DEFAULT "", cpn VARCHAR(128) NOT NULL DEFAULT "", upn VARCHAR(128) NOT NULL DEFAULT "", long_id VARCHAR(128) NOT NULL DEFAULT "", access_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)' % klass.table_name
+                db_cursor.execute(query2)
 
                 # Create indices
                 db_cursor.execute('SHOW INDEX FROM %s' % klass.table_name)
                 indices = map(lambda result: result[2], db_cursor.fetchall())
-                if 'vc_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX vc_index ON %s (video_id, cpn)' % klass.table_name)
+                if 'vc_index' not in indices: db_cursor.execute('CREATE UNIQUE INDEX vc_index ON %s (video_id, cpn, upn, long_id)' % klass.table_name)
                 if 'video_id_index' not in indices: db_cursor.execute('CREATE INDEX video_id_index ON %s (video_id)' % klass.table_name)
                 if 'cpn_index' not in indices: db_cursor.execute('CREATE INDEX cpn_index ON %s (cpn)' % klass.table_name)
+                if 'upn_index' not in indices: db_cursor.execute('CREATE INDEX upn_index ON %s (upn)' % klass.table_name)
+                if 'long_id_index' not in indices: db_cursor.execute('CREATE INDEX long_id_index ON %s (long_id)' % klass.table_name)
                 db_connection.close()
             else:
                 print 'Could not connect to database'
                 return False
-        except:
+        except Exception, e:
             return False
         return True
 
@@ -293,7 +298,48 @@ class YoutubeCPN(Model):
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
         query += " ON DUPLICATE KEY UPDATE access_time = CURRENT_TIMESTAMP"
-        return VideoFile.execute(query)
+        return YoutubeCPN.execute(query)
+
+    @classmethod
+    def replace(klass, params):
+        keys, values = klass.filter_params(params, ['id'])
+        if len(keys) == 0:
+            return False
+        cpn = params.get('cpn', '')
+        long_id = params.get('long_id', '')
+        video_id = params.get('video_id', '')
+        query = "REPLACE INTO %s SET cpn = '%s', long_id = '%s', video_id = '%s'" % (klass.table_name, cpn, long_id, video_id)
+        return YoutubeCPN.execute(query)
+
+    @classmethod
+    def find_video_id_by_cpn(klass, cpn):
+        if cpn == '': return None
+        video_ids = [result.video_id for result in YoutubeCPN.all({ 'select' : 'video_id', 'cpn' : cpn })]
+        for video_id in video_ids:
+            if video_id != '':
+                return video_id
+        return None
+
+    @classmethod
+    def find_cpn_by_long_id(klass, long_id):
+        if long_id == '': return None
+        result = YoutubeCPN.last({ 'select' : 'cpn', 'long_id' : long_id })
+        if result and result.cpn:
+            return result.cpn
+        return None
+
+    @classmethod
+    def find_video_id(klass, params):
+        cpn = params.get('cpn', '')
+        long_id = params.get('long_id', '')
+        if cpn == '' and long_id == '': return None
+
+        if cpn == '':
+            cpn = YoutubeCPN.find_cpn_by_long_id(long_id)
+            if cpn == None: return None
+
+        return YoutubeCPN.find_video_id_by_cpn(cpn)
+
 
 class VideoQueue(Model):
     fields = { 'id' : 'integer', 'website_id' : 'string', 'video_id' : 'string', 'format' : 'string', 'url' : 'string', 'client_ip' : 'string', 'cacheable' : 'boolean', 'access_time' : 'timestamp', 'access_count' : 'integer', 'active' : 'boolean', 'activated_at' : 'timestamp', 'first_access' : 'timestamp' }
@@ -341,7 +387,7 @@ class VideoQueue(Model):
         query = "INSERT IGNORE INTO %s " % klass.table_name
         query += " ( " + ', '.join(keys) + " ) VALUES ( " + ', '.join(map(lambda x: klass.placeholders[klass.fields[x]], keys)) + " ) "
         query = query % tuple(values)
-        return VideoFile.execute(query)
+        return VideoQueue.execute(query)
 
 class VideoFile(Model):
     fields = { 'id' : 'integer', 'cache_dir' : 'string', 'website_id' : 'string', 'filename' : 'string', 'size' : 'integer', 'access_time' : 'timestamp', 'access_count' : 'integer' }

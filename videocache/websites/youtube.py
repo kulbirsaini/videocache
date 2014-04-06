@@ -19,6 +19,7 @@ YOUTUBE_VIDEO_ID_EXTRACT_REGEX1 = re.compile('\/(v|e|embed)\/([0-9a-zA-Z_-]{11})
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX2 = re.compile('\/(feeds\/api\/videos)\/([0-9a-zA-Z_-]{11})\/')
 YOUTUBE_VIDEO_ID_EXTRACT_REGEX3 = re.compile('\/(id|video_id|docid|v)\/([a-zA-Z0-9_\-]+)\/')
 YOUTUBE_CPN_EXTRACT_REGEX = re.compile('\/cpn\/([a-zA-Z0-9_\-]+)\/')
+YOUTUBE_UPN_EXTRACT_REGEX = re.compile('\/upn\/([a-zA-Z0-9_\-]+)\/')
 YOUTUBE_FORMAT_EXTRACT_REGEX = re.compile('\/(itag|fmt)\/([0-9]+)\/')
 YOUTUBE_VIDEO_RANGE_EXTRACT_REGEX = re.compile('\/range\/([0-9]+)-([0-9]+)\/')
 YOUTUBE_DOMAINS = ['googlevideo.com', 'youtube.com', 'youtube-nocookie.com', 'youtu.be']
@@ -27,7 +28,7 @@ YOUTUBE_DOMAINS = ['googlevideo.com', 'youtube.com', 'youtube-nocookie.com', 'yo
 def get_youtube_video_id_from_query(query):
     params = cgi.parse_qs(query)
     for key in ['video_id', 'id', 'v', 'docid']:
-        if key in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params[key][0]) and len(params[key][0]) <= 56:
+        if key in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params[key][0]) and len(params[key][0]) <= 56 and len(params[key][0]) > 8:
             return params[key][0]
     return None
 
@@ -69,12 +70,37 @@ def get_youtube_cpn(url):
 
     return get_youtube_cpn_from_query_or_path(query, path)
 
+def get_youtube_upn_from_query_or_path(query, path):
+    params, upn = cgi.parse_qs(query), None
+    if 'upn' in params:
+        upn = params['upn'][0]
+    else:
+        match = YOUTUBE_UPN_EXTRACT_REGEX.search(path)
+        if match and len(match.groups()) == 1:
+            upn = match.groups()[0]
+
+    return upn
+
+def get_youtube_upn(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+    return get_youtube_upn_from_query_or_path(query, path)
+
 def get_youtube_video_id_and_cpn(url):
     """Youtube Specific"""
     fragments = urlparse.urlsplit(url)
     [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
     return [ get_youtube_video_id_from_query_or_path(query, path), get_youtube_cpn_from_query_or_path(query, path) ]
+
+def get_youtube_video_id_cpn_and_upn(url):
+    """Youtube Specific"""
+    fragments = urlparse.urlsplit(url)
+    [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+    return [ get_youtube_video_id_from_query_or_path(query, path), get_youtube_cpn_from_query_or_path(query, path), get_youtube_upn_from_query_or_path(query, path) ]
 
 def get_youtube_video_format_from_query_or_path(query, path):
     params, fmt = cgi.parse_qs(query), ''
@@ -238,3 +264,12 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
         queue = False
     return (matched, website_id, video_id, format, search, queue)
 
+
+def test(offset = 0, limit = 1000):
+    import re
+    d = [re.compile(' (http://[^\ ]+)').search(u).groups()[0] for u in open('yt.log').read().strip().split('\n')]
+    results = []
+    for u in d[offset:offset+limit]:
+        id, c = get_youtube_video_id_and_cpn(u)
+        if id != None or c != None:
+            print [c, id]
