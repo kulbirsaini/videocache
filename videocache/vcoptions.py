@@ -121,8 +121,8 @@ class VideocacheOptions:
         try:
             # Options not in configuration file
             klass.queue_dump_file = mainconf.queue_dump_file
-            klass.version = '2.3'
-            klass.revision = 'f4974d639'
+            klass.version = '2.4'
+            klass.revision = 'c674f4c6e2ce9'
             # General Options
             klass.enable_videocache = int(mainconf.enable_videocache)
             klass.offline_mode = int(mainconf.offline_mode)
@@ -140,6 +140,7 @@ class VideocacheOptions:
             klass.this_proxy = mainconf.this_proxy.strip()
             klass.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
             klass.squid_access_log = mainconf.squid_access_log
+            klass.squid_access_log_format_combined = int(mainconf.squid_access_log_format_combined)
             klass.file_mode = 0644
             klass.db_hostname = mainconf.db_hostname
             klass.db_username = mainconf.db_username

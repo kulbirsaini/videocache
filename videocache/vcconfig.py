@@ -48,6 +48,7 @@ class VideocacheConf:
     this_proxy = Option('')
     enable_access_log_monitoring = Option(1)
     squid_access_log = Option('')
+    squid_access_log_format_combined = Option(0)
     db_hostname = Option('localhost')
     db_username = Option('videocache')
     db_password = Option('videocache')

@@ -496,22 +496,22 @@ def kill_tail_processes(filename, user):
         except:
             pass
 
-def enqueue_output(output, message_queue, finder_list = [], any_find = True):
+def enqueue_output(output, message_queue, finder_list = [], any_find = True, regex = False):
     for line in iter(output.readline, ''):
         line = line.strip()
         if finder_list == []:
             shall_queue = True
         else:
             if any_find:
-                shall_queue = find_any_in_line(line, finder_list)
+                shall_queue = find_any_in_line(line, finder_list, regex)
             else:
                 shall_queue = all(map(lambda x: line.find(x) > -1, finder_list))
         if shall_queue: message_queue.put(line)
 
-def tail_file(filename, finder_list = [], any_find = True):
+def tail_file(filename, finder_list = [], any_find = True, regex = False):
     message_queue = Queue()
     process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-    readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find))
+    readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find, regex))
     readline_thread.start()
 
     while True:
@@ -552,13 +552,13 @@ def watch_access_log():
         time.sleep(30)
 
     global local_cpn_pool, local_long_id_pool, log_hit_queue
-    filename, finder_list, any_find = o.squid_access_log, [ 'GET ' ], True
+    filename, finder_list, any_find = o.squid_access_log, [ 'GET http://' ], True
     access_log_track_lines = [ re.compile('\.(youtube|youtube-nocookie|googlevideo)\.com\/(videoplayback|get_video|watch_popup|user_watch|stream_204|get_ad_tags|get_video_info|player_204|ptracking|set_awesome)\?'), re.compile('\.youtube\.com\/api\/stats\/(atr|delayplay|playback|watchtime)\?'), re.compile('\.youtube\.com\/s\?'), re.compile('\.(youtube|youtube-nocookie|googlevideo)\.com\/videoplayback\/') ]
     log_hit_track_lines = [ ' video/', ' text/plain', ' application/octet-stream', ' audio/', ' application/vnd.android.package-archive' ]
 
     started_at = time.time()
     log_hits = 0
-    for line in tail_file(filename, finder_list, any_find):
+    for line in tail_file(filename, finder_list, any_find, False):
         try:
             if find_any_in_line(line, access_log_track_lines, True):
                 try:
@@ -585,7 +585,7 @@ def watch_access_log():
                                 YoutubeCPN.with_timeout(0.35, YoutubeCPN.replace, { 'video_id' : video_id, 'cpn' : cpn })
                 except Exception, e:
                     ent({ 'code' : 'ACCESS_LOG_PARSE_ERR', 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
-            if find_any_in_line(line, log_hit_track_lines):
+            if o.squid_access_log_format_combined == 1 or find_any_in_line(line, log_hit_track_lines):
                 log_hits += 1
                 if log_hit_queue.full():
                     warn({ 'code' : 'LOG_HIT_QUEUE_FULL', 'message' : 'Videocache is receiving ' + str(int(log_hits / (time.time() - started_at))) + ' requests per second for to check against squid cache. Please report if you see this issue.' })
