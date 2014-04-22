@@ -25,7 +25,10 @@ def get_db_connection(hostname = None, username = None, password = None, databas
     if not password: password = o.db_password
     if not database: database = o.db_database
     try:
-        db_connection = MySQLdb.connect(hostname, username, password, database)
+        if '.sock' in hostname or '/' in hostname:
+            db_connection = MySQLdb.connect(unix_socket = hostname, user = username, passwd = password, db = database)
+        else:
+            db_connection = MySQLdb.connect(hostname, username, password, database)
         db_cursor = db_connection.cursor()
         db_connection.autocommit(True)
         db_connection.ping()
