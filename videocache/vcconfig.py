@@ -51,7 +51,7 @@ class VideocacheConf:
     squid_access_log_format_combined = Option(0)
     db_hostname = Option('localhost')
     db_username = Option('videocache')
-    db_password = Option('videocache')
+    db_password = Option('')
     db_database = Option('videocache')
     video_queue_lifetime = Option(3600 * 24)
     active_queue_lifetime = Option(3600)

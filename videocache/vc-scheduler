@@ -664,7 +664,7 @@ def watch_log_hit():
                 if not (matched and search):
                     continue
 
-                if website_id == 'youtube' and len(video_id) != 11:
+                if website_id == 'youtube' and video_id and len(video_id) != 11:
                     old_video_id = video_id
                     cpn = get_youtube_cpn_from_query_or_path(query, path)
                     video_id = get_youtube_video_id_from_cpn_or_long_id(cpn, video_id)
@@ -674,6 +674,9 @@ def watch_log_hit():
 
                 if website_id != 'youtube' and not video_id:
                     warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
+                    continue
+
+                if not video_id:
                     continue
 
                 expected_size = None

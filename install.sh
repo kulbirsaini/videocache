@@ -907,29 +907,14 @@ get_db_username() {
 }
 
 get_db_password() {
-  default_password='videocache'
-  for((i = 1; i <= $tries; ++i)); do
-    echo -n "Enter password ( default: $default_password ): "
-    read choice
-    choice=`echo $choice`
-    if [[ $choice == '' ]]; then
-      choice=$default_password
-    fi
-    if [[ $choice != '' ]]; then
-      db_password=$choice
-      message_with_padding "Selected password for database"
-      green $db_password
-      return 0
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a password in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Please try again."
-      fi
-    fi
-    echo
-  done
+  default_password=''
+  echo -n "Enter password ( default: $default_password ): "
+  read choice
+  choice=`echo $choice`
+  db_password=$choice
+  message_with_padding "Selected password for database"
+  green $db_password
+  return 0
 }
 
 get_db_database() {
@@ -964,7 +949,10 @@ python - <<END
 import MySQLdb, sys
 import traceback
 try:
-  db_connection = MySQLdb.connect('$db_hostname', '$db_username', '$db_password', '$db_database')
+  if '.sock' in '$db_hostname' or '/' in '$db_hostname':
+      db_connection = MySQLdb.connect(unix_socket = '$db_hostname', user = '$db_username', passwd = '$db_password', db = '$db_database')
+  else:
+      db_connection = MySQLdb.connect('$db_hostname', '$db_username', '$db_password', '$db_database')
   db_connection.ping()
 except:
   sys.exit(1)
@@ -1067,7 +1055,12 @@ build_setup_command() {
   else
     setup_command="$setup_command --skip-apache-conf"
   fi
-  setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-password $db_password --db-database $db_database install 2>&1"
+  setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-database $db_database"
+  if [[ $db_password == '' ]]; then
+    setup_command="$setup_command install 2>&1"
+  else
+    setup_command="$setup_command --db-password $db_password install 2>&1"
+  fi
 }
 
 install_videocache() {

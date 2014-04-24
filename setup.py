@@ -247,7 +247,7 @@ def process_options(parser):
     parser.add_option('--squid-access-log', dest = 'squid_access_log', type='string', help = 'Full path to Squid access.log file. Example : /var/log/squid/access.log')
     parser.add_option('--db-hostname', dest = 'db_hostname', type='string', help = 'Enter hostname for database access')
     parser.add_option('--db-username', dest = 'db_username', type='string', help = 'Enter username for database access')
-    parser.add_option('--db-password', dest = 'db_password', type='string', help = 'Enter password for database access')
+    parser.add_option('--db-password', dest = 'db_password', type='string', help = 'Enter password for database access', default = '')
     parser.add_option('--db-database', dest = 'db_database', type='string', help = 'Enter database name for videocache')
     return parser.parse_args()
 
