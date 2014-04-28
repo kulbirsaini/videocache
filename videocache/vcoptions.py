@@ -19,6 +19,8 @@ from logging.handlers import BaseRotatingHandler
 import logging
 import logging.handlers
 import os
+import redis
+import hiredis
 import traceback
 import urlparse
 
@@ -146,6 +148,9 @@ class VideocacheOptions:
             klass.db_username = mainconf.db_username
             klass.db_password = mainconf.db_password
             klass.db_database = mainconf.db_database
+            klass.redis_hostname = mainconf.redis_hostname
+            klass.redis_port = int(mainconf.redis_port)
+            klass.redis_socket = mainconf.redis_socket
             klass.cpn_lifetime = 1800
             klass.video_queue_lifetime = int(mainconf.video_queue_lifetime)
             klass.active_queue_lifetime = int(mainconf.active_queue_lifetime)
@@ -160,6 +165,12 @@ class VideocacheOptions:
             if klass.trial:
                 klass.trial = 1
 
+            # Redis
+            if klass.redis_socket != '':
+                klass.redis = redis.Redis(unix_socket_path = klass.redis_socket, db = 0)
+            else:
+                redis_connection_pool = redis.ConnectionPool(host = klass.redis_hostname, port = klass.redis_port, db = 0)
+                klass.redis = redis.Redis(connection_pool = redis_connection_pool)
             # Apache
             klass.skip_apache_conf = int(mainconf.skip_apache_conf)
             klass.apache_conf_dir = mainconf.apache_conf_dir.strip()
