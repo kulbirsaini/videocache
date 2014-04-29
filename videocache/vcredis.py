@@ -16,112 +16,368 @@ except Exception, e:
     import pickle
 import redis
 import hiredis
+import time
 
 # TODO Abstract to a generic class with sorted set and hash
 
-class VideoFile(object):
+class VideoCacheRedis(object):
 
     def __init__(self, o):
-        self.redis = o.redis
-        self.video_file_scores_key = 'video_file_scores'
-        self.video_file_info_key = 'video_file_info'
+        self.o = o
 
-    def get_video_file_score_by_key(self, key):
-        score = self.redis.zscore(self.video_file_scores_key, key)
+    def key(self, website_id, video_id):
+        return website_id + ':' + video_id
+
+    def decode_key(self, key):
+        if not key: return (None, None)
+        parts = key.split(':', 1)
+        if len(parts) == 2:
+            return (parts[0], parts[1])
+        return (None, None)
+
+class VideoFile(VideoCacheRedis):
+
+    def __init__(self, o):
+        self.o = o
+        self.redis = o.redis
+        self.scores_key = 'videocache:video_file_scores'
+        self.info_key = 'videocache:video_file_info'
+        VideoCacheRedis.__init__(self, o)
+        return
+
+    # Scores
+    def get_score_by_key(self, key):
+        score = self.redis.zscore(self.scores_key, key)
         if score:
-            return (score // 1, 0)
+            return (int(score//1), int((score - score//1) * 10000000000))
         return (0,0)
 
-    def get_video_file_score(self, website_id, video_id):
-        return self.get_video_file_info_by_key(website_id + ':' + video_id)
+    def get_score(self, website_id, video_id):
+        return self.get_score_by_key(self.key(website_id, video_id))
 
-    def set_video_file_score_by_key(self, key, score, access_time = None):
+    def set_score_by_key(self, key, score = 1, access_time = None):
         if not access_time:
             access_time = int(time.time())
         score = str(score) + '.' + str(access_time)
-        self.redis.zadd(self.video_file_scores_key, key, score)
+        return self.redis.zadd(self.scores_key, key, score)
 
-    def set_video_file_score(self, website_id, video_id, score = 1, access_time = None):
-        self.set_video_file_score_by_key(website_id + ':' + video_id, score, access_time)
+    def set_score(self, website_id, video_id, score = 1, access_time = None):
+        return self.set_score_by_key(self.key(website_id, video_id), score, access_time)
 
-    def increment_video_file_score_by_key(self, key, incr = 1, access_time = None):
-        score = self.get_video_file_score_by_key(key)[0]
-        self.set_video_file_score_by_key(key, score + incr, access_time)
+    def increment_score_by_key(self, key, incr = 1, access_time = None):
+        score = self.get_score_by_key(key)[0]
+        return self.set_score_by_key(key, score + incr, access_time)
 
-    def increment_video_file_score(self, website_id, video_id, incr = 1, access_time = None):
-        self.increment_video_file_score_by_key(website_id + ':' + video_id, incr, access_time)
+    def increment_score(self, website_id, video_id, incr = 1, access_time = None):
+        return self.increment_score_by_key(self.key(website_id, video_id), incr, access_time)
 
     # key can be single item or a list
-    def remove_video_file_score_by_key(self, key):
-        self.redis.zrem(self.video_file_scores_key, key)
+    def remove_score_by_key(self, key):
+        if not key: return None
+        self.redis.zrem(self.scores_key, key)
 
-    def remove_video_file_score(self, website_id, video_id):
-        self.remove_video_file_score_by_key(website_id + ':' + video_id)
+    def remove_score(self, website_id, video_id):
+        self.remove_score_by_key(self.key(website_id, video_id))
 
-    def get_least_used_video_files(self, limit = 1000, offset = 0):
-        if limit != -1: limit = offset + limit
-        return self.redis.zrange(self.video_file_scores_key, 0, limit)
+    def get_score_length(self):
+        return self.redis.zcard(self.scores_key)
 
-    def get_video_file_info_by_key(self, key):
-        info = self.redis.hget(self.video_file_info_key, key)
+    # Info
+    def get_info_by_key(self, key):
+        return self.redis.hget(self.info_key, key)
+
+    def get_info(self, website_id, video_id):
+        return self.get_info_by_key(self.key(website_id, video_id))
+
+    def get_bulk_info_by_key(self, keys):
+        if len(keys) == 0: return []
+        return self.redis.hmget(self.info_key, keys)
+
+    def get_bulk_info(self, keys):
+        return self.get_bulk_info_by_key(keys)
+
+    def set_info_by_key(self, key, info):
+        return self.redis.hset(self.info_key, key, info)
+
+    def set_info(self, website_id, video_id, info):
+        return self.set_info_by_key(self.key(website_id, video_id), info)
+
+    def add_info_by_key(self, key, info):
+        self.increment_score_by_key(key)
+        return self.set_info_by_key(key, info)
+
+    def add_info(self, website_id, video_id, info):
+        return self.add_info_by_key(self.key(website_id, video_id), info)
+
+    # key can be single item or a list
+    def remove_info_by_key(self, key):
+        if not key: return None
+        self.remove_score_by_key(key)
+        return self.redis.hdel(self.info_key, key)
+
+    def remove_info(self, website_id, video_id):
+        return self.remove_info_by_key(self.key(website_id, video_id))
+
+    def get_info_length(self):
+        return self.redis.hlen(self.info_key)
+
+    # General
+    # key can be single item or a list
+    def remove_by_key(self, key):
+        if not key: return None
+        return self.remove_info_by_key(key)
+
+    def remove(self, website_id, video_id):
+        return self.remove_info_by_key(self.key(website_id, video_id))
+
+    def get_least_used(self, limit = 1000, offset = 0):
+        if limit != -1: limit = offset + limit - 1
+        return self.redis.zrange(self.scores_key, 0, limit)
+
+    def get_most_used(self, limit = 1000, offset = 0):
+        if limit != -1: limit = offset + limit - 1
+        return self.redis.zrevrange(self.scores_key, 0, limit)
+
+    def cleanup(self):
+        pass
+
+
+class VideoQueue(VideoCacheRedis):
+
+    def __init__(self, o):
+        self.o = o
+        self.redis = o.redis
+        self.scores_key = 'videocache:video_queue_scores'
+        self.info_key = 'videocache:video_queue_info'
+        VideoCacheRedis.__init__(self, o)
+        return
+
+    # Scores
+    def set_score_by_key(self, key, score = 1, access_time = None):
+        if not access_time: access_time = int(time.time())
+        score = str(score) + '.' + str(access_time)
+        return self.redis.zadd(self.scores_key, key, score)
+
+    def set_score(self, website_id, video_id, score = 1, access_time = None):
+        return self.set_score_by_key(self.key(website_id, video_id), score, access_time)
+
+    def get_score_by_key(self, key):
+        score = self.redis.zscore(self.scores_key, key)
+        if score:
+            return (int(score//1), int((score - score//1) * 10000000000))
+        return (0,0)
+
+    def get_score(self, website_id, video_id):
+        return self.get_score_by_key(self.key(website_id, video_id))
+
+    def increment_score_by_key(self, key, incr = 1, access_time = None):
+        score = self.get_score_by_key(key)[0]
+        return self.set_score_by_key(key, score + incr, access_time)
+
+    def increment_score(self, website_id, video_id, incr = 1, access_time = None):
+        return self.increment_score_by_key(self.key(website_id, video_id), incr, access_time)
+
+    def remove_score_by_key(self, key):
+        if not key: return None
+        return self.redis.zrem(self.scores_key, key)
+
+    def remove_score(self, website_id, video_id):
+        return self.remove_score_by_key(self.key(website_id, video_id))
+
+    def get_score_length(self):
+        return self.redis.zcard(self.scores_key)
+
+    # Video Info
+    def add_video_by_key(self, key, info):
+        self.increment_score_by_key(key)
+        return self.redis.hset(self.info_key, key, pickle.dumps(info))
+
+    def add_video(self, website_id, video_id, info):
+        return self.add_video_by_key(self.key(website_id, video_id), info)
+
+    def get_video_by_key(self, key):
+        info = self.redis.hget(self.info_key, key)
         if info:
             return pickle.loads(info)
         return None
 
-    def get_video_file_info_by_keys(self, keys):
-        if len(keys) == 0: return []
-        infos = self.redis.hmget(self.video_file_info_key, keys)
-        return [pickle.loads(info) if info is not None else None for info in infos]
+    def get_video(self, website_id, video_id):
+        return self.get_video_by_key(self.key(website_id, video_id))
 
-    def get_video_file_info(self, website_id, video_id):
-        return self.get_video_file_info_by_key(website_id + ':' + video_id)
+    def remove_video_by_key(self, key):
+        if not key: return None
+        self.remove_score_by_key(key)
+        return self.redis.hdel(self.info_key, key)
 
-    def get_bulk_video_file_info(self, keys):
-        return self.get_video_file_info_by_keys(keys)
+    def remove_video(self, website_id, video_id):
+        return self.remove_video_by_key(self.key(website_id, video_id))
 
-    def set_video_file_info_by_key(self, key, info):
-        return self.redis.hset(self.video_file_info_key, key, pickle.dumps(info))
+    def get_queue_length(self):
+        return self.redis.hlen(self.info_key)
 
-    def set_video_file_info(self, website_id, video_id, info):
-        return self.set_video_file_info_by_key(website_id + ':' + video_id, info)
+    # Mining
+    def get_popular(self):
+        while True:
+            video_id = self.redis.zrevrange(self.scores_key, 0, 0)
+            if not video_id: return None
+            video_info = self.get_video_by_key(video_id[0])
+            self.remove_video_by_key(video_id)
+            if not video_info: return video_info
+            time.sleep(0.02)
 
-    # key can be single item or a list
-    def remove_video_file_info_by_key(self, key):
-        return self.redis.hdel(self.video_file_info_key, key)
+    def get_least_scoring_videos(self, spare = 1000):
+        return self.zrange(self.scores_key, 0, -spare)
 
-    def remove_video_file_info(self, website_id, video_id):
-        return self.remove_video_file_info_by_key(website_id + ':' + video_id)
-
-    # key can be single item or a list
-    def remove_video_file_by_key(self, key):
-        self.remove_video_file_score_by_key(key)
-        self.remove_video_file_info_by_key(key)
-
-    def remove_video_file(self, website_id, video_id):
-        self.remove_video_file_by_key(website_id + ':' + video_id)
-
-
-class VideoQueue(object):
-
-    def __init__(self, o):
-        self.redis = o.redis
-        self.video_queue_scores_key = 'video_queue_scores'
-        self.video_queue_info_key = 'video_queue_info'
+    # Cleanup
+    def expire_videos(self):
+        video_ids = self.get_least_scoring_videos()
+        if not video_ids: return True
+        self.remove_video_by_key(video_ids)
+        return True
 
 
-class ActiveVideoQueue(object):
+class ActiveVideoQueue(VideoCacheRedis):
 
     def __init__(self, o):
+        self.o = o
         self.redis = o.redis
-        self.active_video_queu_info_key = 'active_video_queue_info'
+        self.info_key = 'videocache:active_video_queue_info'
+        VideoCacheRedis.__init__(self, o)
+        return
+
+    def add_video_by_key(self, key):
+        return self.redis.sadd(self.info_key, key)
+
+    def add_video(self, website_id, video_id):
+        return self.add_video_by_key(self.key(website_id, video_id))
+
+    def is_video_in_queue_by_key(self, key):
+        return self.redis.sismember(self.info_key, key)
+
+    def is_video_in_queue(self, website_id, video_id):
+        return self.is_video_in_queue_by_key(self.key(website_id, video_id))
+
+    def remove_video_by_key(self, key):
+        if not key: return None
+        return self.redis.srem(self.info_key, key)
+
+    def remove_video(self, website_id, video_id):
+        return self.remove_video_by_key(self.key(website_id, video_id))
+
+    def get_queue_length(self):
+        return self.redis.scard(self.info_key)
 
 
-class YoutubeCPN(object):
+class Youtube(VideoCacheRedis):
 
     def __init__(self, o):
+        self.o = o
         self.redis = o.redis
-        self.cpn_scores_key = 'cpn_scores'
-        self.long_id_scores_key = 'long_id_scores'
-        self.cpn_map_key = 'cpn_map'
-        self.long_id_map_key = 'long_id_map'
+        self.cpn_scores_key = 'videocache:youtube:cpn_scores'
+        self.long_id_scores_key = 'videocache:youtube:long_id_scores'
+        self.cpn_map_key = 'videocache:youtube:cpn_map'
+        self.long_id_map_key = 'videocache:youtube:long_id_map'
+        VideoCacheRedis.__init__(self, o)
+        return
 
+    #CPN
+    def set_cpn_score(self, cpn):
+        if not cpn: return None
+        return self.redis.zadd(self.cpn_scores_key, cpn, int(time.time()))
+
+    def get_cpn_score(self, cpn):
+        if not cpn: return None
+        return self.redis.zscore(self.cpn_scores_key, cpn)
+
+    def remove_cpn_score(self, cpn):
+        if not cpn: return None
+        return self.redis.zrem(self.cpn_scores_key, cpn)
+
+    def get_cpn_scores_length(self):
+        return self.redis.zcard(self.cpn_scores_key)
+
+    def add_cpn(self, cpn, video_id):
+        if not (cpn and video_id): return None
+        if not self.is_valid_video_id(video_id): return None
+        self.set_cpn_score(cpn)
+        return self.redis.hset(self.cpn_map_key, cpn, video_id)
+
+    def remove_cpn(self, cpn):
+        if not cpn: return None
+        self.remove_cpn_score(cpn)
+        return self.redis.hdel(self.cpn_map_key, cpn)
+
+    def get_cpn_length(self):
+        return self.redis.hlen(self.cpn_map_key)
+
+    def get_video_id_by_cpn(self, cpn):
+        if not cpn: return None
+        video_id = self.redis.hget(self.cpn_map_key, cpn)
+        if video_id:
+            self.set_cpn_score(cpn)
+        else:
+            self.remove_cpn(cpn)
+        return video_id
+
+    def expire_cpns(self):
+        before_time = int(time.time()) - self.o.cpn_lifetime
+        return self.remove_cpn(self.redis.zrangebyscore(self.cpn_scores_key, 0, before_time))
+
+    #Long ID
+    def set_long_id_score(self, long_id):
+        if not long_id: return None
+        return self.redis.zadd(self.long_id_scores_key, long_id, int(time.time()))
+
+    def get_long_id_score(self, long_id):
+        if not long_id: return None
+        return self.redis.zscore(self.long_id_scores_key, long_id)
+
+    def remove_long_id_score(self, long_id):
+        if not long_id: return None
+        return self.redis.zrem(self.long_id_scores_key, long_id)
+
+    def get_long_id_scores_length(self):
+        return self.redis.zcard(self.long_id_scores_key)
+
+    def add_long_id(self, long_id, cpn):
+        if not (long_id and cpn): return None
+        return self.redis.hset(self.long_id_map_key, long_id, cpn)
+
+    def remove_long_id(self, long_id):
+        if not long_id: return None
+        self.remove_long_id_score(long_id)
+        return self.redis.hdel(self.long_id_map_key, long_id)
+
+    def get_long_id_length(self):
+        return self.redis.hlen(self.long_id_map_key)
+
+    def get_cpn_by_long_id(self, long_id):
+        if not long_id: return None
+        cpn = self.redis.hget(self.long_id_map_key, long_id)
+        if cpn:
+            self.set_long_id_score(long_id)
+        else:
+            self.remove_long_id(long_id)
+        return cpn
+
+    def expire_long_ids(self):
+        before_time = int(time.time()) - self.o.cpn_lifetime
+        return self.remove_long_id(self.redis.zrangebyscore(self.long_id_scores_key, 0, before_time))
+
+    # Video ID
+    def is_valid_video_id(self, video_id):
+        if video_id and len(video_id) in [11, 16]: return True
+        return False
+
+    def get_video_id(self, cpn, long_id):
+        if not (cpn and long_id): return None
+
+        if cpn:
+            video_id = self.get_video_id_by_cpn(cpn)
+            if video_id: return video_id
+
+        if long_id:
+            cpn = self.get_cpn_by_long_id(long_id)
+            if cpn: return self.get_video_id_by_cpn(cpn)
+
+        return None

@@ -237,7 +237,7 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
         # Actual video content
         if path.find('videoplayback') > -1 and path.find('get_video_info') < 0:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
-            if get_youtube_video_range_from_query_or_path(query, path)['start'] > 2500000: queue = False
+            if get_youtube_video_range_from_query_or_path(query, path)['start'] > 3000: queue = False
         # Normal youtube videos in web browser
         elif path.find('stream_204') > -1 and query.find('view=0') > -1:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
