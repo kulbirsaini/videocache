@@ -63,6 +63,7 @@ class VideocacheConf:
     access_log_read_timeout = Option(120)
     socket_read_block_size = Option(65536)
     trial = Option(0)
+    source_ip = Option('')
 
     # Apache
     skip_apache_conf = Option(0)

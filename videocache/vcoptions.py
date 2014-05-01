@@ -157,6 +157,10 @@ class VideocacheOptions:
             klass.access_log_read_timeout = int(mainconf.access_log_read_timeout)
             klass.socket_read_block_size = int(mainconf.socket_read_block_size)
             klass.trial = int(mainconf.trial)
+            if mainconf.source_ip == '':
+                klass.source_ip = None
+            else:
+                klass.source_ip = mainconf.source_ip
             if klass.trial:
                 klass.trial = 1
 

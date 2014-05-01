@@ -14,6 +14,7 @@ from Queue import Empty, Queue
 
 import datetime
 import errno
+import httplib
 import logging
 import os
 import pwd
@@ -443,3 +444,21 @@ def cache_period_s2lh(cache_period):
             return map(lambda x: { 'start' : x[0], 'end' : x[1] }, map(lambda x: map(lambda y: [int(z) for z in y.split(':')], x.split('-')), [i.strip().replace(' ', '') for i in cache_period.strip().split(',')]))
     except Exception, e:
         return False
+
+# Bind Source IP
+class BindableHTTPConnection(httplib.HTTPConnection):
+    def connect(self):
+        """Connect to the host and port specified in __init__."""
+        self.sock = socket.socket()
+        if self.source_ip:
+            self.sock.bind((self.source_ip, 0))
+        if isinstance(self.timeout, float):
+            self.sock.settimeout(self.timeout)
+        self.sock.connect((self.host,self.port))
+
+def BindableHTTPConnectionFactory(source_ip = None):
+    def _get(host, port=None, strict=None, timeout=0):
+        bhc=BindableHTTPConnection(host, port=port, strict=strict, timeout=timeout)
+        bhc.source_ip=source_ip
+        return bhc
+    return _get

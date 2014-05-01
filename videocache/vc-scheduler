@@ -140,7 +140,7 @@ def cache_remote_url(remote_url, target_file, params = {}):
 
         opener = urllib2
         if proxy:
-            opener = urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
+            opener = urllib2.build_opener(BindableHTTPHandler, urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
 
         request = urllib2.Request(remote_url, None, http_headers)
 
@@ -220,7 +220,7 @@ def cache_youtube_video(video):
 
         opener = urllib2
         if proxy:
-            opener = urllib2.build_opener(urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
+            opener = urllib2.build_opener(BindableHTTPHandler, urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
 
         video_info = None
         for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
@@ -798,7 +798,7 @@ def submit_system_info():
 
             cookie_handler = urllib2.HTTPCookieProcessor()
             redirect_handler = urllib2.HTTPRedirectHandler()
-            info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+            info_opener = urllib2.build_opener(BindableHTTPHandler, redirect_handler, cookie_handler)
 
             status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
@@ -1220,8 +1220,13 @@ if __name__ == '__main__':
         stdout = sys.stdout
         stderr = sys.stderr
         this_opener = None
+
+        class BindableHTTPHandler(urllib2.HTTPHandler):
+            def http_open(self, req):
+                return self.do_open(BindableHTTPConnectionFactory(o.source_ip), req)
+
         if o.this_proxy_server:
-            this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))
+            this_opener = urllib2.build_opener(BindableHTTPHandler, urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))
 
         # Compiled regexes
         PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')
