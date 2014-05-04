@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from database import initialize_database, VideoFile, VideoQueue, YoutubeCPN
+from vcredis import VideoFile, VideoQueue, Youtube, AccessLogQueue
 from fsop import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -114,14 +114,13 @@ def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
 
 def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
-    if not old_video_id or not new_video_id:
-        return
-    for youtube_dir in o.base_dirs[website_id]:
-        for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
-            try:
-                move_file(filename, filename.replace(old_video_id, new_video_id))
-            except:
-                pass
+    if old_video_id and new_video_id:
+        for youtube_dir in o.base_dirs[website_id]:
+            for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
+                try:
+                    move_file(filename, filename.replace(old_video_id, new_video_id))
+                except:
+                    pass
 
 def cache_remote_url(remote_url, target_file, params = {}):
     try:
@@ -204,19 +203,15 @@ def cache_remote_url(remote_url, target_file, params = {}):
         return False
     return True
 
-def cache_youtube_video(video):
+def cache_youtube_video(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
     try:
-        video_id, website_id, fmt = video.video_id, video.website_id, video.format
-        if not fmt:
-            fmt = '34'
-        cur_cache_dir = get_next_cache_dir()
-        proxy = o.proxy_server
-        http_headers = get_random_user_agent()
-
+        if not fmt: fmt = '34'
         if not cur_cache_dir:
             warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-            video.destroy()
             return
+
+        proxy = o.proxy_server
+        http_headers = get_random_user_agent()
 
         opener = urllib2
         if proxy:
@@ -231,7 +226,6 @@ def cache_youtube_video(video):
                 try:
                     if int(video_info.get('view_count', [0])[0]) < o.min_youtube_views:
                         info({ 'code' : 'VIEW_COUNT_LOW', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
-                        video.destroy()
                         return
                 except Exception, e:
                     pass
@@ -242,7 +236,6 @@ def cache_youtube_video(video):
                 ent({'code' : 'VIDEO_INFO_FETCH_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info from ' + info_url, 'debug' : str(e) })
         else:
             warn({ 'code' : 'VIDEO_INFO_FETCH_WARN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not fetch required info to cache video. Please report this if it happens very frequently.' })
-            video.destroy()
             return
 
         try:
@@ -253,7 +246,6 @@ def cache_youtube_video(video):
                 migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
         except Exception, e:
             ent({ 'code' : 'URL_EXTRACTION_ERROR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
-            video.destroy()
             return
 
         cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
@@ -268,7 +260,6 @@ def cache_youtube_video(video):
             if not stop and o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
                 stop = True
             if stop:
-                video.destroy()
                 return
 
             if youtube_cached_url(o, video_id, website_id, fmt)[0]:
@@ -285,23 +276,19 @@ def cache_youtube_video(video):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
-                    VideoFile.with_timeout(0.5, VideoFile.create, { 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    video_file.add_info(website_id, video_id, cur_cache_dir)
         else:
             info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
-        video.destroy()
     except Exception, e:
-        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
+        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error in cache thread.'})
 
-def cache_generalized(video):
+def cache_generalized(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
     try:
-        video_id, website_id, url, fmt = video.video_id, video.website_id, video.url, video.format
-        cur_cache_dir = get_next_cache_dir()
-
         if not (url and cur_cache_dir):
             warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-            video.destroy()
             return
 
+        if fmt is None: fmt = ''
         cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
         tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
         video_path = os.path.join(cache_dir, video_id)
@@ -319,12 +306,11 @@ def cache_generalized(video):
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video was cached successfully at ' + video_path })
-                    VideoFile.with_timeout(0.5, VideoFile.create, { 'cache_dir' : cur_cache_dir, 'website_id' : website_id, 'filename' : video_id, 'size' : size, 'access_time' : current_time() })
-            video.destroy()
+                    video_file.add_info(website_id, video_id, cur_cache_dir)
         except Exception, e:
             ent({ 'code' : 'URL_CACHE_ERR', 'message' : 'Failed to cache video at ' + original_url + '.', 'video_id' : video_id, 'website_id' : website_id })
     except Exception, e:
-        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video.video_id, 'website_id' : video.website_id, 'message' : 'Error in cache thread.'})
+        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error in cache thread.'})
 
 def cache_android_video(video): pass
 
@@ -389,41 +375,39 @@ def is_caching_time():
             return True
     return False
 
-def cache(video):
-    info({ 'code' : 'CACHE_THREAD_START', 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Starting cache thread.' })
-    eval('cache_' + video.website_id + '_video(video)')
-    info({ 'code' : 'CACHE_THREAD_REMOVE', 'website_id' : video.website_id, 'video_id' : video.video_id, 'message' : 'Removed cache thread.' })
+def cache(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
+    global active_video_list
+    info({ 'code' : 'CACHE_THREAD_START', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Starting cache thread.' })
+    eval('cache_' + website_id + '_video(website_id, video_id, fmt, url, cur_cache_dir)')
+    video_key = video_queue.key(website_id, video_id, fmt)
+    if video_key in active_video_list:
+        active_video_list.remove(video_key)
+    info({ 'code' : 'CACHE_THREAD_REMOVE', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'Removed cache thread.' })
 
 def schedule():
-    try:
-        if o.offline_mode or not is_caching_time(): return
-        if VideoQueue.with_timeout(1, VideoQueue.count, { 'active' : True }) >= o.max_cache_processes: return
+    global active_video_list
+    while True:
+        if not o.client_email:
+            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
+            break
+        try:
+            if o.offline_mode or not is_caching_time(): continue
+            if len(active_video_list) >= o.max_cache_processes: continue
 
-        video = VideoQueue.with_timeout(0.5, VideoQueue.last, { 'order' : 'access_count', 'cacheable' : True, 'active' : False })
-        if not video: return
+            cur_cache_dir = get_next_cache_dir()
+            if not cur_cache_dir: continue
 
-        if not (video.video_id and video.website_id):
-            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Unable to locate video_id or website_id. Removing from queue. ' + str(video.to_params()) })
-            video.destroy()
-            return
+            website_id, video_id, fmt, url = video_queue.get_popular()
+            if not (website_id and video_id): continue
 
-        if video.access_count < o.hit_threshold: return
-
-        if o.enable_access_log_monitoring:
-            cut_off_time = time.time() - o.log_hit_threshold
-            if cut_off_time < video.first_access: return
-
-        video.update_attributes({ 'access_count' : 0, 'active' : True, 'activated_at' : time.time() })
-        cache_thread = LoggingThread(target = cache, name = str(video.video_id), args = (video,))
-        cache_thread.start()
-    except Exception, e:
-        ent({ 'code' : 'VIDEO_SCHEDULE_ERR', 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
-
-def cache_thread_scheduler():
-    if o.client_email != '':
-        schedule()
-    else:
-        warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
+            video_key = video_queue.key(website_id, video_id, fmt)
+            if video_key in active_video_list: continue
+            active_video_list.append(video_key)
+            cache_thread = LoggingThread(target = cache, name = video_key, args = (website_id, video_id, fmt, url, cur_cache_dir))
+            cache_thread.start()
+        except Exception, e:
+            ent({ 'code' : 'VIDEO_SCHEDULE_ERR', 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
+        time.sleep(5)
 
 def purge_object(video_url):
     global this_opener
@@ -479,147 +463,6 @@ def arg_drop_exception(website_id, params, arg):
     if website_id == 'xtube' and arg in ['start', 'fs', 'ms'] and params[arg][0] in ['0', '0.0']:
         return True
     return False
-
-def extract_pids_from_ps(output):
-    results = output.strip().split('\n')
-    pids = []
-    for result in results:
-        match = PID_EXTRACT_REGEX.search(result)
-        if match and is_integer(match.group(1)):
-            pids.append(int(match.group(1)))
-    return pids
-
-def kill_tail_processes(filename, user):
-    for pid in extract_pids_from_ps(subprocess.check_output('ps aux | grep %s | grep -v grep | grep "tail -f %s"' % (user, filename), shell = True)):
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except:
-            pass
-
-def enqueue_output(output, message_queue, finder_list = [], any_find = True, regex = False):
-    for line in iter(output.readline, ''):
-        line = line.strip()
-        if finder_list == []:
-            shall_queue = True
-        else:
-            if any_find:
-                shall_queue = find_any_in_line(line, finder_list, regex)
-            else:
-                shall_queue = all(map(lambda x: line.find(x) > -1, finder_list))
-        if shall_queue: message_queue.put(line)
-
-def tail_file(filename, finder_list = [], any_find = True, regex = False):
-    message_queue = Queue()
-    process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-    readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find, regex))
-    readline_thread.start()
-
-    while True:
-        try:
-            yield message_queue.get(timeout = o.access_log_read_timeout)
-        except Empty, e:
-            os.kill(process.pid, signal.SIGTERM)
-            time.sleep(2)
-            process = subprocess.Popen(['tail', '-f', filename], stdout = subprocess.PIPE)
-            readline_thread = LoggingThread(target = enqueue_output, args = (process.stdout, message_queue, finder_list, any_find))
-            readline_thread.start()
-        except Exception, e:
-            wnt({ 'code' : 'TAIL_FILE_ERR', 'message' : 'Could not parse message from squid logfile ' + filename + ' Please report if you see this error frequently.', 'debug' : str(e) })
-            time.sleep(0.05)
-
-def find_any_in_line(line, finder_list, regex = False):
-    if regex:
-        for finder in finder_list:
-            if finder.search(line):
-                return True
-    else:
-        for finder in finder_list:
-            if finder in line:
-                return True
-    return False
-
-def watch_access_log():
-    info({ 'code' : 'ACCESS_LOG_WATCH_START', 'message' : 'Watching Squid access.log for Youtube video ID extraction.' })
-
-    warning = False
-    while True:
-        if os.path.isfile(o.squid_access_log):
-            if warning: info({ 'code' : 'ACCESS_LOG_FOUND', 'message' : 'Found squid access.log at ' + o.squid_access_log })
-            break
-        else:
-            if warning: warn({ 'code' : 'ACCESS_LOG_NOT_FOUND', 'message' : 'Videocache could not locate Squid access.log file. Please set option squid_access_log option correctly in /etc/videocache.conf and restart vc-scheduler. Will retry after 30 seconds.' })
-        warning = True
-        time.sleep(30)
-
-    global local_cpn_pool, local_long_id_pool, log_hit_queue
-    filename, finder_list, any_find = o.squid_access_log, [ 'GET http://' ], True
-    access_log_track_lines = [ re.compile('\.(youtube|youtube-nocookie|googlevideo)\.com\/(videoplayback|get_video|watch_popup|user_watch|stream_204|get_ad_tags|get_video_info|player_204|ptracking|set_awesome)\?'), re.compile('\.youtube\.com\/api\/stats\/(atr|delayplay|playback|watchtime)\?'), re.compile('\.youtube\.com\/s\?'), re.compile('\.(youtube|youtube-nocookie|googlevideo)\.com\/videoplayback\/') ]
-    log_hit_track_lines = [ ' video/', ' text/plain', ' application/octet-stream', ' audio/', ' application/vnd.android.package-archive' ]
-
-    started_at = time.time()
-    log_hits = 0
-    for line in tail_file(filename, finder_list, any_find, False):
-        try:
-            if find_any_in_line(line, access_log_track_lines, True):
-                try:
-                    url = None
-                    for line_part in line.split():
-                        if 'http://' in line_part:
-                            url = line_part
-                            break
-                    if not url:
-                        continue
-                    video_id, cpn = get_youtube_video_id_and_cpn(url)
-                    if video_id != None and cpn != None:
-                        if is_long_id(video_id):
-                            if video_id in local_long_id_pool and local_long_id_pool[video_id].get('cpn', '') == cpn:
-                                local_long_id_pool[video_id]['last_used'] = time.time()
-                            else:
-                                local_long_id_pool[video_id] = { 'cpn' : cpn, 'last_used' : time.time() }
-                                YoutubeCPN.with_timeout(0.35, YoutubeCPN.replace, { 'long_id' : video_id, 'cpn' : cpn })
-                        else:
-                            if cpn in local_cpn_pool and local_cpn_pool[cpn].get('video_id', '') == video_id:
-                                local_cpn_pool[cpn]['last_used'] == time.time()
-                            else:
-                                local_cpn_pool[cpn] = { 'video_id' : video_id, 'last_used' : time.time() }
-                                YoutubeCPN.with_timeout(0.35, YoutubeCPN.replace, { 'video_id' : video_id, 'cpn' : cpn })
-                except Exception, e:
-                    ent({ 'code' : 'ACCESS_LOG_PARSE_ERR', 'message' : 'Error while parsing video ids from squid access.log message ' + line, 'debug' : str(e) })
-            if o.squid_access_log_format_combined == 1 or find_any_in_line(line, log_hit_track_lines):
-                log_hits += 1
-                if log_hit_queue.full():
-                    warn({ 'code' : 'LOG_HIT_QUEUE_FULL', 'message' : 'Videocache is receiving ' + str(int(log_hits / (time.time() - started_at))) + ' requests per second for to check against squid cache. Please report if you see this issue.' })
-                    log_hit_queue = Queue(o.max_log_hit_monitor_queue_size)
-                    log_hits = 0
-                log_hit_queue.put(line)
-        except Exception, e:
-            ent({ 'code' : 'ACCESS_LOG_READ_ERR', 'message' : 'Error while reading squid access.log at ' + o.squid_access_log + ' .', 'debug' : str(e) })
-            time.sleep(0.05)
-
-def get_youtube_video_id_from_cpn_or_long_id(cpn, long_id):
-    global local_cpn_pool, local_long_id_pool
-    cpn_video_id, long_id_video_id = None, None
-    if cpn == None: cpn = ''
-    if cpn in local_cpn_pool:
-        local_cpn_pool[cpn]['last_used'] = time.time()
-        cpn_video_id = local_cpn_pool[cpn].get('video_id', None)
-    else:
-        cpn_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id_by_cpn, cpn)
-    if cpn_video_id and len(cpn_video_id) == 11:
-        return cpn_video_id
-
-    if long_id in local_long_id_pool:
-        local_long_id_pool[long_id]['last_used'] = time.time()
-        cpn = local_long_id_pool[long_id].get('cpn', '')
-        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : cpn })
-    else:
-        long_id_video_id = YoutubeCPN.with_timeout(0.2, YoutubeCPN.find_video_id, { 'long_id' : long_id, 'cpn' : '' })
-    if long_id_video_id and len(long_id_video_id) == 11:
-        return long_id_video_id
-
-    if cpn_video_id and len(cpn_video_id) == 16: return cpn_video_id
-    if long_id_video_id and len(long_id_video_id) == 16: return long_id_video_id
-    return None
 
 def watch_log_hit():
     global local_cpn_pool, local_long_id_pool, log_hit_queue
@@ -721,7 +564,8 @@ def watch_log_hit():
                     move_file(tmp_path, video_path)
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
-                    VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    #VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
+                    VideoFile(o).add_info(website_id, video_id, cache_dir)
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
                 else:
                     if os.path.isfile(tmp_path): os.unlink(tmp_path)
@@ -1002,6 +846,7 @@ def cleanup_video_queue():
         wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
 
 def cleanup_cpn_pool():
+    schedule()
     global local_cpn_pool, local_long_id_pool
     cut_off_time = time.time() - o.cpn_lifetime
     for cpn_id in local_cpn_pool.keys():
@@ -1088,9 +933,6 @@ def task_scheduler():
     now = time.time()
     refine_cache_periods()
 
-    # cache_thread_scheduler
-    last_cts_at, cts_thread, cts_interval = 0, None, 15
-
     # cleanup_cpn_pool
     last_ccp_at, ccp_thread, ccp_interval = 0, None, 120
 
@@ -1121,7 +963,6 @@ def task_scheduler():
     while True:
         cur_time = time.time()
         write_pid_file(process_list)
-        cts_thread, last_cts_at = thread_starter(cts_thread, cache_thread_scheduler, cur_time, last_cts_at, cts_interval)
         ccp_thread, last_ccp_at = thread_starter(ccp_thread, cleanup_cpn_pool, cur_time, last_ccp_at, ccp_interval)
         cvq_thread, last_cvq_at = thread_starter(cvq_thread, cleanup_video_queue, cur_time, last_cvq_at, cvq_interval)
         if cleanup_cache_needed:
@@ -1219,6 +1060,11 @@ if __name__ == '__main__':
         process_id = '-'
         stdout = sys.stdout
         stderr = sys.stderr
+        video_file = VideoFile(o)
+        video_queue = VideoQueue(o)
+        access_log_queue = AccessLogQueue(o)
+        active_video_list = []
+        youtube = Youtube(o)
         this_opener = None
         if o.this_proxy_server:
             this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))
@@ -1241,7 +1087,6 @@ if __name__ == '__main__':
             exec('get_' + website_id + '_filename = get_generalized_filename')
             exec('from websites.' + website_id + ' import *')
 
-        initialize_database(o)
         if options.sig in ['flush', 'clean']:
             os.setgid(uid)
             os.setuid(uid)
