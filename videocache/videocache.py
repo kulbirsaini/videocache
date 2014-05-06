@@ -119,8 +119,8 @@ def squid_part():
             continue
 
         try:
-            for website_id in o.enabled_websites.keys():
-                (matched, website_id, video_id, format, search, queue, report_hit) = eval('check_' + website_id + '_video(o, url, host, path, query)')
+            for website_id in o.enabled_website_keys:
+                (matched, website_id, video_id, fmt, search, queue, report_hit) = eval('check_' + website_id + '_video(o, url, host, path, query)')
                 if matched:
                     if not video_id:
                         warn( { 'code' : 'URL_ERR', 'website_id' : website_id, 'client_ip' : client_ip, 'message' : 'Could not find Video ID in URL ' + url } )
@@ -139,15 +139,15 @@ def squid_part():
                         if website_id == 'youtube':
                             youtube_params = get_youtube_video_range_from_query_or_path(query, path)
                             if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
-                            (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                            (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)
                             if not found:
                                 old_video_id = video_id
                                 video_id = youtube.get_video_id(cpn, video_id)
                                 if video_id == None: video_id = old_video_id
                                 if old_video_id != video_id:
-                                    (found, filename, dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, format, youtube_params)
+                                    (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)
                         else:
-                            (found, filename, dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, format)')
+                            (found, filename, cache_dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, fmt)')
 
                         if new_url == '':
                             info({ 'code' : 'CACHE_MISS', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
@@ -160,13 +160,13 @@ def squid_part():
                                 if website_id == 'youtube':
                                     queue_url = ''
                                 if shall_queue:
-                                    video_queue.add_video(website_id, video_id, format, queue_url)
+                                    video_queue.add_video(website_id, video_id, fmt, queue_url)
                             if search:
                                 access_log_queue.push(url)
                         else:
                             if website_id == 'youtube': new_url += '?' + query
                             info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + request_id + new_url })
-                            video_file.add_info(website_id, filename, dir)
+                            video_file.add_info(website_id, filename, cache_dir)
                     break
         except Exception, e:
             wnt({ 'code' : 'VIDEOCACHE_UNKNOWN_ISSUE', 'message' : 'Unknown issue detected with videocache. Please report if you see this frequently.', 'debug' : str(e) })

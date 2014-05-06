@@ -159,9 +159,12 @@ def refine_url(url, arg_drop_list = []):
     new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
     return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
 
-def is_long_id(video_id):
-    if len(video_id) > 16:
-        return True
+def is_valid_youtube_video_id(video_id):
+    if video_id and len(video_id) in [11, 16]: return True
+    return False
+
+def is_long_youtube_video_id(video_id):
+    if video_id and len(video_id) > 16: return True
     return False
 
 def current_time():

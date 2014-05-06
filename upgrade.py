@@ -107,13 +107,13 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(o.apache_conf_dir, 'videocache.conf')) + upgrade_error)
 
     # Create tables for filelist database
-    try:
-        initialize_database(o)
-        if not create_tables():
-            print_message_and_abort(red("Could not create database tables for filelist db"))
-    except Exception, e:
-        log_traceback()
-        print_message_and_abort(upgrade_error)
+    #try:
+    #    initialize_database(o)
+    #    if not create_tables():
+    #        print_message_and_abort(red("Could not create database tables for filelist db"))
+    #except Exception, e:
+    #    log_traceback()
+    #    print_message_and_abort(upgrade_error)
 
     if not copy_file(config_file, backup_config_file, quiet):
         print_message_and_abort(red("Could not backup %s to %s.\nAborting upgrade." % (config_file, backup_config_file)))

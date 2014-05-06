@@ -276,7 +276,7 @@ def cache_youtube_video(website_id, video_id, fmt = '', url = '', cur_cache_dir 
                     os.chmod(video_path, o.file_mode)
                     os.utime(video_path, None)
                     info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
-                    video_file.add_info(website_id, video_id, cur_cache_dir)
+                    video_file.add_info(website_id, filename, cur_cache_dir)
         else:
             info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
     except Exception, e:
@@ -387,6 +387,7 @@ def cache(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
 def schedule():
     global active_video_list
     while True:
+        time.sleep(5)
         if not o.client_email:
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
             break
@@ -407,7 +408,6 @@ def schedule():
             cache_thread.start()
         except Exception, e:
             ent({ 'code' : 'VIDEO_SCHEDULE_ERR', 'message' : 'Could not schedule video for caching.', 'debug' : str(e) })
-        time.sleep(5)
 
 def purge_object(video_url):
     global this_opener
@@ -465,114 +465,101 @@ def arg_drop_exception(website_id, params, arg):
     return False
 
 def watch_log_hit():
-    global local_cpn_pool, local_long_id_pool, log_hit_queue
+    global access_log_queue, youtube
 
-    local_urls = []
-    local_urls_count = 0
     if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
         return
 
+    exp = 0
     while True:
-        if local_urls_count > 500:
-            local_urls = local_urls[-50:]
-            local_urls_count = len(local_urls)
         try:
-            line = log_hit_queue.get(timeout = 120)
-            try:
-                video_url = None
-                for line_part in line.split():
-                    if 'http://' in line_part:
-                        video_url = line_part
-                        break
-                if not video_url or video_url in local_urls:
-                    continue
-                local_urls.append(video_url)
-                local_urls_count += 1
-                fragments = urlparse.urlsplit(video_url)
-                [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+            video_url = access_log_queue.pop()
+            if not video_url:
+                time.sleep(2 ** exp)
+                exp = min_or_empty([exp + 1, 3])
+                continue
 
-                matched = False
-                for website in o.websites:
-                    if o.enabled_websites[website]:
-                        (matched, website_id, video_id, format, search, queue, report_hit) = eval('check_' + website + '_video(o, video_url, host, path, query)')
-                        if matched:
-                            args = cgi.parse_qs(query)
-                            for video_seek_arg in o.arg_drop_list[website_id]:
-                                if video_seek_arg in args and not arg_drop_exception(website_id, args, video_seek_arg):
-                                    matched = False
-                                    break
+            exp = 0
+            fragments = urlparse.urlsplit(video_url)
+            [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+
+            matched = False
+            for website_id in o.enabled_website_keys:
+                (matched, website_id, video_id, format, search, queue, report_hit) = eval('check_' + website_id + '_video(o, video_url, host, path, query)')
+                if matched:
+                    args = cgi.parse_qs(query)
+                    for video_seek_arg in o.arg_drop_list[website_id]:
+                        if video_seek_arg in args and not arg_drop_exception(website_id, args, video_seek_arg):
+                            matched = False
                             break
+                    break
 
-                if not (matched and search):
+            if not (matched and search):
+                continue
+
+            if website_id == 'youtube' and not is_valid_youtube_video_id(video_id):
+                old_video_id = video_id
+                cpn = get_youtube_cpn_from_query_or_path(query, path)
+                if is_long_youtube_video_id(old_video_id): youtube.add_long_id(old_video_id, cpn)
+                video_id = youtube.get_video_id(cpn, old_video_id)
+                if video_id == None:
+                    warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
                     continue
 
-                if website_id == 'youtube' and video_id and len(video_id) != 11:
-                    old_video_id = video_id
-                    cpn = get_youtube_cpn_from_query_or_path(query, path)
-                    video_id = get_youtube_video_id_from_cpn_or_long_id(cpn, video_id)
-                    if video_id == None:
-                        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
-                        continue
+            if website_id != 'youtube' and not video_id:
+                warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
+                continue
 
-                if website_id != 'youtube' and not video_id:
-                    warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
-                    continue
+            if not video_id:
+                continue
 
-                if not video_id:
-                    continue
+            expected_size = None
+            if website_id == 'youtube':
+                youtube_range = get_youtube_video_range_from_query_or_path(query, path)
+                expected_size = youtube_range['end'] - youtube_range['start']
+                filename = get_youtube_filename(o, video_id, format, youtube_range)
+            else:
+                filename = eval('get_' + website_id + '_filename(o, video_id, format)')
 
-                expected_size = None
-                if website_id == 'youtube':
-                    youtube_range = get_youtube_video_range_from_query_or_path(query, path)
-                    expected_size = youtube_range['end'] - youtube_range['start']
-                    filename = get_youtube_filename(o, video_id, format, youtube_range)
-                else:
-                    filename = eval('get_' + website_id + '_filename(o, video_id, format)')
+            cached = False
+            for directory in o.base_dirs[website_id]:
+                if os.path.isfile(os.path.join(directory, filename)):
+                    cached = True
+                    break
 
-                cached = False
-                for directory in o.base_dirs[website_id]:
-                    if os.path.isfile(os.path.join(directory, filename)):
-                        cached = True
-                        break
+            if cached:
+                continue
 
-                if cached:
-                    continue
+            is_cached_result = is_cached(video_url)
+            log_error = True
+            if is_cached_result == True:
+                info({ 'code' : 'LOG_HIT_CONFIRMED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
+            elif is_cached_result == 2 and website_id in o.log_hit_uncertain_exceptions:
+                info({ 'code' : 'LOG_HIT_UNCERTAIN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video may be present in local squid cache. Will try anyway.' })
+                log_error = False
+            else:
+                info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Either video is not present in squid cache anymore or the connection was closed before video buffer could complete.' })
+                continue
 
-                is_cached_result = is_cached(video_url)
-                log_error = True
-                if is_cached_result == True:
-                    info({ 'code' : 'LOG_HIT_CONFIRMED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video is present in local squid cache' })
-                elif is_cached_result == 2 and website_id in o.log_hit_uncertain_exceptions:
-                    info({ 'code' : 'LOG_HIT_UNCERTAIN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'The video may be present in local squid cache. Will try anyway.' })
-                    log_error = False
-                else:
-                    info({ 'code' : 'LOG_HIT_CONFIRM_FAILED', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Either video is not present in squid cache anymore or the connection was closed before video buffer could complete.' })
-                    continue
+            cache_dir = get_next_cache_dir()
+            if not cache_dir:
+                continue
 
-                cache_dir = get_next_cache_dir()
-                if cache_dir == False:
-                    continue
-
-                tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
-                video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
-                params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
-                if website_id == 'android':
-                    params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-                if timeout_exec(10, cache_remote_url, False, video_url, tmp_path, params):
-                    size = os.path.getsize(tmp_path)
-                    move_file(tmp_path, video_path)
-                    os.chmod(video_path, o.file_mode)
-                    os.utime(video_path, None)
-                    #VideoFile.with_timeout(1, VideoFile.create, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : filename, 'size' : size, 'access_time' : current_time() })
-                    VideoFile(o).add_info(website_id, video_id, cache_dir)
-                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
-                else:
-                    if os.path.isfile(tmp_path): os.unlink(tmp_path)
-            except Exception, e:
-                ent({ 'code' : 'LOG_CACHE_ERR', 'message' : 'Error while fetching videos from squid cache.', 'debug' : str(e) })
-        except Empty, e:
-            pass
+            tmp_path = os.path.join(cache_dir, o.temp_dir, filename)
+            video_path = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
+            params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
+            if website_id == 'android':
+                params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
+            if timeout_exec(10, cache_remote_url, False, video_url, tmp_path, params):
+                size = os.path.getsize(tmp_path)
+                move_file(tmp_path, video_path)
+                os.chmod(video_path, o.file_mode)
+                os.utime(video_path, None)
+                video_file.add_info(website_id, filename, cache_dir)
+                info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'Video fetched from squid disk cache and stored at ' + video_path })
+            else:
+                if os.path.isfile(tmp_path): os.unlink(tmp_path)
         except Exception, e:
             ent({ 'code' : 'LOG_READ_ERR', 'message' : 'Error during reading message from log queue.', 'debug' : str(e) })
             time.sleep(0.05)
@@ -631,7 +618,7 @@ def need_rest_for():
         pass
     return rest_for
 
-def submit_system_info():
+def submit_video_info():
     try:
         if o.client_email != '':
             sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision, 'trial' : o.trial }
@@ -640,9 +627,7 @@ def submit_system_info():
             for k,v in sys_info.items():
                 new_info['[server][' + k + ']'] = v
 
-            cookie_handler = urllib2.HTTPCookieProcessor()
-            redirect_handler = urllib2.HTTPRedirectHandler()
-            info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
+            info_opener = urllib2
 
             status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
         else:
@@ -650,119 +635,44 @@ def submit_system_info():
     except Exception, e:
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
-def remove_file_entries_from_db(cache_dir, website_id, files_to_remove):
-    for files_to_remove_chunk in chunks(files_to_remove, 25):
-        try:
-            VideoFile.with_timeout(1, VideoFile.destroy_by, { 'cache_dir' : cache_dir, 'website_id' : website_id, 'filename' : files_to_remove_chunk })
-        except Exception, e:
-            ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while removing entries from database for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        time.sleep(need_rest_for())
-
-def add_file_entries_to_db(cache_dir, website_id, files_to_create):
-    query_prefix = 'INSERT IGNORE INTO %s (cache_dir,website_id,filename,size,access_time) VALUES ' % VideoFile.table_name
-    query_prefix2 = "('" + cache_dir + "','" + website_id + "','%s', '%s', '%s')"
-
-    for filenames in chunks(files_to_create, 25):
-        queries = []
-        for filename in filenames:
-            stats = os.stat(filename)
-            queries.append(query_prefix2 % (filename, stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))))
-        try:
-            VideoFile.with_timeout(1, VideoFile.execute, query_prefix + ','.join(queries))
-        except Exception, e:
-            ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while adding file entries to database for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        time.sleep(need_rest_for())
-
-def update_file_entries_in_db(cache_dir, website_id, files_to_update):
-    query_prefix = 'UPDATE %s SET ' % VideoFile.table_name
-    query_prefix2 = ' size = %d, access_time = "%s" WHERE '
-    query_suffix = ' cache_dir = "%s" AND website_id = "%s" ' % (cache_dir, website_id )
-    query_suffix2 = ' AND filename = "%s"; '
-
-    for filenames in chunks(files_to_update, 25):
-        for filename in filenames:
-            stats = os.stat(filename)
-            query = query_prefix + query_prefix2 % (stats.st_size, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stats.st_atime))) + query_suffix + query_suffix2 % filename
-            try:
-                VideoFile.with_timeout(1, VideoFile.execute, query)
-            except Exception, e:
-                ent({ 'code' : 'FILEDB_ERR', 'website_id' : website_id, 'message' : 'Error while update file entry in database for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        time.sleep(need_rest_for())
-
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     cache_dir = cache_dir.rstrip('/')
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
-    sql_map = { '_' : '\_' }
     os.chdir(cur_dir)
+    total_files_created = 0
     total_files_updated = 0
     for l_1 in letters:
-        try:
-            count, results = VideoFile.with_timeout(3, VideoFile.execute, 'SELECT id, filename, size FROM %s WHERE cache_dir = "%s" AND website_id = "%s" AND BINARY filename LIKE "%s%%";' % (VideoFile.table_name, cache_dir, website_id, sql_map.get(l_1, l_1)))
-        except:
-            results = []
-        files_on_os = set(glob.glob(l_1 + '*'))
-        files_in_db = set(map(lambda x: x[1], results))
-
-        files_to_remove = files_in_db - files_on_os
-        remove_file_entries_from_db(cache_dir, website_id, list(files_to_remove))
-
-        files_to_create = files_on_os - files_in_db
-        add_file_entries_to_db(cache_dir, website_id, list(files_to_create))
-
-        files_to_update = list(set(map(lambda x: x[1], filter(lambda x: x[2] == 0, results))) - files_to_remove)
-        update_file_entries_in_db(cache_dir, website_id, files_to_update)
-
-        total_files_updated += len(files_to_create) + len(files_to_update)
-        time.sleep(need_rest_for() / 4.0)
-    return total_files_updated
-
-def remove_rouge_db_entries(cache_dir):
-    try:
-        while True:
-            count, results = VideoFile.with_timeout(1, VideoFile.execute, 'DELETE FROM %s WHERE cache_dir = "%s" LIMIT 25;' % (VideoFile.table_name, os.path.join(cache_dir, '')))
-            if count < 25:
-                return
-            time.sleep(need_rest_for())
-    except Exception, e:
-        pass
+        for l_2 in letters:
+            for filenames in chunks(glob.glob(l_1 + l_2 + '*'), 100):
+                for filename in filenames:
+                    video_key = video_file.key(website_id, filename)
+                    if video_file.score_exists_for_key(video_key):
+                        if not video_file.info_exists_for_key(video_key, cache_dir):
+                            video_file.set_info_by_key(video_key, cache_dir)
+                            total_files_updated += 1
+                    else:
+                        video_file.add_info(website_id, filename, cache_dir)
+                        total_files_created += 1
+                time.sleep(0.1)
+        time.sleep(0.1)
+    return total_files_created, total_files_updated
 
 def rebuild_filelist():
-    try:
+    for website_id in o.websites:
+        total_files_created, total_files_updated, started_at = 0, 0, time.time()
         for cache_dir in o.base_dir_list:
             cache_dir = cache_dir.rstrip('/')
-            remove_rouge_db_entries(cache_dir)
-            for website_id in o.websites:
-                cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
-                if not os.path.isdir(cur_dir):
-                    continue
-                try:
-                    started_at = time.time()
-                    total_files_updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
-                    info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Updated ' + str(total_files_updated) + ' files in ' + str(int(time.time() - started_at)) + ' seconds for cache_dir : ' + cache_dir })
-                    time.sleep(need_rest_for())
-                except Exception, e:
-                    ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-    except Exception, e:
-        ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist', 'debug' : str(e) })
-
-def flush_video_queue():
-    try:
-        while True:
-            count, results = VideoQueue.with_timeout(1, VideoQueue.execute, 'DELETE FROM %s LIMIT 25;' % VideoQueue.table_name)
-            if count < 25:
-                break
-            time.sleep(need_rest_for())
-        print 'Videocache scheduler queue has been flushed. Active connections (if any) will however continue till the videos are cached.'
-    except Exception, e:
-        print 'Error occured while flushing scheduler queue.', str(e)
-        print traceback.format_exc()
-    for cache_dir in o.base_dir_list:
-        queue_file = os.path.join(cache_dir, o.queue_dump_file)
-        if os.path.isfile(queue_file):
+            cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
+            if not os.path.isdir(cur_dir):
+                create_dir(cur_dir, o.squid_user)
+                continue
             try:
-                os.unlink(queue_file)
+                created, updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
+                total_files_created += created
+                total_files_updated += updated
             except Exception, e:
-                pass
+                ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
+        info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Created %s new entries and updated %s old entries in %s seconds' % (total_files_created, total_files_updated, int(time.time() - started_at)) })
 
 def cleanup_video():
     try:
@@ -770,119 +680,17 @@ def cleanup_video():
     except Exception, e:
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
-def cleanup_cache(from_command_line = False):
-    global cleanup_cache_needed
-    cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
-    if from_command_line:
-        print 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones'
-    delete_query = 'DELETE FROM %s WHERE id IN ' % VideoFile.table_name
-
-    for cache_dir in o.base_dir_list:
-        tries = 0
-        query = 'SELECT id, website_id, filename FROM %s WHERE cache_dir = "%s" AND access_time < "%s" ORDER BY %s LIMIT 10000' % (VideoFile.table_name, cache_dir.rstrip('/'), timestamp_to_datetime(time.time() - 3600), o.cleanup_order)
-        if partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
-            while True:
-                try:
-                    count, results = VideoFile.execute(query)
-                    if len(results) == 0 and tries <= 2:
-                        tries += 1
-                        time.sleep(need_rest_for())
-                        continue
-                    if len(results) < 10:
-                        cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
-                        if from_command_line:
-                            print 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.'
-                        warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
-                        break
-                    tries = 0
-                    for chunked_results in chunks(results, 25):
-                        for result in chunked_results:
-                            video_file_id, website_id, filename = result[0], result[1], result[2]
-                            filepath = os.path.join(cache_dir, o.website_cache_dir.get(website_id, website_id), filename)
-                            if os.path.isfile(filepath):
-                                try:
-                                    os.unlink(filepath)
-                                    cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
-                                    if from_command_line:
-                                        print 'Removed ' + filepath
-                                except Exception, e:
-                                    cent({ 'code' : 'FILE_UNLINK_ERR', 'website_id' : website_id, 'message' : 'Error in removing file ' + filepath, 'debug' : str(e) })
-                                    if from_command_line:
-                                        print 'Error in removing file ' + filepath
-                            VideoFile.with_timeout(0.5, VideoFile.destroy_by, { 'id' : video_file_id })
-                        time.sleep(need_rest_for())
-                    if partition_used(cache_dir) < o.base_dir_thresholds[cache_dir]['low']: break
-                except Exception, e:
-                    cent({ 'code' : 'CLEANER_ERR', 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
-                    if from_command_line:
-                        print 'Error occured while cleaning cache directory ' + cache_dir, str(e)
-                        print traceback.format_exc()
-    cleanup_cache_needed = False
-    cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
-    if from_command_line:
-        print 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones'
-    else:
-        update_disk_space()
-
-def cleanup_video_queue():
-    cut_off_time = time.time() - o.video_queue_lifetime
-    active_cut_off_time = time.time() - o.active_queue_lifetime
-    try:
-        while True:
-            count, r = VideoQueue.with_timeout(1, VideoQueue.execute, 'DELETE FROM %s WHERE access_time < "%s" OR (access_count = 0 AND active = 0 AND (activated_at IS NULL OR activated_at < "%s")) LIMIT 25;' % (VideoQueue.table_name, timestamp_to_datetime(cut_off_time), timestamp_to_datetime(active_cut_off_time)))
-            if count < 25:
-                break
-            time.sleep(need_rest_for())
-    except Exception, e:
-        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
-
-    try:
-        while True:
-            count, r = VideoQueue.with_timeout(1, VideoQueue.execute, 'UPDATE %s SET active = %d, activated_at = NULL WHERE active = %d AND (activated_at IS NULL OR activated_at < "%s") LIMIT 25;' % (VideoQueue.table_name, False, True, timestamp_to_datetime(active_cut_off_time)))
-            if count < 25:
-                break
-            time.sleep(need_rest_for())
-    except Exception, e:
-        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
-
-def cleanup_cpn_pool():
-    schedule()
-    global local_cpn_pool, local_long_id_pool
-    cut_off_time = time.time() - o.cpn_lifetime
-    for cpn_id in local_cpn_pool.keys():
-        try:
-            if cut_off_time > local_cpn_pool[cpn_id]['last_used']:
-                local_cpn_pool.pop(cpn_id, None)
-        except:
-            pass
-    for long_id in local_long_id_pool.keys():
-        try:
-            if cut_off_time > local_long_id_pool[long_id]['last_used']:
-                local_long_id_pool.pop(long_id, None)
-        except:
-            pass
-    try:
-        while True:
-            count, results = YoutubeCPN.with_timeout(1, YoutubeCPN.execute, 'DELETE FROM %s WHERE access_time < "%s" LIMIT 25;' % (YoutubeCPN.table_name, timestamp_to_datetime(cut_off_time)))
-            if count < 25:
-                break
-            time.sleep(need_rest_for())
-    except Exception, e:
-        wnt({ 'code' : 'CLEANUP_WARN', 'message' : 'Ignore this warning if it occurs rarely. Please report if you see this message very frequently.', 'debug' : str(e) })
-
 def cleanup_tmp():
     now = time.time()
     for tmp_dir in o.base_dirs[o.temp_dir]:
         remove_count = 0
-        filenames = glob.glob(os.path.join(tmp_dir, '*'))
-        for filename in filenames:
-            if os.path.isfile(filename) and (now - os.stat(filename).st_mtime) > o.tmp_file_lifetime:
-                remove_count += 1
-                try:
-                    os.unlink(filename)
-                except:
-                    pass
-        if len(filenames): info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
+        for filenames in chunks(glob.glob(os.path.join(tmp_dir, '*')), 50):
+            for filename in filenames:
+                if os.path.isfile(filename) and (now - os.stat(filename).st_mtime) > o.tmp_file_lifetime:
+                    if remove_file(filename): remove_count += 1
+            time.sleep(0.5)
+        if remove_count: info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
+        time.sleep(0.5)
 
 def write_pid_file(pids):
     try:
@@ -943,9 +751,9 @@ def task_scheduler():
     last_cc_at, cc_thread, cc_interval = now - 52, None, 60
 
     # rebuild_filelist
-    last_rf_at, rf_thread, rf_interval = now - (o.filelist_rebuild_interval - 50), None, o.filelist_rebuild_interval
+    last_rf_at, rf_thread, rf_interval = now - (o.filelist_rebuild_interval - 10), None, o.filelist_rebuild_interval
 
-    # submit_system_info
+    # submit_video_info
     last_ssi_at, ssi_thread, ssi_interval = now - 21500, None, 21600
 
     # cleanup_video
@@ -963,41 +771,13 @@ def task_scheduler():
     while True:
         cur_time = time.time()
         write_pid_file(process_list)
-        ccp_thread, last_ccp_at = thread_starter(ccp_thread, cleanup_cpn_pool, cur_time, last_ccp_at, ccp_interval)
-        cvq_thread, last_cvq_at = thread_starter(cvq_thread, cleanup_video_queue, cur_time, last_cvq_at, cvq_interval)
-        if cleanup_cache_needed:
-            last_cc_at = 0
-        cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
-        ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_system_info, cur_time, last_ssi_at, ssi_interval)
+        ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_video_info, cur_time, last_ssi_at, ssi_interval)
         cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
         if not o.offline_mode and o.enable_access_log_monitoring:
-            cm_thread, last_cm_at = thread_starter(cm_thread, watch_access_log, cur_time, last_cm_at, cm_interval)
             hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
         ct_thread, last_ct_at = thread_starter(ct_thread, cleanup_tmp, cur_time, last_ct_at, ct_interval)
         rf_thread, last_rf_at = multiprocess_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval, process_list)
         time.sleep(2)
-
-class VideoPoolDaemon(VideocacheDaemon):
-
-    def __init__(self, o = None, **kwargs):
-        self.o = o
-        VideocacheDaemon.__init__(self, '/var/run/videocache.pid', name = 'Videocache Scheduler', **kwargs)
-
-    def run(self):
-        global process_id
-        try:
-            self.o.set_loggers()
-            process_id = os.getpid()
-
-            if not o.enable_access_log_monitoring:
-                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because enable_access_log_monitoring is set to 0 in /etc/videocache.conf.' })
-
-            if o.offline_mode:
-                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
-
-            task_scheduler()
-        except Exception, e:
-            ent({ 'code' : 'TASK_SCHEDULER_ERR', 'message' : 'Error while starting task scheduler.' })
 
 def cleanup_processes():
     try:
@@ -1016,6 +796,25 @@ def cleanup_processes():
         os.unlink(o.pidfile_path)
     except:
         pass
+
+class VideoPoolDaemon(VideocacheDaemon):
+
+    def __init__(self, o = None, **kwargs):
+        self.o = o
+        VideocacheDaemon.__init__(self, '/var/run/videocache.pid', name = 'Videocache Scheduler', **kwargs)
+
+    def run(self):
+        global process_id
+        try:
+            self.o.set_loggers()
+            process_id = os.getpid()
+
+            if o.offline_mode:
+                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
+
+            task_scheduler()
+        except Exception, e:
+            ent({ 'code' : 'TASK_SCHEDULER_ERR', 'message' : 'Error while starting task scheduler.' })
 
 if __name__ == '__main__':
     # Parse command line options.
@@ -1045,7 +844,6 @@ if __name__ == '__main__':
 
         daemon = VideoPoolDaemon(o, uid = uid)
 
-        log_hit_queue = Queue(o.max_log_hit_monitor_queue_size)
         base_dir_disk_space = {}
         last_base_dir_used = 0
         last_disk_space_update_at = 0
@@ -1054,8 +852,6 @@ if __name__ == '__main__':
         sorted_disk_space = None
         last_cache_dir_warn_at = 0
         cache_dir_warn_interval = 60
-        local_cpn_pool = {}
-        local_long_id_pool = {}
         exit = False
         process_id = '-'
         stdout = sys.stdout
@@ -1063,8 +859,8 @@ if __name__ == '__main__':
         video_file = VideoFile(o)
         video_queue = VideoQueue(o)
         access_log_queue = AccessLogQueue(o)
-        active_video_list = []
         youtube = Youtube(o)
+        active_video_list = []
         this_opener = None
         if o.this_proxy_server:
             this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))

@@ -63,7 +63,8 @@ class VideoFile(VideoCacheRedis):
         return self.set_score_by_key(self.key(website_id, video_id), score, access_time)
 
     def increment_score_by_key(self, key, incr = 1, access_time = None):
-        score = self.get_score_by_key(key)[0]
+        score, timestamp = self.get_score_by_key(key)
+        if not access_time: access_time = timestamp
         return self.set_score_by_key(key, score + incr, access_time)
 
     def increment_score(self, website_id, video_id, incr = 1, access_time = None):
@@ -79,6 +80,14 @@ class VideoFile(VideoCacheRedis):
 
     def get_score_length(self):
         return self.redis.zcard(self.scores_key)
+
+    def score_exists_for_key(self, key):
+        if self.redis.zrank(self.scores_key, key) == None:
+            return False
+        return True
+
+    def score_exists(self, website_id, video_id):
+        return score_exists_for_key(self.key(website_id, video_id))
 
     # Info
     def get_info_by_key(self, key):
@@ -111,7 +120,7 @@ class VideoFile(VideoCacheRedis):
     def remove_info_by_key(self, key):
         if not key: return None
         self.remove_score_by_key(key)
-        return self.redis.hdel(self.info_key, key)
+        return self.redis.hdel(self.info_key, *(self.flat_keys(key)))
 
     def remove_info(self, website_id, video_id):
         return self.remove_info_by_key(self.key(website_id, video_id))
@@ -119,7 +128,19 @@ class VideoFile(VideoCacheRedis):
     def get_info_length(self):
         return self.redis.hlen(self.info_key)
 
+    def info_exists_for_key(self, key, info):
+        return self.get_info_by_key(key) == info
+
+    def info_exists(self, website_id, video_id, info):
+        return self.info_exists_for_key(self.key(website_id, video_id), info)
+
     # General
+    def exists_for_key(self, key, info):
+        return self.score_exists_for_key(key) and self.info_exists_for_key(key, info)
+
+    def exists(self, website_id, video_id, info):
+        return self.exists_for_key(self.key(website_id, video_id), info)
+
     # key can be single item or a list
     def remove_by_key(self, key):
         if not key: return None
@@ -205,7 +226,7 @@ class VideoQueue(VideoCacheRedis):
     def remove_video_by_key(self, key):
         if not key: return None
         self.remove_score_by_key(key)
-        return self.redis.hdel(self.info_key, key)
+        return self.redis.hdel(self.info_key, *(self.flat_keys(key)))
 
     def remove_video(self, website_id, video_id, fmt = ''):
         return self.remove_video_by_key(self.key(website_id, video_id, fmt))
@@ -280,7 +301,7 @@ class ActiveVideoQueue(VideoCacheRedis):
 
     def remove_video_by_key(self, key):
         if not key: return None
-        return self.redis.srem(self.info_key, key)
+        return self.redis.srem(self.info_key, *(self.flat_keys(key)))
 
     def remove_video(self, website_id, video_id):
         return self.remove_video_by_key(self.key(website_id, video_id))
@@ -322,14 +343,14 @@ class Youtube(VideoCacheRedis):
 
     def add_cpn(self, cpn, video_id):
         if not (cpn and video_id): return None
-        if not self.is_valid_video_id(video_id): return None
+        if not is_valid_youtube_video_id(video_id): return None
         self.set_cpn_score(cpn)
         return self.redis.hset(self.cpn_map_key, cpn, video_id)
 
     def remove_cpn(self, cpn):
         if not cpn: return None
         self.remove_cpn_score(cpn)
-        return self.redis.hdel(self.cpn_map_key, cpn)
+        return self.redis.hdel(self.cpn_map_key, *(self.flat_keys(cpn)))
 
     def get_cpn_length(self):
         return self.redis.hlen(self.cpn_map_key)
@@ -337,11 +358,12 @@ class Youtube(VideoCacheRedis):
     def get_video_id_by_cpn(self, cpn):
         if not cpn: return None
         video_id = self.redis.hget(self.cpn_map_key, cpn)
-        if video_id:
+        if is_valid_youtube_video_id(video_id):
             self.set_cpn_score(cpn)
+            return video_id
         else:
             self.remove_cpn(cpn)
-        return video_id
+        return None
 
     def expire_cpns(self):
         before_time = int(time.time()) - self.o.cpn_lifetime
@@ -371,7 +393,7 @@ class Youtube(VideoCacheRedis):
     def remove_long_id(self, long_id):
         if not long_id: return None
         self.remove_long_id_score(long_id)
-        return self.redis.hdel(self.long_id_map_key, long_id)
+        return self.redis.hdel(self.long_id_map_key, *(self.flat_keys(long_id)))
 
     def get_long_id_length(self):
         return self.redis.hlen(self.long_id_map_key)
@@ -390,10 +412,6 @@ class Youtube(VideoCacheRedis):
         return self.remove_long_id(self.redis.zrangebyscore(self.long_id_scores_key, 0, before_time))
 
     # Video ID
-    def is_valid_video_id(self, video_id):
-        if video_id and len(video_id) in [11, 16]: return True
-        return False
-
     def get_video_id(self, cpn, long_id):
         if not (cpn and long_id): return None
 
@@ -406,6 +424,11 @@ class Youtube(VideoCacheRedis):
             if cpn: return self.get_video_id_by_cpn(cpn)
 
         return None
+
+    def expire(self):
+        self.expire_cpns()
+        self.expire_long_ids()
+        return True
 
     def flush(self):
         self.redis.delete(self.cpn_scores_key)
@@ -437,7 +460,7 @@ class AccessLogQueue(VideoCacheRedis):
     def length(self):
         return self.redis.zcard(self.queue_key)
 
-    def trim(self, spare = 100):
+    def trim(self, spare = 50):
         return self.redis.zremrangebyrank(self.queue_key, 0, self.length() - spare)
 
     def flush(self):
