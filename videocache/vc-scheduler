@@ -24,6 +24,7 @@ import cookielib
 import glob
 import pwd
 import random
+import shutil
 import signal
 import socket
 import sys
@@ -795,6 +796,74 @@ def cleanup_processes():
     try:
         os.unlink(o.pidfile_path)
     except:
+        pass
+
+def cleanup_cache(from_command_line = False):
+    global video_file, cleanup_cache_needed
+    cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
+    if from_command_line: print 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones'
+
+    for cache_dir in o.base_dir_list:
+        try:
+            while partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
+                video_keys = video_file.get_least_used(2000)
+                if len(video_keys) == 0:
+                    #TODO trigger rebuild_filelist
+                    cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                    if from_command_line:
+                        print 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.'
+                    warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                    break
+
+                for chunk in chunks(video_keys, 100):
+                    for video_key in chunk:
+                        website_id, filename = video_file.decode_key(video_key)
+                        if website_id and filename:
+                            filepath = os.path.join(cache_dir, o.website_cache_dir[website_id], filename)
+                            if os.path.isfile(filepath):
+                                try:
+                                    os.remove(filepath)
+                                    cleaner_info({ 'code' : 'VIDEO_PURGED', 'message' : 'Removed ' + filepath, 'website_id' : website_id, 'video_id' : filename })
+                                    if from_command_line: print 'Removed %s' % filepath
+                                except Exception, e:
+                                    cent({ 'code' : 'FILE_UNLINK_ERR', 'website_id' : website_id, 'message' : 'Error in removing file ' + filepath, 'debug' : str(e) })
+                                    if from_command_line: print 'Error in removing file %s Error: %s' % (filepath, str(e))
+                    video_file.remove_by_key(chunk)
+                    if partition_used(cache_dir) < o.base_dir_thresholds[cache_dir]['low']: break
+                    time.sleep(0.1)
+                time.sleep(1)
+        except Exception, e:
+            cent({ 'code' : 'CLEANER_ERR', 'message' : 'Error occured while cleaning cache directory ' + cache_dir, 'debug' : str(e) })
+            if from_command_line:
+                print 'Error occured while cleaning cache directory ' + cache_dir, str(e)
+                print traceback.format_exc()
+
+    cleanup_cache_needed = False
+    cleaner_info({ 'code' : 'CLEANER_FINISH', 'message' : 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones' })
+    if from_command_line:
+        print 'Videocache Cleaner finished cleaning the old/unused videos and made space for the new ones'
+    else:
+        update_disk_space()
+
+def cleanup_video_queue():
+    global video_queue
+    try:
+        video_queue.expire_videos()
+    except Exception, e:
+        pass
+
+def cleanup_youtube():
+    global youtube
+    try:
+        youtube.expire_videos()
+    except Exception, e:
+        pass
+
+def cleanup_access_log_queue():
+    global access_log_queue
+    try:
+        access_log_queue.trim()
+    except Exception, e:
         pass
 
 class VideoPoolDaemon(VideocacheDaemon):
