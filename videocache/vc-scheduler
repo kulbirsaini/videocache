@@ -654,7 +654,6 @@ def filelist_rebuild_required():
     return False
 
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
-    cache_dir = cache_dir.rstrip('/')
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
     os.chdir(cur_dir)
     total_files_created = 0
@@ -679,12 +678,12 @@ def rebuild_filelist():
     global filelist_rebuild
     for cache_dir in o.base_dir_list:
         if not filelist_rebuild_required_for(cache_dir): continue
+        info({ 'code' : 'FILELIST_BUILD_START', 'message' : 'Starting filelist build for cache directory %s' % cache_dir })
         total_files_created, total_files_updated, started_at = 0, 0, time.time()
         for website_id in o.websites:
-            cache_dir = cache_dir.rstrip('/')
             cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
             if not os.path.isdir(cur_dir):
-                create_dir(cur_dir, o.squid_user)
+                create_dir(cur_dir, o.videocache_user)
                 continue
             try:
                 created, updated = rebuild_filelist_for(cache_dir, website_id, cur_dir)
@@ -737,13 +736,13 @@ def task_scheduler():
     last_cc_at, cc_thread, cc_interval = now - 52, None, 40
 
     # rebuild_filelist
-    last_rf_at, rf_thread, rf_interval = now - 45, None, 65
+    last_rf_at, rf_thread, rf_interval = now - 55, None, 300
 
     # submit_video_info
-    last_ssi_at, ssi_thread, ssi_interval = now - 21500, None, 21600
+    last_ssi_at, ssi_thread, ssi_interval = now - 21590, None, 21600
 
     # cleanup_video
-    last_cv_at, cv_thread, cv_interval = now - 1770, None, 1800
+    last_cv_at, cv_thread, cv_interval = now - 1780, None, 1800
 
     # log_hit_monitor
     last_hm_at, hm_thread, hm_interval = now - 165, None, 170
@@ -761,7 +760,6 @@ def task_scheduler():
         hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
         ct_thread, last_ct_at = thread_starter(ct_thread, cleanup_tmp, cur_time, last_ct_at, ct_interval)
         if filelist_rebuild_required():
-            #FIXME filelist rebuild happening all the time
             rf_thread, last_rf_at = thread_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval)
         time.sleep(1)
 
@@ -776,7 +774,7 @@ def cleanup_cache(from_command_line = False):
                 video_keys = video_file.get_least_used(2000)
                 if len(video_keys) == 0:
                     # Trigger rebuild filelist if we can't find more to purge
-                    if time.time() - filelist_rebuild[cache_dir]['last_buid_at'] > 21600:
+                    if time.time() - filelist_rebuild[cache_dir]['last_buid_at'] > 21600 and not from_command_line:
                         filelist_rebuild[cache_dir]['rebuild'] = True
                     else:
                         cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
