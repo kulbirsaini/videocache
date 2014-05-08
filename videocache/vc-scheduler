@@ -17,7 +17,6 @@ from vcoptions import VideocacheOptions
 from vcsysinfo import get_all_info
 
 from optparse import OptionParser
-from Queue import Queue, Empty
 
 import cgi
 import cookielib
@@ -33,13 +32,6 @@ import time
 import traceback
 import urllib2
 import urlparse
-
-try:
-    import multiprocessing
-    from multiprocessing import synchronize
-    multiprocessing_enabled = True
-except:
-    multiprocessing_enabled = False
 
 # Cookie processor and default socket timeout
 cj = cookielib.CookieJar()
@@ -98,6 +90,18 @@ def wnt(params = {}):
     error(params)
     params.update({ 'message' : traceback.format_exc() })
     trace(params)
+
+class TaskThread(threading.Thread):
+    def __init__(self, *args, **kwargs):
+        threading.Thread.__init__(self, *args, **kwargs)
+        self._real_run = self.run
+        self.run = self._wrap_run
+
+    def _wrap_run(self):
+        try:
+            self._real_run()
+        except Exception, e:
+            ent({'code' : 'TASK_THREAD_ERR', 'message' : 'Error in task thread.', 'debug' : str(e)})
 
 class LoggingThread(threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -393,7 +397,7 @@ def schedule():
             warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
             break
         try:
-            if o.offline_mode or not is_caching_time(): continue
+            if not is_caching_time(): continue
             if len(active_video_list) >= o.max_cache_processes: continue
 
             cur_cache_dir = get_next_cache_dir()
@@ -636,6 +640,19 @@ def submit_video_info():
     except Exception, e:
         wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
+def filelist_rebuild_required_for(cache_dir):
+    global filelist_rebuild
+    if filelist_rebuild[cache_dir]['rebuild'] or (time.time() - filelist_rebuild[cache_dir]['last_buid_at'] > o.filelist_rebuild_interval):
+        return True
+    return False
+
+def filelist_rebuild_required():
+    global filelist_rebuild
+    for cache_dir in filelist_rebuild.keys():
+        if filelist_rebuild_required_for(cache_dir):
+            return True
+    return False
+
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     cache_dir = cache_dir.rstrip('/')
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
@@ -659,9 +676,11 @@ def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     return total_files_created, total_files_updated
 
 def rebuild_filelist():
-    for website_id in o.websites:
+    global filelist_rebuild
+    for cache_dir in o.base_dir_list:
+        if not filelist_rebuild_required_for(cache_dir): continue
         total_files_created, total_files_updated, started_at = 0, 0, time.time()
-        for cache_dir in o.base_dir_list:
+        for website_id in o.websites:
             cache_dir = cache_dir.rstrip('/')
             cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
             if not os.path.isdir(cur_dir):
@@ -673,7 +692,8 @@ def rebuild_filelist():
                 total_files_updated += updated
             except Exception, e:
                 ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        info({ 'code' : 'FILELIST_BUILD_FINISH', 'website_id' : website_id, 'message' : 'Created %s new entries and updated %s old entries in %s seconds' % (total_files_created, total_files_updated, int(time.time() - started_at)) })
+        info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'Created %s new entries and updated %s old entries in %s seconds for %s' % (total_files_created, total_files_updated, int(time.time() - started_at), cache_dir) })
+        filelist_rebuild[cache_dir] = { 'last_buid_at' : int(time.time()), 'rebuild' : False }
 
 def cleanup_video():
     try:
@@ -693,43 +713,13 @@ def cleanup_tmp():
         if remove_count: info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
         time.sleep(0.5)
 
-def write_pid_file(pids):
-    try:
-        fobject = open(o.pidfile_path, 'w')
-        fobject.write(','.join(map(lambda x: str(x), pids)))
-        fobject.close()
-    except Exception, e:
-        wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.pidfile_path + ' is writable by Squid daemon user.', 'debug' : str(e) })
-
 def thread_starter(thread, func, cur_time, last_run_at, run_interval):
     try:
         if thread and thread.is_alive():
             return thread, last_run_at
         elif cur_time - last_run_at > run_interval:
-            thread = LoggingThread(target = func, name = func.__name__)
+            thread = TaskThread(target = func, name = func.__name__)
             thread.start()
-            return thread, cur_time
-    except Exception, e:
-        wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
-    return False, last_run_at
-
-def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, process_list):
-    try:
-        if thread:
-            if thread.is_alive():
-                return thread, last_run_at
-            elif multiprocessing_enabled:
-                if thread.pid in process_list:
-                    process_list.remove(thread.pid)
-
-        if not (thread and thread.is_alive()) and cur_time - last_run_at > run_interval:
-            if multiprocessing_enabled:
-                thread = multiprocessing.Process(target = func, name = func.__name__)
-            else:
-                thread = LoggingThread(target = func, name = func.__name__)
-            thread.start()
-            if multiprocessing_enabled and thread.pid not in process_list:
-                process_list.append(thread.pid)
             return thread, cur_time
     except Exception, e:
         wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
@@ -737,31 +727,23 @@ def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, proc
 
 def task_scheduler():
     global cleanup_cache_needed
-    process_list = []
-    write_pid_file(process_list)
     now = time.time()
     refine_cache_periods()
 
-    # cleanup_cpn_pool
-    last_ccp_at, ccp_thread, ccp_interval = 0, None, 120
-
-    # cleanup_video_queue
-    last_cvq_at, cvq_thread, cvq_interval = now - 570, None, 600
+    # cleanup_queues
+    last_cq_at, cq_thread, cq_interval = 0, None, 180
 
     # cleanup_cache
-    last_cc_at, cc_thread, cc_interval = now - 52, None, 60
+    last_cc_at, cc_thread, cc_interval = now - 52, None, 40
 
     # rebuild_filelist
-    last_rf_at, rf_thread, rf_interval = now - (o.filelist_rebuild_interval - 10), None, o.filelist_rebuild_interval
+    last_rf_at, rf_thread, rf_interval = now - 45, None, 65
 
     # submit_video_info
     last_ssi_at, ssi_thread, ssi_interval = now - 21500, None, 21600
 
     # cleanup_video
     last_cv_at, cv_thread, cv_interval = now - 1770, None, 1800
-
-    # cpn_monitor
-    last_cm_at, cm_thread, cm_interval = now - 55, None, 60
 
     # log_hit_monitor
     last_hm_at, hm_thread, hm_interval = now - 165, None, 170
@@ -771,35 +753,20 @@ def task_scheduler():
 
     while True:
         cur_time = time.time()
-        write_pid_file(process_list)
+        cq_thread, last_cq_at = thread_starter(cq_thread, cleanup_queues, cur_time, last_cq_at, cq_interval)
         ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_video_info, cur_time, last_ssi_at, ssi_interval)
         cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
-        if not o.offline_mode and o.enable_access_log_monitoring:
-            hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
+        if cleanup_cache_needed:
+            cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
+        hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
         ct_thread, last_ct_at = thread_starter(ct_thread, cleanup_tmp, cur_time, last_ct_at, ct_interval)
-        rf_thread, last_rf_at = multiprocess_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval, process_list)
-        time.sleep(2)
-
-def cleanup_processes():
-    try:
-        kill_tail_processes(o.squid_access_log, o.videocache_user)
-    except:
-        pass
-    try:
-        for pid in map(lambda x: int(x), filter(lambda x: is_integer(x), open(o.pidfile_path, 'r').read().strip().split(','))):
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except:
-                pass
-    except:
-        pass
-    try:
-        os.unlink(o.pidfile_path)
-    except:
-        pass
+        if filelist_rebuild_required():
+            #FIXME filelist rebuild happening all the time
+            rf_thread, last_rf_at = thread_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval)
+        time.sleep(1)
 
 def cleanup_cache(from_command_line = False):
-    global video_file, cleanup_cache_needed
+    global video_file, cleanup_cache_needed, filelist_rebuild
     cleaner_info({ 'code' : 'CLEANER_START', 'message' : 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones' })
     if from_command_line: print 'Videocache Cleaner invoked to cleanup old/unused videos to make space for the new ones'
 
@@ -808,11 +775,14 @@ def cleanup_cache(from_command_line = False):
             while partition_used(cache_dir) > o.base_dir_thresholds[cache_dir]['low']:
                 video_keys = video_file.get_least_used(2000)
                 if len(video_keys) == 0:
-                    #TODO trigger rebuild_filelist
-                    cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
-                    if from_command_line:
-                        print 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.'
-                    warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                    # Trigger rebuild filelist if we can't find more to purge
+                    if time.time() - filelist_rebuild[cache_dir]['last_buid_at'] > 21600:
+                        filelist_rebuild[cache_dir]['rebuild'] = True
+                    else:
+                        cleaner_warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
+                        if from_command_line:
+                            print 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.'
+                        warn({ 'code' : 'CLEANER_OUT_OF_JUNK', 'message' : 'Videocache Cleaner could not find more files to remove from ' + cache_dir + '. Please check if any other program is consuming your disk space. Or tune your cache_swap_low and cache_swap_high options in /etc/videocache.conf accordingly.' })
                     break
 
                 for chunk in chunks(video_keys, 100):
@@ -845,26 +815,84 @@ def cleanup_cache(from_command_line = False):
     else:
         update_disk_space()
 
-def cleanup_video_queue():
+def cleanup_video_queue(from_command_line = False):
     global video_queue
     try:
+        #info({ 'code' : 'VIDEO_QUEUE_CLEANUP', 'message' : 'Cleaning up video queue. Removing low scoring videos stuck in queue for long time' })
+        if from_command_line: print 'Cleaning up video queue. Removing low scoring videos stuck in queue for long time'
         video_queue.expire_videos()
     except Exception, e:
-        pass
+        ent({ 'code' : 'VIDEO_QUEUE_CLEANUP_ERR', 'message' : 'Error while cleaning up video queue', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while cleaning up video queue'
+            print traceback.format_exc()
 
-def cleanup_youtube():
+def cleanup_youtube(from_command_line = False):
     global youtube
     try:
-        youtube.expire_videos()
+        #info({ 'code' : 'YOUTUBE_METADATA_CLEANUP', 'message' : 'Cleaning up stale Youtube metadata' })
+        if from_command_line: print 'Cleaning up stale Youtube metadata'
+        youtube.expire()
     except Exception, e:
-        pass
+        ent({ 'code' : 'YOUTUBE_METADATA_CLEANUP_ERR', 'message' : 'Error while cleaning up Youtube metadata', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while cleaning up Youtube metadata'
+            print traceback.format_exc()
 
-def cleanup_access_log_queue():
+def cleanup_access_log_queue(from_command_line = False):
     global access_log_queue
     try:
+        #info({ 'code' : 'ACCESS_LOG_QUEUE_CLEANUP', 'message' : 'Cleaning up url stuck in access log queue for long time' })
+        if from_command_line: print 'Cleaning up url stuck in access log queue for long time'
         access_log_queue.trim()
     except Exception, e:
-        pass
+        ent({ 'code' : 'ACCESS_LOG_QUEUE_CLEANUP_ERR', 'message' : 'Error while cleaning up access log queue', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while cleaning up access log queue'
+            print traceback.format_exc()
+
+def cleanup_queues(from_command_line = False):
+    cleanup_video_queue(from_command_line)
+    cleanup_youtube(from_command_line)
+    cleanup_access_log_queue(from_command_line)
+
+def flush_video_queue(from_command_line = False):
+    global video_queue
+    try:
+        if from_command_line: print 'Flushing videos queued for background caching'
+        video_queue.flush()
+    except Exception, e:
+        ent({ 'code' : 'VIDEO_QUEUE_FLUSH_ERR', 'message' : 'Error while flushing videos queued for background caching', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while flushing videos queued for background caching'
+            print traceback.format_exc()
+
+def flush_youtube(from_command_line = False):
+    global youtube
+    try:
+        if from_command_line: print 'Flushing Youtube metadata'
+        youtube.flush()
+    except Exception, e:
+        ent({ 'code' : 'YOUTUBE_METADATA_FLUSH_ERR', 'message' : 'Error while flushing Youtube metadata', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while flushing Youtube metadata'
+            print traceback.format_exc()
+
+def flush_access_log_queue(from_command_line = False):
+    global access_log_queue
+    try:
+        if from_command_line: print 'Flushing access log queue'
+        access_log_queue.flush()
+    except Exception, e:
+        ent({ 'code' : 'ACCESS_LOG_QUEUE_FLUSH_ERR', 'message' : 'Error while flushing access log queue', 'debug' : str(e) })
+        if from_command_line:
+            print 'Error while flushing access log queue'
+            print traceback.format_exc()
+
+def flush_queues(from_command_line = False):
+    flush_video_queue(from_command_line)
+    flush_youtube(from_command_line)
+    flush_access_log_queue(from_command_line)
 
 class VideoPoolDaemon(VideocacheDaemon):
 
@@ -877,9 +905,6 @@ class VideoPoolDaemon(VideocacheDaemon):
         try:
             self.o.set_loggers()
             process_id = os.getpid()
-
-            if o.offline_mode:
-                info({ 'code': 'ACCESS_LOG_NOT_MONITORED', 'message' : 'Scheduler will not monitor Squid access.log because Videocache is in offline mode. Check videocache.conf for offline_mode option.' })
 
             task_scheduler()
         except Exception, e:
@@ -933,18 +958,14 @@ if __name__ == '__main__':
         this_opener = None
         if o.this_proxy_server:
             this_opener = urllib2.build_opener(urllib2.ProxyHandler ({ 'http': o.this_proxy_server }))
+        filelist_rebuild = {}
+        for cache_dir in  o.base_dir_list:
+            filelist_rebuild[cache_dir] = { 'last_buid_at' : 0, 'rebuild' : True }
 
         # Compiled regexes
         PID_EXTRACT_REGEX = re.compile('^[^\ ]+[ ]+([0-9]+)')
 
-        try:
-            import ctypes
-            from ctypes.util import find_library
-            libc = ctypes.CDLL(find_library('c'))
-            libc.srand(int(random.random() * 10**8))
-            randomize = libc.rand()
-        except Exception, e:
-            randomize = int(random.random() * 10**8)
+        randomize = int(random.random() * 10**8)
 
         # Import website functions
         for website_id in o.websites:
@@ -959,15 +980,15 @@ if __name__ == '__main__':
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
-            cleanup_processes()
             daemon.stop()
         elif options.sig == 'restart':
-            cleanup_processes()
             daemon.restart()
         elif options.sig == 'status':
             daemon.status()
         elif options.sig == 'flush':
-            flush_video_queue()
+            flush_queues(True)
+        elif options.sig == 'clean-queue':
+            cleanup_queues(True)
         elif options.sig == 'clean':
             cleanup_cache(True)
         else:
@@ -976,4 +997,3 @@ if __name__ == '__main__':
         parser.print_help()
         sys.stderr.write('\nNothing to do. Exit.\n')
         sys.exit(0)
-

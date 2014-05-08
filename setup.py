@@ -49,7 +49,6 @@ Following options must be specified while installing Videocache.
                     Example: 192.168.1.14 or 192.168.1.14:81
 --this-proxy        IP_Address:PORT combination for Squid proxy running on this machine.
                     Example: 127.0.0.1:3128 192.168.1.1:8080
---squid-access-log  Full path to Squid access.log file. Example: /var/log/squid3/access.log
 --apache-conf-dir   Full path to conf.d or extra directory for Apache.
                     Example: /etc/httpd/conf.d/ or /etc/apache2/conf.d/ or /etc/httpd/extra/
 
@@ -57,7 +56,7 @@ You must supply either --skip-apache-conf or --apache-conf-dir.
 To see a list of all available options, please run
 $ python setup.py -h
 
-Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --squid-access-log /var/log/squid3/access.log --apache-conf-dir /etc/httpd/conf.d --db-hostname localhost --db-username videocache --db-password videocache --db-database videocache install
+Usage: python setup.py -e a@b.me -u squid --cache-host 10.1.1.1 --this-proxy 127.0.0.1:3128 --apache-conf-dir /etc/httpd/conf.d install
 
 Please see http://cachevideos.com/#install for more information or getting help.
 """
@@ -83,12 +82,11 @@ Please see http://cachevideos.com/#install for more information or getting help.
     messages['apache_conf_dir'] = "(--apache-conf-dir)  Apache conf.d or extra directory specified using --apache-conf-dir option doesn't start with a /"
     messages['client_email'] = "(--client-email)     Email address provided using --client-email option is not in valid format."
     messages['squid_user'] = "(--squid-user)       The user provided using --squid-user option doesn't exist on system."
-    messages['squid_access_log'] = "(--squid-access-log)  Squid access.log file path specified using --squid-access-log option doesn't start with a /"
     if error_code in messages:
         return messages[error_code]
     return ''
 
-def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, quiet, working_dir, hostname, username, password, database):
+def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, quiet, working_dir):
     """Perform the setup."""
     install_dir = '/usr/share/videocache/'
     etc_dir = '/etc/'
@@ -140,12 +138,7 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         config_data = re.sub(r'\nclient_email[\ ]*=[^\n]*\n', r'\nclient_email = %s\n' % email, config_data, count = 0)
         config_data = re.sub(r'\ncache_host[\ ]*=[^\n]*\n', r'\ncache_host = %s\n' % cache_host, config_data, count = 0)
         config_data = re.sub(r'\nthis_proxy[\ ]*=[^\n]*\n', r'\nthis_proxy = %s\n' % this_proxy, config_data, count = 0)
-        config_data = re.sub(r'\nsquid_access_log[\ ]*=[^\n]*\n', r'\nsquid_access_log = %s\n' % squid_access_log, config_data, count = 0)
         config_data = re.sub(r'\napache_conf_dir[\ ]*=[^\n]*\n', r'\napache_conf_dir = %s\n' % apache_conf_dir, config_data, count = 0)
-        config_data = re.sub(r'\ndb_hostname[\ ]*=[^\n]*\n', r'\ndb_hostname = %s\n' % hostname, config_data, count = 0)
-        config_data = re.sub(r'\ndb_username[\ ]*=[^\n]*\n', r'\ndb_username = %s\n' % username, config_data, count = 0)
-        config_data = re.sub(r'\ndb_password[\ ]*=[^\n]*\n', r'\ndb_password = %s\n' % password, config_data, count = 0)
-        config_data = re.sub(r'\ndb_database[\ ]*=[^\n]*\n', r'\ndb_database = %s\n' % database, config_data, count = 0)
         if apache_conf_dir == '':
             skip_apache_conf = 1
         else:
@@ -161,15 +154,6 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
     # Generate Apache webserver configuration file for videocache.
     if apache_conf_dir and not generate_httpd_conf(os.path.join(apache_conf_dir, 'videocache.conf'), o.base_dir_list, cache_host, True, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(apache_conf_dir, 'videocache.conf')) + install_error)
-
-    # Create tables for filelist database
-    try:
-        initialize_database(o)
-        if not create_tables(hostname, username, password, database):
-            print_message_and_abort(red("Could not create database tables"))
-    except Exception, e:
-        log_traceback()
-        print_message_and_abort(install_error)
 
     try:
         src_vc_update = os.path.join(install_dir, 'vc-update')
@@ -190,7 +174,7 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         log_traceback()
         print_message_and_abort(install_error)
 
-    squid_config_lines = "access_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (squid_access_log, get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_ip_addresses().replace(',', ' '))
     msg = """
 ----------------------------------Step 1-----------------------------------------
 Open the Videocache configuration file located at /etc/videocache.conf and modify
@@ -243,12 +227,7 @@ def process_options(parser):
     parser.add_option('--skip-apache-conf', dest = 'skip_apache_conf', action='store_true', help = 'Skip creating Videocache specific configuration for Apache.', default = False)
     parser.add_option('--apache-conf-dir', dest = 'apache_conf_dir', type='string', help = 'Path to conf.d directory for Apache. In most cases, it\'ll be /etc/httpd/conf.d/ or /etc/apache2/conf.d/.')
     parser.add_option('--cache-host', dest = 'cache_host', type='string', help = 'Cache host (IP Address with optional port) to serve cached videos via Apache.')
-    parser.add_option('--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).')
-    parser.add_option('--squid-access-log', dest = 'squid_access_log', type='string', help = 'Full path to Squid access.log file. Example : /var/log/squid/access.log')
-    parser.add_option('--db-hostname', dest = 'db_hostname', type='string', help = 'Enter hostname for database access')
-    parser.add_option('--db-username', dest = 'db_username', type='string', help = 'Enter username for database access')
-    parser.add_option('--db-password', dest = 'db_password', type='string', help = 'Enter password for database access', default = '')
-    parser.add_option('--db-database', dest = 'db_database', type='string', help = 'Enter database name for videocache')
+    parser.add_option('--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).', default = '127.0.0.1:3128')
     return parser.parse_args()
 
 def is_valid_path(path, file = True):
@@ -262,7 +241,7 @@ def verify_options(options, args):
     if os.geteuid() != 0:
         print_message_and_abort(red(setup_error('uid')))
 
-    if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or not options.squid_access_log or (options.skip_apache_conf == False and not options.apache_conf_dir):
+    if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or (options.skip_apache_conf == False and not options.apache_conf_dir):
         print_message_and_abort(red(setup_error('usage')))
 
     messages = ''
@@ -280,9 +259,6 @@ def verify_options(options, args):
 
     if not is_valid_user(options.squid_user):
         messages += "\n\n" + setup_error('squid_user')
-
-    if not is_valid_path(options.squid_access_log):
-        messages += "\n\n" + setup_error('squid_access_log')
 
     if messages != '':
         messages = blue("One or more validation errors occurred. Please fix them and try running setup.py again.\n") + red(messages) + "\n"
@@ -305,7 +281,6 @@ if __name__ == '__main__':
             from common import *
             from fsop import *
             from vcsysinfo import get_ip_addresses
-            from database import create_tables, initialize_database
         except Exception, e:
             log_traceback()
             print_message_and_abort(red("\nCould not import required modules for setup.") + green("\nIf you contact us regarding this error, please send the Trace above."))
@@ -326,6 +301,5 @@ if __name__ == '__main__':
     if o.halt:
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
-    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, verbose, hostname, username, password, database = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.squid_access_log, options.verbose, options.db_hostname, options.db_username, options.db_password, options.db_database
-    setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, squid_access_log, not verbose, working_dir, hostname, username, password, database)
-
+    email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, verbose = options.client_email, options.squid_user, options.skip_vc_conf, options.apache_conf_dir, options.cache_host, options.this_proxy, options.verbose
+    setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_proxy, not verbose, working_dir)

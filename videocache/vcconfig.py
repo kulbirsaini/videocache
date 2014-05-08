@@ -37,7 +37,6 @@ class VideocacheConf:
     # General
     client_email = Option('')
     enable_videocache = Option(1)
-    offline_mode = Option(0)
     videocache_user = Option('squid')
     max_cache_processes = Option(4)
     hit_threshold = Option(1)
@@ -78,7 +77,6 @@ class VideocacheConf:
     base_dir_selection = Option(2)
     cache_swap_low = Option(92)
     cache_swap_high = Option(97)
-    disk_cleanup_strategy = Option(1)
     filelist_rebuild_interval = Option(86400)
 
     # Logging
@@ -133,7 +131,6 @@ class VideocacheConf:
     enable_youtube_format_support = Option(3)
     enable_youtube_html5_videos = Option(1)
     enable_youtube_3d_videos = Option(1)
-    enable_youtube_partial_caching = Option(1)
     max_youtube_video_quality = Option('720')
     min_youtube_views = Option(100)
     youtube_cache_dir = Option('youtube')

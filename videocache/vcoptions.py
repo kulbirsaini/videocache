@@ -127,7 +127,6 @@ class VideocacheOptions:
             klass.revision = 'c674f4c6e2ce9'
             # General Options
             klass.enable_videocache = int(mainconf.enable_videocache)
-            klass.offline_mode = int(mainconf.offline_mode)
             klass.videocache_user = mainconf.videocache_user
             klass.videocache_group = mainconf.videocache_group
             klass.max_cache_processes = int(mainconf.max_cache_processes)
@@ -181,13 +180,6 @@ class VideocacheOptions:
             klass.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
             klass.temp_dir = mainconf.temp_dir.strip('/').split('/')[-1]
             klass.base_dir_selection = int(mainconf.base_dir_selection)
-            klass.disk_cleanup_strategy = int(mainconf.disk_cleanup_strategy)
-            if klass.disk_cleanup_strategy == 2:
-                klass.cleanup_order = 'size DESC, access_count ASC, access_time ASC'
-            elif klass.disk_cleanup_strategy == 3:
-                klass.cleanup_order = 'access_time ASC, access_count ASC, size DESC'
-            else:
-                klass.cleanup_order = 'access_count ASC, access_time ASC, size DESC'
             klass.filelist_rebuild_interval = int(mainconf.filelist_rebuild_interval)
             cache_swap_low = min(max(int(mainconf.cache_swap_low), 10), 94)
             cache_swap_high = min(max(int(mainconf.cache_swap_high), 15), 96)
@@ -280,15 +272,9 @@ class VideocacheOptions:
             klass.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
             klass.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
             klass.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
-            klass.enable_youtube_partial_caching = int(mainconf.enable_youtube_partial_caching)
             if generate_crossdomain_files:
-                if not klass.enable_youtube_partial_caching:
-                    klass.arg_drop_list['youtube'].append('range')
-                    for dir in klass.base_dir_list:
-                        os.path.isfile(os.path.join(dir, 'youtube_crossdomain.xml')) and os.unlink(os.path.join(dir, 'youtube_crossdomain.xml'))
-                else:
-                    for dir in klass.base_dir_list:
-                        generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), klass.videocache_user, True)
+                for dir in klass.base_dir_list:
+                    generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), klass.videocache_user, True)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

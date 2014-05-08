@@ -154,7 +154,7 @@ def get_youtube_filename(o, video_id, format, bit_range = {}):
 
     if format != '':
         fmt = '_' + format
-        if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
+        if end != 0: suffix = '_' + str(start) + '_' + str(end)
     if o.youtube_formats.has_key(format): ext = o.youtube_formats[format]['ext']
     return video_id + fmt + suffix + ext
 
@@ -195,7 +195,6 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
     found, dir, size, index = False, '', '-', ''
 
     start, end, strict_mode = params.get('start', 0), params.get('end', 0), params.get('strict_mode', False)
-    #if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
 
     filenames = [get_youtube_filename(o, video_id, format, params)]
 

@@ -421,9 +421,6 @@ class VideoFile(VideoCacheRedis):
         if limit != -1: limit = offset + limit - 1
         return self.zrevrange(self.scores_key, 0, limit)
 
-    def cleanup(self):
-        pass
-
 
 class VideoQueue(VideoCacheRedis):
 
@@ -517,7 +514,7 @@ class VideoQueue(VideoCacheRedis):
 
     def expire_videos(self):
         video_ids = self.get_least_scoring_videos()
-        self.remove_video_by_key(video_ids)
+        self.remove_info_by_key(video_ids)
         return True
 
     # General

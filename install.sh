@@ -9,15 +9,6 @@ MESSAGE_LENGTH=70
 DOTS='.........................................................................................................'
 HYPHENS='---------------------------------------------------------------------------------------------------------'
 
-setuptools_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/setuptools.tar.gz?raw=true'
-netifaces_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/netifaces.tar.gz?raw=true'
-iniparse_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/iniparse.tar.gz?raw=true'
-ctypes_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/ctypes.tar.gz?raw=true'
-MySQLdb_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/mysql-python.tar.gz?raw=true'
-multiprocessing_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/multiprocessing.tar.gz?raw=true'
-importlib_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/importlib.tar.gz?raw=true'
-cloghandler_url='https://github.com/kulbirsaini/videocache-dependencies/blob/master/cloghandler.tar.gz?raw=true'
-
 # Common Functions
 blue_without_newline() {
   echo -en "\033[1;36m${1}\033[0m"
@@ -99,6 +90,21 @@ check_root() {
   else
     green 'Granted'
   fi
+}
+
+# Yum or Apt-get
+detect_installer() {
+  which yum > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    installer='yum'
+    return 0
+  fi
+  which apt-get > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    installer='apt-get'
+    return 0
+  fi
+  return 1
 }
 
 # Operating system detection and selection
@@ -254,6 +260,28 @@ os_detection() {
 }
 
 # Check dependencies
+check_pip_or_easy_install() {
+  message_with_padding "Checking python-pip"
+  which pip > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    green 'Installed'
+    return 0
+  fi
+  which easy_install > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    output=`easy_install install pip 2>&1`
+    if [[ $? == 0 ]]; then
+      green 'Installed'
+      return 0
+    else
+      red 'Missing'
+    fi
+  else
+    red 'Missing'
+  fi
+  missing_commands="$missing_commands python-pip"
+}
+
 check_command() {
   message_with_padding "Checking ${1}"
   which $1 > /dev/null 2> /dev/null
@@ -261,28 +289,142 @@ check_command() {
     green 'Installed'
   else
     red 'Missing'
-    echo
-    red "${2}"
-    exit 1
+    missing_commands="$missing_commands $1"
   fi
+  return 1
+}
+
+check_dependencies_basic() {
+  echo; echo
+  heading 'Early Stage Dependency Check'
+  check_command which
 }
 
 check_dependencies() {
   echo; echo
-  heading 'Dependency Check'
-  check_command which 'Download and install `which` utility from http://www.gnu.org/software/which/ or check your operating system manual for installing the same.'
-  check_command python 'Download and install python from http://www.python.org/ or check your operating system manual for installing the same.'
-  check_command wget 'Download and install wget from http://www.gnu.org/software/wget/ or check your operating system manual for installing the same.'
-  check_command tar 'Download and install tar from http://www.gnu.org/software/tar/ or check your operating system manual for installing the same.'
-  check_command gcc 'Download and install gcc from http://gcc.gnu.org/ or check your operating system manual for installing the same.'
+  heading 'Full Dependency Check'
+  check_command wget
+  check_command tar
+  check_command gcc
+  check_command python
+  check_pip_or_easy_install
 }
 
-check_mysql_dependencies() {
-  echo; echo
-  heading 'MySQL Dependency Check'
-  check_command mysql 'Download and install MySQL 5.0 or later using package manager for your operating system.'
-  check_command mysql_config 'You need to install libmysqlclient and libmysqlclient-dev or libmysqlclient-devel using package manager for your operating system.'
-  install_and_verify_python_module MySQLdb
+set_missing_packages_for_yum() {
+  for command in `echo $missing_commands`; do
+    case $command in
+      python-pip)
+        packages="$packages python-pip"
+        break;;
+      python)
+        packages="$packages python python-devel"
+        break;;
+      wget)
+        packages="$packages wget"
+        break;;
+      tar)
+        packages="$packages tar"
+        break;;
+      gcc)
+        packages="$packages gcc"
+        break;;
+      apache)
+        packages="$packages httpd"
+        break;;
+      squid)
+        packages="$packages squid"
+        break;;
+      redis)
+        packages="$packages redis-server"
+        break;;
+    esac
+  done
+}
+
+set_missing_packages_for_apt_get() {
+  for command in `echo $missing_commands`; do
+    case $command in
+      python-pip)
+        packages="$packages python-pip"
+        break;;
+      python)
+        packages="$packages python python-dev"
+        break;;
+      wget)
+        packages="$packages wget"
+        break;;
+      tar)
+        packages="$packages tar"
+        break;;
+      gcc)
+        packages="$packages gcc"
+        break;;
+      apache)
+        packages="$packages apache2"
+        break;;
+      squid)
+        packages="$packages squid3"
+        break;;
+      redis)
+        packages="$packages redis-server"
+        break;;
+    esac
+  done
+}
+
+set_missing_packages() {
+  check_dependencies
+  check_squid
+  check_apache
+  check_redis
+  case $installer in
+    yum)
+      set_missing_packages_for_yum
+      ;;
+    apt-get)
+      set_missing_packages_for_apt_get
+      ;;
+    *)
+      packages=$missing_commands
+      ;;
+  esac
+}
+
+install_missing_packages() {
+  check_dependencies_basic
+  detect_installer
+  set_missing_packages
+  if [[ $packages == '' ]]; then
+    return 0
+  else
+    heading "Missing Package Installation"
+    red "The following required packages were not found on your system: $packages"
+    if [[ $installer == '' ]]; then
+      echo
+      blue "Please install the required packages before continuing further."
+      green "For any help visit support forums at http://cachevideos.com/questions/ or conatct us at http://cachevideos.com/contact"
+      exit 1
+    else
+      ask_question "Do you want me to install the required packages using $installer (y/n): "
+      if [[ $? == 1 ]]; then
+        $installer install $packages
+        echo
+        if [[ $? == 0 ]]; then
+          green "Successfully installed the required software packags. We are good to proceed."
+          echo
+        else
+          red "Error occured while install required packages. Installer will halt now. Please install required packages and run the installer again."
+          green "For any help visit support forums at http://cachevideos.com/questions/ or conatct us at http://cachevideos.com/contact"
+          exit 1
+        fi
+      else
+        echo
+        blue "Please install the required packages before continuing further."
+        green "For any help visit support forums at http://cachevideos.com/questions/ or conatct us at http://cachevideos.com/contact"
+        exit 1
+      fi
+    fi
+  fi
 }
 
 # Install and verify python modules
@@ -354,8 +496,6 @@ extract_archive() {
 verify_python_module() {
   # Options
   # $1 -> name
-  # $2 -> error message
-
   message_with_padding "Verifying ${1}"
   output=`python -c "import ${1}" 2>&1`
   if [[ $? == 0 ]]; then
@@ -370,60 +510,24 @@ verify_python_module() {
 
 install_python_module() {
   # Options
-  # $1 -> name
-  # $2 -> module directory path
-  # $3 -> archive path
-  # $4 -> error message
-
-  error=0
+  # $1 -> Module Name
   message_with_padding "Installing ${1}"
-  cur_dir=`pwd`
-  cd $2/*
-  output=`python setup.py install 2>&1`
+  output=`pip install $1 2>&1`
   if [[ $? == 0 ]]; then
     green 'Success'
   else
-    error=1
     red 'Failed'
     echo
-    print_error_and_output "$4" "$output"
-  fi
-
-  cd $cur_dir
-  remove_dir "$2"
-  remove_file "$3"
-
-  if [[ $error == 1 ]]; then
+    print_error_and_output "$output"
+    red 'Please fix the issues and install this module before continuing further.'
     exit 1
   fi
-}
-
-check_python_dev() {
-  message_with_padding "Checking Python.h"
-  pythonh=`python -c 'import setuptools; print setuptools.distutils.sysconfig.get_python_inc()' 2>&1`
-  if [[ $? != 0 ]]; then
-    red 'Failed'
-    echo
-    print_error_and_output "Either python setuptools are not installed on your system or we can not locate them.\nCheck the error below." "${pythonh}"
-    exit 1
-  fi
-
-  if [[ -f ${pythonh}/Python.h ]]; then
-    green 'Installed'
-    return 0
-  else
-    red 'Missing'
-    echo
-    red 'Please install python-dev or python-devel package depending on your operating system.'
-  fi
-  exit 1
 }
 
 install_and_verify_python_module() {
   # Options
-  # $1 -> Name
-  archive=$1.tar.gz
-  eval url=\${$1_url}
+  # $1 -> Import Name
+  # $2 -> Module Name
 
   message_with_padding "Checking ${1}"
   output=`python -c "import ${1}" 2>&1`
@@ -432,22 +536,18 @@ install_and_verify_python_module() {
     return 0
   else
     red 'Missing'
-
-    download $1 $url "/tmp/$archive" "Please check your network connection!"
-    extract_archive "/tmp/${1}" "/tmp/${archive}"
-    install_python_module "$1" "/tmp/$1" "/tmp/$archive"
+    install_python_module "$2"
     verify_python_module $1
-    echo
   fi
 }
 
 python_import_test() {
 python - <<END
-import importlib, sys
+import sys
 missing_modules = []
-for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'cloghandler', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'functools', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
     try:
-        importlib.import_module(module)
+        __import__(module)
     except Exception, e:
         missing_modules.append(module)
 
@@ -462,14 +562,12 @@ END
 python_code() {
   echo; echo
   heading 'Python Modules And Development Files'
-  install_and_verify_python_module setuptools
-  install_and_verify_python_module iniparse
-  check_python_dev
-  install_and_verify_python_module netifaces
-  install_and_verify_python_module ctypes
-  install_and_verify_python_module cloghandler
-  install_and_verify_python_module importlib
-  install_and_verify_python_module multiprocessing
+  install_and_verify_python_module setuptools setuptools
+  install_and_verify_python_module iniparse iniparse
+  install_and_verify_python_module netifaces netifaces
+  install_and_verify_python_module cloghandler ConcurrentLogHandler
+  install_and_verify_python_module redis redis
+  install_and_verify_python_module hiredis hiredis
 
   message_with_padding "Checking other modules required"
   output=`python_import_test`
@@ -499,7 +597,7 @@ check_squid_user() {
 }
 
 guess_squid_user() {
-  for user in squid proxy nobody; do
+  for user in squid proxy; do
     check_squid_user $user
     if [[ $? == 0 ]]; then
       squid_user=$user; return 0
@@ -508,46 +606,27 @@ guess_squid_user() {
 }
 
 get_squid_user() {
+  echo; echo
   guess_squid_user
   default_squid_user=$squid_user
-  for((i = 1; i <= $tries; i++)); do
-    echo
-    if [[ $default_squid_user == '' ]]; then
-      echo -n "User who run Squid Proxy Server daemon (example: squid or proxy or nobody): "
-    else
-      echo -n "User who run Squid Proxy Server daemon (default: ${default_squid_user}): "
-    fi
+  if [[ $default_squid_user == '' ]]; then
+    echo -n "User who run Squid Proxy Server daemon (example: squid or proxy or nobody): "
+  else
+    echo -n "User who run Squid Proxy Server daemon (default: ${default_squid_user}): "
+  fi
 
-    read choice
-    choice=`echo $choice`
+  read choice
+  choice=`echo $choice`
 
-    if [[ $choice == '' && $default_squid_user == '' ]]; then
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid user in $tries tries. Will exit now."
-        exit 1
-      else
-        red "You didn't enter anything. Please try again."
-      fi
-      continue
-    fi
-
-    if [[ $choice != '' ]]; then
-      squid_user=$choice
-    else
-      squid_user=$default_squid_user
-    fi
-    check_squid_user $squid_user
-    if [[ $? == 0 ]]; then
-      break
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid user in $tries tries. Will exit now."
-        exit 1
-      else
-        red "User \`$squid_user\` doesn't exist on your system. Please try again."
-      fi
-    fi
-  done
+  if [[ $choice != '' ]]; then
+    squid_user=$choice
+  else
+    squid_user=$default_squid_user
+  fi
+  check_squid_user $squid_user
+  if [[ $? != 0 ]]; then
+    red "WARNING: User \`$squid_user\` doesn't exist on your system. I'll continue anyway."
+  fi
   message_with_padding 'Selected user who runs Squid daemon'
   green $squid_user
 }
@@ -569,66 +648,11 @@ sys.exit(1)
 END
 }
 
-check_squid_access_log() {
-  for file in /var/log/squid/access.log /var/log/squid3/access.log /var/logs/squid/access.log /var/logs/squid3/access.log /usr/local/squid/logs/access.log /usr/local/squid3/access.log ; do
-    if [[ -f $file ]]; then
-      squid_access_log=$file
-      return
-    fi
-  done
-}
-
-get_squid_access_log() {
-  check_squid_access_log
-  default_squid_access_log=$squid_access_log
-  for ((i = 1; i <= $tries; ++i )); do
-    echo
-    if [[ $default_squid_access_log == '' ]]; then
-      echo -n "Full path to Squid access.log file (example: /var/log/squid/access.log): "
-    else
-      echo -n "Full path to Squid access.log file (default: $default_squid_access_log): "
-    fi
-
-    read choice
-    choice=`echo $choice`
-
-    if [[ $choice == '' && $default_squid_access_log == '' ]]; then
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid Squid access.log path in $tries tries. Will exit now."
-        exit 1
-      else
-        red "You didn't enter anything. Please try again."
-      fi
-      continue
-    fi
-
-    if [[ $choice != '' ]]; then
-      squid_access_log=$choice
-    else
-      squid_access_log=$default_squid_access_log
-    fi
-
-    is_valid_path $squid_access_log file
-    if [[ $? == 0 ]]; then
-      break
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid Squid access.log path in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Path \`$squid_access_log\` is not a valid or acceptable path. Please try again."
-      fi
-    fi
-  done
-  message_with_padding "Selected Squid access.log file"
-  green $squid_access_log
-}
-
 # Squid
 check_squid_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
-    for config_file in /etc/squid/squid.conf /etc/squid3/squid.conf /usr/local/etc/squid/squid.conf /usr/local/squid/etc/squid.conf /usr/local/squid3/etc/squid.conf; do
+    for config_file in /etc/squid/squid.conf /etc/squid3/squid.conf /usr/local/etc/squid/squid.conf /usr/local/squid/etc/squid.conf /usr/local/etc/squid3/squid.conf /usr/local/squid3/etc/squid.conf; do
       if [[ -f $config_file ]]; then
         return 0
       fi
@@ -644,6 +668,7 @@ check_squid() {
     check_squid_with_conf_dir $command
     if [[ $? == 0 ]]; then
       present=1
+      break
     fi
   done
   if [[ $present == 0 ]]; then
@@ -654,28 +679,18 @@ check_squid() {
       green "Okay, I trust you! Let's move forward."
       echo
     else
-      echo
-      red 'Download and install Squid from http://www.squid-cache.org/ or check your operating system manual for installing the same.'
-      exit 1
+      missing_commands="$missing_commands squid"
     fi
   else
     green 'Installed'
   fi
 }
 
-squid_code() {
-  echo; echo
-  heading 'Squid'
-  check_squid
-  get_squid_access_log
-  get_squid_user
-}
-
 # Apache
 check_apache_with_conf_dir() {
   which $1 > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
-    for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/httpd/conf.d/ /etc/httpd/extra/ /usr/local/etc/apache22/extra/ /etc/apache22/conf.d/ ; do
+    for config_dir in /etc/apache2/conf.d/ /etc/apache/conf.d/ /etc/apache2/conf-enabled/ /etc/apache/conf-enabled/ /etc/httpd/conf.d/ /etc/httpd/extra/ /etc/httpd/conf-enabled/ /etc/apache22/conf.d/ /etc/apache24/conf-enabled/ ; do
       if [[ -d $config_dir ]]; then
         apache_config_dir=$config_dir
         return 0
@@ -692,6 +707,7 @@ check_apache() {
     check_apache_with_conf_dir $command
     if [[ $? == 0 ]]; then
       present=1
+      break
     fi
   done
   if [[ $present == 1 ]]; then
@@ -703,9 +719,7 @@ check_apache() {
     if [[ $? == 1 ]]; then
       green "Sure thing! Let's move forward."
     else
-      echo
-      red 'Download and install apache from http://www.apache.org/ or check your operating system manual for installing the same.'
-      exit 1
+      missing_commands="$missing_commands apache"
     fi
   fi
 }
@@ -757,7 +771,6 @@ get_apache_conf_dir() {
 
 apache_code() {
   echo; echo
-  heading 'Apache Configuration'
   ask_question 'Do you want to skip Apache configuration? (y/n): '
   if [[ $? == 1 ]]; then
     message_with_padding "Apache configuration"
@@ -765,8 +778,28 @@ apache_code() {
     skip_apache=1
     apache_config_dir=''
   else
-    check_apache
     get_apache_conf_dir
+  fi
+}
+
+# Redis
+check_redis() {
+  present=0
+  message_with_padding "Checking Redis"
+  which redis-server > /dev/null 2> /dev/null
+  if [[ $? == 0 ]]; then
+    green 'Installed'
+    present=1
+  else
+    red 'Missing'
+    echo
+    ask_question "Redis not detected on your system. Do you have Redis installed? (y/n): "
+    if [[ $? == 1 ]]; then
+      green "Sure thing! Let's move forward."
+    else
+      missing_commands="$missing_commands redis"
+    fi
+    echo
   fi
 }
 
@@ -841,146 +874,18 @@ is_valid_host_port() {
   return 0
 }
 
-db_code() {
-  echo; echo
-  heading 'Database Configuration'
-  green 'MySQL database is used for hashing cached files for efficient cleanup'
-  check_mysql_dependencies
-  echo
-  get_db_hostname
-  get_db_username
-  get_db_password
-  get_db_database
-  check_mysql_access
-}
-
-get_db_hostname() {
-  default_hostname='localhost'
-  for((i = 1; i <= $tries; ++i)); do
-    echo -n "Enter hostname ( default: $default_hostname ): "
-    read choice
-    choice=`echo $choice`
-    if [[ $choice == '' ]]; then
-      choice=$default_hostname
-    fi
-    if [[ $choice != '' ]]; then
-      db_hostname=$choice
-      message_with_padding "Selected hostname for database"
-      green $db_hostname
-      return 0
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a hostname in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Please try again."
-      fi
-    fi
-    echo
-  done
-}
-
-get_db_username() {
-  default_username='videocache'
-  for((i = 1; i <= $tries; ++i)); do
-    echo -n "Enter username ( default: $default_username ): "
-    read choice
-    choice=`echo $choice`
-    if [[ $choice == '' ]]; then
-      choice=$default_username
-    fi
-    if [[ $choice != '' ]]; then
-      db_username=$choice
-      message_with_padding "Selected username for database"
-      green $db_username
-      return 0
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a username in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Please try again."
-      fi
-    fi
-    echo
-  done
-}
-
-get_db_password() {
-  default_password=''
-  echo -n "Enter password ( default: $default_password ): "
-  read choice
-  choice=`echo $choice`
-  db_password=$choice
-  message_with_padding "Selected password for database"
-  green $db_password
-  return 0
-}
-
-get_db_database() {
-  default_database='videocache'
-  for((i = 1; i <= $tries; ++i)); do
-    echo -n "Enter database name ( default: $default_database ): "
-    read choice
-    choice=`echo $choice`
-    if [[ $choice == '' ]]; then
-      choice=$default_database
-    fi
-    if [[ $choice != '' ]]; then
-      db_database=$choice
-      message_with_padding "Selected database name"
-      green $db_database
-      return 0
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a database name in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Please try again."
-      fi
-    fi
-    echo
-  done
-}
-
-check_mysql_access() {
- message_with_padding 'Checking MySQL access'
-python - <<END
-import MySQLdb, sys
-import traceback
-try:
-  if '.sock' in '$db_hostname' or '/' in '$db_hostname':
-      db_connection = MySQLdb.connect(unix_socket = '$db_hostname', user = '$db_username', passwd = '$db_password', db = '$db_database')
-  else:
-      db_connection = MySQLdb.connect('$db_hostname', '$db_username', '$db_password', '$db_database')
-  db_connection.ping()
-except:
-  sys.exit(1)
-sys.exit(0)
-END
-
-  if [[ $? == 0 ]]; then
-    green 'Working'
-  else
-    red 'Failed'
-    red 'Please check if MySQL daemon is running. Follow the instructions in INSTALL file to installing mysql and creating a database which can be used by videocache'
-    exit 1
-  fi
-}
-
 get_cache_host() {
   echo; echo
   heading "Cache Host (Web Server)"
   ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
   dark_blue "IP address with optional port. It will be used as a web server to serve"
-  dark_blue "cached videos. Examples: 192.168.1.14 or 192.168.1.14:81"
+  dark_blue "cached videos. Examples: 192.168.1.14 or 192.168.1.14:8080"
   echo
   for((i = 1; i <= $tries; ++i)); do
     echo -n "Enter IP_Address[:port] for cache_host option (available: ${ips}): "
     read choice
     choice=`echo $choice`
-    is_valid_host_port $choice
-    if [[ $? == 0 ]]; then
+    if [[ $choice != '' ]]; then
       cache_host=$choice
       message_with_padding "Selected cache_host"
       green $cache_host
@@ -999,32 +904,25 @@ get_cache_host() {
 
 # This Proxy
 get_this_proxy() {
+  default_this_proxy=$this_proxy
   echo; echo
   heading 'Squid Proxy Server'
-  ips=`ifconfig | grep inet | grep -v inet6 | grep -v 127.0.0.1 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 | tr '\n' ' '`
   dark_blue "IP_Address:Port combination for Squid proxy running on this machine."
   dark_blue "Examples: 127.0.0.1:3128 or 192.168.1.1:8080"
   echo
-  for((i = 1; i <= $tries; ++i)); do
-    echo -n "Enter IP_Address:Port for Squid on this machine (example: 127.0.0.1:3128): "
-    read choice
-    choice=`echo $choice`
-    is_valid_host_port $choice check_port
-    if [[ $? == 0 ]]; then
-      this_proxy=$choice
-      message_with_padding "Selected proxy server"
-      green $this_proxy
-      return 0
-    else
-      if [[ $i == $tries ]]; then
-        red "You didn't enter a valid IP_Address:Port in $tries tries. Will exit now."
-        exit 1
-      else
-        red "Enter IP_Address:Port is not in valid format. Please try again."
-      fi
-    fi
-    echo
-  done
+  echo -n "Enter IP_Address:Port for Squid on this machine (default: $default_this_proxy): "
+  read choice
+  choice=`echo $choice`
+
+  if [[ $choice == '' ]]; then
+    this_proxy=$default_this_proxy
+  else
+    this_proxy=$choice
+  fi
+
+  message_with_padding "Selected proxy server"
+  green $this_proxy
+  return 0
 }
 
 # Print Information
@@ -1033,8 +931,6 @@ print_info() {
   heading 'Collected Information'
 
   dark_blue "We will be using the following information to install videocache."
-  message_with_padding "Squid access.log"
-  green $squid_access_log
   message_with_padding "Squid user"
   green $squid_user
   message_with_padding "Apache conf.d"
@@ -1049,18 +945,13 @@ print_info() {
 
 # Install Videocache
 build_setup_command() {
-  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy --squid-access-log $squid_access_log"
+  setup_command="python setup.py --squid-user $squid_user --client-email $client_email --cache-host $cache_host --this-proxy $this_proxy"
   if [[ $skip_apache == 0 ]]; then
     setup_command="$setup_command --apache-conf-dir $apache_config_dir"
   else
     setup_command="$setup_command --skip-apache-conf"
   fi
-  setup_command="$setup_command --db-hostname $db_hostname --db-username $db_username --db-database $db_database"
-  if [[ $db_password == '' ]]; then
-    setup_command="$setup_command install 2>&1"
-  else
-    setup_command="$setup_command --db-password $db_password install 2>&1"
-  fi
+  setup_command="$setup_command install 2>&1"
 }
 
 install_videocache() {
@@ -1133,10 +1024,10 @@ display_instructions() {
 
 main() {
   check_root
-  check_dependencies
+  install_missing_packages
+  #FIXME uncomment these
   python_code
-  db_code
-  squid_code
+  get_squid_user
   apache_code
   get_client_email
   get_cache_host
@@ -1149,19 +1040,14 @@ main() {
 
 tries=2
 OS=''
-squid_access_log=''
-squid_access_log=''
+installer=''
+missing_commands=''
 squid_user=''
 skip_apache=0
 apache_config_dir=''
 client_email=''
 cache_host=''
-this_proxy=''
+this_proxy='127.0.0.1:3128'
 setup_command=''
-db_hostname=''
-db_username=''
-db_password=''
-db_database=''
 
 main
-

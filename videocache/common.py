@@ -10,7 +10,6 @@ __docformat__ = 'plaintext'
 
 from fsop import *
 from functools import wraps
-from Queue import Empty, Queue
 
 import datetime
 import errno
@@ -28,37 +27,6 @@ import urllib
 import urllib2
 import urlparse
 
-try:
-    import multiprocessing
-    from multiprocessing import synchronize
-
-    if sys.version_info < (2, 7):
-        class Popen(multiprocessing.forking.Popen):
-            def poll(self, flag = os.WNOHANG):
-                if self.returncode is None:
-                    while True:
-                        try:
-                            pid, sts = os.waitpid(self.pid, flag)
-                        except OSError, e:
-                            if e.errno == errno.EINTR:
-                                continue
-                            return None
-                        else:
-                            break
-                    if pid == self.pid:
-                        if os.WIFSIGNALED(sts):
-                            self.returncode = -os.WTERMSIG(sts)
-                        else:
-                            assert os.WIFEXITED(sts)
-                            self.returncode = os.WEXITSTATUS(sts)
-                return self.returncode
-        multiprocessing.Process._Popen = Popen
-
-    multiprocessing_enabled = True
-except:
-    print traceback.format_exc()
-    multiprocessing_enabled = False
-
 # Alias urllib2.open to urllib2.urlopen
 urllib2.open = urllib2.urlopen
 
@@ -70,67 +38,6 @@ VALIDATE_MAC_ADDRESS_REGEX = re.compile('([0-9A-F]{2}:){5}[0-9A-F]{2}', re.I)
 LOG_LEVEL_INFO = logging.getLevelName(logging.INFO)
 LOG_LEVEL_ERR = logging.getLevelName(logging.ERROR)
 LOG_LEVEL_WARN = logging.getLevelName(logging.WARN)
-
-class TimeoutError(Exception):
-    pass
-
-def with_timeout(tmout, raise_exception = True):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            if multiprocessing_enabled:
-                q = multiprocessing.Queue()
-                subproc = multiprocessing.Process(target=f, args=(q,) + args, kwargs=kwargs)
-                subproc.start()
-                subproc.join(tmout)
-                subproc.terminate()
-                try:
-                    return q.get(timeout = 0.1)
-                except Empty:
-                    if raise_exception: raise TimeoutError
-                    return False
-            else:
-                q = Queue()
-                f(q, *args, **kwargs)
-                try:
-                    return q.get(timeout = 0.1)
-                except Empty:
-                    if raise_exception: raise TimeoutError
-                    return False
-        return wrapper
-    return decorator
-
-def classmethod_with_timeout(tmout, raise_exception = True):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(klass, *args, **kwargs):
-            if multiprocessing_enabled:
-                q = multiprocessing.Queue()
-                subproc = multiprocessing.Process(target=f, args=(klass, q) + args, kwargs=kwargs)
-                subproc.start()
-                subproc.join(tmout)
-                subproc.terminate()
-                try:
-                    return q.get(timeout = 0.1)
-                except Empty:
-                    if raise_exception: raise TimeoutError
-                    return False
-            else:
-                q = Queue()
-                f(klass, q, *args, **kwargs)
-                try:
-                    return q.get(timeout = 0.1)
-                except Empty:
-                    if raise_exception: raise TimeoutError
-                    return False
-        return wrapper
-    return decorator
-
-def timeout_exec(timeout, f, raise_exception, *args, **kwargs):
-    @with_timeout(timeout, raise_exception)
-    def _new_ret_method(q, *args, **kwargs):
-        q.put(f(*args, **kwargs))
-    return _new_ret_method(*args, **kwargs)
 
 # Colored messages on terminal
 def red(msg):
