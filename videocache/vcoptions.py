@@ -143,10 +143,6 @@ class VideocacheOptions:
             klass.squid_access_log = mainconf.squid_access_log
             klass.squid_access_log_format_combined = int(mainconf.squid_access_log_format_combined)
             klass.file_mode = 0644
-            klass.db_hostname = mainconf.db_hostname
-            klass.db_username = mainconf.db_username
-            klass.db_password = mainconf.db_password
-            klass.db_database = mainconf.db_database
             klass.redis_hostname = mainconf.redis_hostname
             klass.redis_port = int(mainconf.redis_port)
             klass.redis_socket = mainconf.redis_socket
@@ -226,19 +222,6 @@ class VideocacheOptions:
             klass.max_cleaner_logfile_size = int(mainconf.max_cleaner_logfile_size)
             klass.max_cleaner_logfile_size_in_bytes = int(mainconf.max_cleaner_logfile_size) * 1048576
             klass.max_cleaner_logfile_backups = int(mainconf.max_cleaner_logfile_backups)
-            # DB Logfile
-            klass.enable_db_query_log = int(mainconf.enable_db_query_log)
-            klass.db_query_logformat = mainconf.db_query_logformat
-            klass.db_query_logfile = mainconf.db_query_logfile
-            klass.db_query_logfile_path = os.path.join(mainconf.logdir, mainconf.db_query_logfile)
-            klass.max_db_query_logfile_size = int(mainconf.max_db_query_logfile_size)
-            klass.max_db_query_logfile_size_in_bytes = int(mainconf.max_db_query_logfile_size) * 1048576
-            klass.max_db_query_logfile_backups = int(mainconf.max_db_query_logfile_backups)
-
-            # Filelist Database
-            klass.video_file_table_name = 'video_files'
-            klass.video_queue_table_name = 'video_queue'
-            klass.youtube_cpn_table_name = 'youtube_cpns'
 
             # Network
             klass.cache_host = str(mainconf.cache_host).strip()
@@ -419,7 +402,6 @@ class VideocacheOptions:
         klass.vcs_logger = None
         klass.trace_logger = None
         klass.vcc_logger = None
-        klass.db_logger = None
 
         klass.initialized = True
         klass.halt = False
@@ -435,7 +417,6 @@ class VideocacheOptions:
                 klass.logformat = klass.logformat.replace(key, klass.format_map[key])
                 klass.scheduler_logformat = klass.scheduler_logformat.replace(key, klass.format_map[key])
                 klass.cleaner_logformat = klass.cleaner_logformat.replace(key, klass.format_map[key])
-                klass.db_query_logformat = klass.db_query_logformat.replace(key, klass.format_map[key])
             # Main Videocache Logfile
             if klass.enable_videocache_log:
                 klass.vc_logger = logging.Logger('VideocacheLog')
@@ -463,13 +444,6 @@ class VideocacheOptions:
                 klass.vcc_logger.setLevel(logging.DEBUG)
                 vcc_log_handler = MyConcurrentRotatingFileHandler(klass.cleaner_logfile_path, mode = 'a', maxBytes = klass.max_cleaner_logfile_size_in_bytes, backupCount = klass.max_cleaner_logfile_backups)
                 klass.vcc_logger.addHandler(vcc_log_handler)
-
-            # DB Logfile
-            if klass.enable_db_query_log:
-                klass.db_logger = logging.Logger('DatabaseLog')
-                klass.db_logger.setLevel(logging.DEBUG)
-                db_log_handler = MyConcurrentRotatingFileHandler(klass.db_query_logfile_path, mode = 'a', maxBytes = klass.max_db_query_logfile_size_in_bytes, backupCount = klass.max_db_query_logfile_backups)
-                klass.db_logger.addHandler(db_log_handler)
 
         except Exception, e:
             syslog_msg('Could not set logging! Debug: '  + traceback.format_exc().replace('\n', ''))

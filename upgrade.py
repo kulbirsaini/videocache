@@ -195,7 +195,7 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
 
     missing_modules = []
-    for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'functools', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+    for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'functools', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
         try:
             __import__(module)
         except Exception, e:
