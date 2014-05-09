@@ -9,7 +9,6 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 import os
-import subprocess
 
 def get_generalized_filename(o, video_id, format):
     return video_id + format
@@ -45,31 +44,3 @@ def partition_used(directory):
 def get_size_and_time(filename):
     file_stat = os.stat(filename)
     return (file_stat.st_size, file_stat.st_atime)
-
-def get_filelist(directory, sort_by = 'time', order = 'desc'):
-    cmd = "find %s -type f ! -iname '*.xml' ! -iname '*.queue' -printf " % directory
-
-    if sort_by == 'size':
-        cmd += '"%b %AY%Am%Ad%AH%AM%AS %p\\n"'
-    else:
-        cmd += '"%AY%Am%Ad%AH%AM%AS %b %p\\n"'
-
-    cmd += " | sort -n"
-
-    if order == 'desc': cmd += 'r'
-
-    cmd += " | head -10000 2> /dev/null"
-    filelist = []
-    try:
-        co = subprocess.Popen([cmd], shell = True, stdout = subprocess.PIPE)
-        output = co.stdout.read().strip('\n').split('\n')
-        for line in output:
-            filename = line.strip().split(' ')[2]
-            if filelist != '':
-                filelist.append(filename)
-        if co.poll() is None: co.terminate()
-        return filelist
-    except Exception, e:
-        pass
-    return filelist
-

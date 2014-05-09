@@ -154,7 +154,7 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
         log_traceback()
         print_message_and_abort(upgrade_error)
 
-    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_interface_details()['ip_addresses'].replace(',', ' '))
 
     print green("Videocache upgraded successfully. Please follow the following instructions now.\n")
     print blue("----------------------------------Step 1-----------------------------------------")
@@ -184,7 +184,6 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
     print red("to have a look at videocache activity.")
     print
     print
-    print green("Check Manual.pdf file for detailed configurations of squid, apache and videocache.")
     print green("In case of any bugs or problems, visit http://cachevideos.com/ and contact us.")
     return
 
@@ -195,7 +194,7 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
 
     missing_modules = []
-    for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'functools', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+    for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
         try:
             __import__(module)
         except Exception, e:
@@ -218,7 +217,7 @@ if __name__ == '__main__':
             from vcoptions import VideocacheOptions
             from common import *
             from fsop import *
-            from vcsysinfo import get_ip_addresses
+            from vcsysinfo import get_interface_details
         except Exception, e:
             log_traceback()
             print_message_and_abort(red("\nCould not import required modules for upgrade.") + green("\nIf you contact us regarding this error, please send the Trace above."))

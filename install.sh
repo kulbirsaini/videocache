@@ -545,7 +545,7 @@ python_import_test() {
 python - <<END
 import sys
 missing_modules = []
-for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'functools', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
     try:
         __import__(module)
     except Exception, e:

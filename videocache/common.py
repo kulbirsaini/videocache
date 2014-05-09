@@ -9,10 +9,8 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from fsop import *
-from functools import wraps
 
 import datetime
-import errno
 import logging
 import os
 import pwd

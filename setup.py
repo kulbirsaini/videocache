@@ -174,7 +174,7 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         log_traceback()
         print_message_and_abort(install_error)
 
-    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_interface_details()['mac_addresses'].replace(',', ' '))
     msg = """
 ----------------------------------Step 1-----------------------------------------
 Open the Videocache configuration file located at /etc/videocache.conf and modify
@@ -210,7 +210,6 @@ Restart Squid proxy server daemon using the following command.
 Go the videocache log directory /var/log/videocache/ and check various log files
 to have a look at videocache activity.
 
-Check Manual.pdf file for detailed configurations of squid, apache and videocache.
 In case of any bugs or problems, visit http://cachevideos.com/ and contact us.
 """ % squid_config_lines
 
@@ -230,8 +229,8 @@ def process_options(parser):
     parser.add_option('--this-proxy', dest = 'this_proxy', type='string', help = 'Squid proxy server on this machine (IPADDRESS:PORT).', default = '127.0.0.1:3128')
     return parser.parse_args()
 
-def is_valid_path(path, file = True):
-    if file and path.endswith('/'):
+def is_valid_path(path, is_file = True):
+    if is_file and path.endswith('/'):
         return False
     if re.compile('^/([^\/]+\/){1,7}[^\/]+\/?$').match(path):
         return True
@@ -241,7 +240,7 @@ def verify_options(options, args):
     if os.geteuid() != 0:
         print_message_and_abort(red(setup_error('uid')))
 
-    if 'install' not in args or not options.client_email or not options.squid_user or not options.cache_host or not options.this_proxy or (options.skip_apache_conf == False and not options.apache_conf_dir):
+    if not ('install' in args and options.client_email and options.squid_user and options.cache_host and options.this_proxy and (options.skip_apache_conf or options.apache_conf_dir)):
         print_message_and_abort(red(setup_error('usage')))
 
     messages = ''
@@ -251,7 +250,7 @@ def verify_options(options, args):
     if not is_valid_host_port(options.this_proxy):
         messages += "\n\n" + setup_error('this_proxy')
 
-    if not options.skip_apache_conf and not is_valid_path(options.apache_conf_dir, False):
+    if not (options.skip_apache_conf or is_valid_path(options.apache_conf_dir, False)):
         messages += "\n\n" + setup_error('apache_conf_dir')
 
     if not is_valid_email(options.client_email):
@@ -280,7 +279,7 @@ if __name__ == '__main__':
             from vcoptions import VideocacheOptions
             from common import *
             from fsop import *
-            from vcsysinfo import get_ip_addresses
+            from vcsysinfo import get_interface_details
         except Exception, e:
             log_traceback()
             print_message_and_abort(red("\nCould not import required modules for setup.") + green("\nIf you contact us regarding this error, please send the Trace above."))
