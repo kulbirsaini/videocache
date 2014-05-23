@@ -37,7 +37,6 @@ class VideocacheConf:
     # General
     client_email = Option('')
     enable_videocache = Option(1)
-    offline_mode = Option(0)
     videocache_user = Option('squid')
     max_cache_processes = Option(4)
     hit_threshold = Option(1)
@@ -49,10 +48,9 @@ class VideocacheConf:
     enable_access_log_monitoring = Option(1)
     squid_access_log = Option('')
     squid_access_log_format_combined = Option(0)
-    db_hostname = Option('localhost')
-    db_username = Option('videocache')
-    db_password = Option('')
-    db_database = Option('videocache')
+    redis_hostname = Option('localhost')
+    redis_port = Option(6379)
+    redis_socket = Option('')
     video_queue_lifetime = Option(3600 * 24)
     active_queue_lifetime = Option(3600)
     tmp_file_lifetime = Option(3600)
@@ -76,7 +74,6 @@ class VideocacheConf:
     base_dir_selection = Option(2)
     cache_swap_low = Option(92)
     cache_swap_high = Option(97)
-    disk_cleanup_strategy = Option(1)
     filelist_rebuild_interval = Option(86400)
 
     # Logging
@@ -106,12 +103,6 @@ class VideocacheConf:
     tracefile = Option('trace.log')
     max_tracefile_size = Option(5)
     max_tracefile_backups = Option(1)
-    # DB logfile
-    enable_db_query_log = Option(0)
-    db_query_logformat = Option('%tl %m')
-    db_query_logfile = Option('database.log')
-    max_db_query_logfile_size = Option(5)
-    max_db_query_logfile_backups = Option(1)
 
     # Network
     cache_host = Option('')
@@ -131,7 +122,6 @@ class VideocacheConf:
     enable_youtube_format_support = Option(3)
     enable_youtube_html5_videos = Option(1)
     enable_youtube_3d_videos = Option(1)
-    enable_youtube_partial_caching = Option(1)
     max_youtube_video_quality = Option('720')
     min_youtube_views = Option(100)
     youtube_cache_dir = Option('youtube')

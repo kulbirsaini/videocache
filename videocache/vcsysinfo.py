@@ -11,7 +11,6 @@ __docformat__ = 'plaintext'
 import os
 import platform
 import re
-import subprocess
 
 MAC_ADDRESS_REGEX = re.compile('(hwaddr|ether).*(([0-9A-F]{2}:){5}[0-9A-F]{2})', re.I)
 
@@ -76,41 +75,7 @@ def get_interface_details():
 
         return { 'ip_addresses' : ', '.join(ips), 'mac_addresses' : ', '.join(macs) }
     except Exception, e:
-        return { 'ip_addresses' : get_ip_addresses(), 'mac_addresses' : get_mac_addresses() }
-
-def get_ip_addresses():
-    cmd = "ifconfig | grep inet | grep -v inet6 | awk '{print $2}' | cut -d\: -f2 | cut -d\  -f1 "
-
-    for path in ['/sbin/', '', '/bin/']:
-        command = os.path.join(path, cmd)
-        try:
-            co = subprocess.Popen([command], shell = True, stdout = subprocess.PIPE)
-            ifconfig = co.stdout.read().strip()
-            if co.poll() is None:
-                co.terminate()
-            ips = ', '.join(filter(lambda x: is_valid_ip(x.strip()), ifconfig.split("\n")))
-            if ips != '':
-                return ips
-        except Exception, e:
-            continue
-    return ''
-
-def get_mac_addresses():
-    cmd = 'ifconfig'
-    for path in ['/sbin/', '', '/bin/']:
-        command = os.path.join(path, cmd)
-        try:
-            co = subprocess.Popen([command], stdout = subprocess.PIPE, env = { 'LC_ALL' : 'C' })
-            ifconfig = co.stdout.read()
-            if co.poll() is None:
-                co.terminate()
-            macs = ', '.join(filter(lambda x: is_valid_mac(x), [i[1] for i in MAC_ADDRESS_REGEX.findall(ifconfig, re.MULTILINE)]))
-            if macs != '':
-                return macs
-        except Exception, e:
-            pass
-
-    return ''
+        return { 'ip_addresses' : '', 'mac_addresses' : '' }
 
 def get_all_info(o):
     info = {}

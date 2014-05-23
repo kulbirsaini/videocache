@@ -106,15 +106,6 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
     if o.apache_conf_dir and not generate_httpd_conf(os.path.join(o.apache_conf_dir, 'videocache.conf'), o.base_dir_list, o.cache_host, True, quiet):
         print_message_and_abort(red("Could not generate Apache specific configuration file at %s" % os.path.join(o.apache_conf_dir, 'videocache.conf')) + upgrade_error)
 
-    # Create tables for filelist database
-    try:
-        initialize_database(o)
-        if not create_tables():
-            print_message_and_abort(red("Could not create database tables for filelist db"))
-    except Exception, e:
-        log_traceback()
-        print_message_and_abort(upgrade_error)
-
     if not copy_file(config_file, backup_config_file, quiet):
         print_message_and_abort(red("Could not backup %s to %s.\nAborting upgrade." % (config_file, backup_config_file)))
 
@@ -163,7 +154,7 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
         log_traceback()
         print_message_and_abort(upgrade_error)
 
-    squid_config_lines = "access_log %s\nacl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (o.squid_access_log, get_ip_addresses().replace(',', ' '))
+    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_interface_details()['ip_addresses'].replace(',', ' '))
 
     print green("Videocache upgraded successfully. Please follow the following instructions now.\n")
     print blue("----------------------------------Step 1-----------------------------------------")
@@ -193,7 +184,6 @@ def upgrade_vc(o, working_dir, backup_config_file, quiet):
     print red("to have a look at videocache activity.")
     print
     print
-    print green("Check Manual.pdf file for detailed configurations of squid, apache and videocache.")
     print green("In case of any bugs or problems, visit http://cachevideos.com/ and contact us.")
     return
 
@@ -203,15 +193,10 @@ if __name__ == '__main__':
     parser.add_option('-v', '--verbose', dest = 'verbose', action='store_true', help = 'Print detailed log messages.', default = False)
     options, args = parser.parse_args()
 
-    try:
-        import importlib
-    except Exception, e:
-        print_message_and_abort(red("\nSome Python modules required for videocache to run are missing.\nPlease try installing Videocache which will automatically install required modules."))
-
     missing_modules = []
-    for module in ['atexit', 'cgi', 'cookielib', 'ctypes', 'cloghandler', 'ctypes.util', 'datetime', 'errno', 'functools', 'glob', 'importlib', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'multiprocessing', 'MySQLdb', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'Queue', 'random', 're', 'shutil', 'signal', 'socket', 'stat', 'subprocess', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
+    for module in ['atexit', 'cgi', 'cookielib', 'cloghandler', 'datetime', 'errno', 'glob', 'hiredis', 'iniparse', 'iniparse.config', 'logging', 'logging.handlers', 'netifaces', 'optparse', 'os', 'platform', 'pwd', 'random', 're', 'redis', 'shutil', 'signal', 'socket', 'stat', 'sys', 'syslog', 'threading', 'time', 'traceback', 'urllib', 'urllib2', 'urlparse' ]:
         try:
-            importlib.import_module(module)
+            __import__(module)
         except Exception, e:
             missing_modules.append(module)
 
@@ -232,8 +217,7 @@ if __name__ == '__main__':
             from vcoptions import VideocacheOptions
             from common import *
             from fsop import *
-            from vcsysinfo import get_ip_addresses
-            from database import create_tables, initialize_database
+            from vcsysinfo import get_interface_details
         except Exception, e:
             log_traceback()
             print_message_and_abort(red("\nCould not import required modules for upgrade.") + green("\nIf you contact us regarding this error, please send the Trace above."))
@@ -250,4 +234,3 @@ if __name__ == '__main__':
         print_message_and_abort(red('\nOne or more errors occured in reading configuration file.\nPlease check syslog messages generally located at /var/log/messages or /var/log/syslog.') + green("\nIf you contact us regarding this error, please send the log messages."))
 
     upgrade_vc(o, working_dir, backup_config_file, not options.verbose)
-

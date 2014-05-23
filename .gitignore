@@ -4,3 +4,8 @@ instructions.txt
 test.*
 changelog
 *.log
+*.zip
+*.psql
+*.rdb
+*.sql
+*.gz

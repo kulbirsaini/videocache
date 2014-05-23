@@ -154,7 +154,7 @@ def get_youtube_filename(o, video_id, format, bit_range = {}):
 
     if format != '':
         fmt = '_' + format
-        if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
+        if end != 0: suffix = '_' + str(start) + '_' + str(end)
     if o.youtube_formats.has_key(format): ext = o.youtube_formats[format]['ext']
     return video_id + fmt + suffix + ext
 
@@ -195,7 +195,6 @@ def search_youtube_video(o, video_id, website_id, format, params = {}):
     found, dir, size, index = False, '', '-', ''
 
     start, end, strict_mode = params.get('start', 0), params.get('end', 0), params.get('strict_mode', False)
-    #if o.enable_youtube_partial_caching and end != 0: suffix = '_' + str(start) + '_' + str(end)
 
     filenames = [get_youtube_filename(o, video_id, format, params)]
 
@@ -237,7 +236,7 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
         # Actual video content
         if path.find('videoplayback') > -1 and path.find('get_video_info') < 0:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
-            if get_youtube_video_range_from_query_or_path(query, path)['start'] > 2500000: queue = False
+            if get_youtube_video_range_from_query_or_path(query, path)['start'] > 3000: queue = False
         # Normal youtube videos in web browser
         elif path.find('stream_204') > -1 and query.find('view=0') > -1:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
