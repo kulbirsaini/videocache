@@ -174,7 +174,7 @@ def setup_vc(o, email, user, skip_vc_conf, apache_conf_dir, cache_host, this_pro
         log_traceback()
         print_message_and_abort(install_error)
 
-    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_interface_details()['mac_addresses'].replace(',', ' '))
+    squid_config_lines = "acl this_machine src 127.0.0.1 %s \nhttp_access allow this_machine" % (get_interface_details()['ip_addresses'].replace(',', ' '))
     msg = """
 ----------------------------------Step 1-----------------------------------------
 Open the Videocache configuration file located at /etc/videocache.conf and modify

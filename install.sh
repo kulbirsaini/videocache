@@ -8,6 +8,9 @@
 MESSAGE_LENGTH=70
 DOTS='.........................................................................................................'
 HYPHENS='---------------------------------------------------------------------------------------------------------'
+REDIS_STABLE_URL='http://download.redis.io/redis-stable.tar.gz'
+REDIS_STABLE_PATH=/tmp/redis-stable.tar.gz
+REDIS_TMP_DIR=/tmp/redis-server-3300/
 
 # Common Functions
 blue_without_newline() {
@@ -334,9 +337,6 @@ set_missing_packages_for_yum() {
       squid)
         packages="$packages squid"
         break;;
-      redis)
-        packages="$packages redis-server"
-        break;;
     esac
   done
 }
@@ -365,9 +365,6 @@ set_missing_packages_for_apt_get() {
       squid)
         packages="$packages squid3"
         break;;
-      redis)
-        packages="$packages redis-server"
-        break;;
     esac
   done
 }
@@ -376,7 +373,6 @@ set_missing_packages() {
   check_dependencies
   check_squid
   check_apache
-  check_redis
   case $installer in
     yum)
       set_missing_packages_for_yum
@@ -465,6 +461,9 @@ download() {
     green 'Done'
   else
     red 'Failed'
+    if [[ -f $3 ]]; then
+      rm -f $3
+    fi
     remove_file "$3"
     echo
     print_error_and_output "${4}\nWas trying to fetch $url" "${output}"
@@ -478,6 +477,7 @@ extract_archive() {
   # $2 -> archive path
   # $3 -> error message
 
+  remove_dir "${1}"
   mkdir -p "${1}"
   message_with_padding "Extracting archive ${2}"
   output=`tar -C "${1}" -xzf "${2}" 2>&1`
@@ -783,23 +783,81 @@ apache_code() {
 }
 
 # Redis
+install_redis() {
+  download 'redis' $REDIS_STABLE_URL $REDIS_STABLE_PATH "Download failed!"
+  extract_archive $REDIS_TMP_DIR $REDIS_STABLE_PATH "Failed to extract redis archive"
+  remove_file $REDIS_STABLE_PATH
+  cur_dir=`pwd`
+  cd $REDIS_TMP_DIR/redis-stable
+  message_with_padding "Compiling redis (may take some time)"
+  output=`make > /dev/null 2>&1`
+  if [[ $? == 0 ]]; then
+    green "Done"
+  else
+    red "Failed"
+    red "${output}"
+    echo
+    blue "Please install redis manually before we can continue further."
+    echo
+    cd $cur_dir
+    exit 1
+  fi
+  message_with_padding "Installing redis commands"
+  output=`make install > /dev/null 2>&1`
+  if [[ $? == 0 ]]; then
+    green "Done"
+  else
+    red "Failed"
+    red "${output}"
+    echo
+    blue "Please install redis manually before we can continue further."
+    echo
+    cd $cur_dir
+    exit 1
+  fi
+  blue "Please answer a few questions so that redis installation can be completed."
+  ./utils/install_server.sh
+  if [[ $? != 0 ]]; then
+    red "Redis installation failed. Please install redis manually before we can continue further."
+    cd $cur_dir
+    exit 1
+  fi
+  cd $cur_dir
+}
+
 check_redis() {
-  present=0
   message_with_padding "Checking Redis"
   which redis-server > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
     green 'Installed'
-    present=1
+    return 0
   else
     red 'Missing'
     echo
     ask_question "Redis not detected on your system. Do you have Redis installed? (y/n): "
     if [[ $? == 1 ]]; then
       green "Sure thing! Let's move forward."
+      return 0
     else
-      missing_commands="$missing_commands redis"
+      return 1
     fi
-    echo
+  fi
+  return 0
+}
+
+redis_code() {
+  echo; echo
+  heading "Redis Server"
+  check_redis
+  if [[ $? == 0 ]]; then
+    return 0
+  fi
+  ask_question "Do you want me to try to install redis? (y/n): "
+  if [[ $? == 1 ]]; then
+    install_redis
+  else
+    red 'You must have redis-2.8 or later installed. Please install it before we continue further.'
+    exit 1
   fi
 }
 
@@ -1025,8 +1083,8 @@ display_instructions() {
 main() {
   check_root
   install_missing_packages
-  #FIXME uncomment these
   python_code
+  redis_code
   get_squid_user
   apache_code
   get_client_email
