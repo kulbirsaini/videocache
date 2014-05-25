@@ -238,10 +238,7 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
             video_id = get_youtube_video_id_from_query_or_path(query, path)
             if get_youtube_video_range_from_query_or_path(query, path)['start'] > 3000: queue = False
         # Normal youtube videos in web browser
-        elif path.find('stream_204') > -1 and query.find('view=0') > -1:
-            video_id = get_youtube_video_id_from_query_or_path(query, path)
-            search, queue, report_hit = False, False, False
-        elif (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1 or path.find('get_ad_tags') > -1 or path.find('get_video_info') > -1 or path.find('player_204') > -1 or path.find('ptracking') > -1 or path.find('set_awesome') > -1 or path == 's') and path.find('get_video_info') < 0:
+        elif path.find('stream_204') > -1 or (path.find('get_video') > -1 or path.find('watch_popup') > -1 or path.find('user_watch') > -1 or path.find('get_ad_tags') > -1 or path.find('get_video_info') > -1 or path.find('player_204') > -1 or path.find('ptracking') > -1 or path.find('set_awesome') > -1 or path == 's') and path.find('get_video_info') < 0:
             video_id = get_youtube_video_id_from_query_or_path(query, path)
             search, queue, report_hit = False, False, False
         elif path.find('api/stats/') > -1 and (path.find('/delayplay') > -1 or path.find('/atr') > -1 or path.find('/playback') > -1 or path.find('/watchtime') > -1):

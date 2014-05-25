@@ -133,7 +133,7 @@ def squid_part():
 
                     if website_id == 'youtube':
                         cpn = get_youtube_cpn_from_query_or_path(query, path)
-                        if cpn and len(video_id) == 11: youtube.add_cpn(cpn, video_id)
+                        if cpn and is_valid_youtube_video_id(video_id): youtube.add_cpn(cpn, video_id)
 
                     if search:
                         if website_id == 'youtube':
@@ -160,7 +160,7 @@ def squid_part():
                                 if website_id == 'youtube':
                                     queue_url = ''
                                 if shall_queue:
-                                    video_queue.add_video(website_id, video_id, fmt, queue_url)
+                                    video_queue.add_info(website_id, video_id, fmt, queue_url)
                             if search:
                                 access_log_queue.push(url)
                         else:
