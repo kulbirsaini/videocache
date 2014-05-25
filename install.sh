@@ -310,6 +310,7 @@ check_dependencies() {
   check_command tar
   check_command gcc
   check_command python
+  check_command make
   check_pip_or_easy_install
 }
 
@@ -336,6 +337,9 @@ set_missing_packages_for_yum() {
         break;;
       squid)
         packages="$packages squid"
+        break;;
+      make)
+        packages="$packages make"
         break;;
     esac
   done
@@ -364,6 +368,9 @@ set_missing_packages_for_apt_get() {
         break;;
       squid)
         packages="$packages squid3"
+        break;;
+      make)
+        packages="$packages make"
         break;;
     esac
   done
@@ -783,6 +790,16 @@ apache_code() {
 }
 
 # Redis
+get_redis_config() {
+  for file in /etc/redis/6379.conf /etc/redis/redis.conf /etc/redis.conf; do
+    if [[ -f $file ]]; then
+      redis_conf=$file
+      return 0
+    fi
+  done
+  return 1
+}
+
 install_redis() {
   download 'redis' $REDIS_STABLE_URL $REDIS_STABLE_PATH "Download failed!"
   extract_archive $REDIS_TMP_DIR $REDIS_STABLE_PATH "Failed to extract redis archive"
@@ -790,7 +807,7 @@ install_redis() {
   cur_dir=`pwd`
   cd $REDIS_TMP_DIR/redis-stable
   message_with_padding "Compiling redis (may take some time)"
-  output=`make > /dev/null 2>&1`
+  output=`make 2>&1`
   if [[ $? == 0 ]]; then
     green "Done"
   else
@@ -803,7 +820,7 @@ install_redis() {
     exit 1
   fi
   message_with_padding "Installing redis commands"
-  output=`make install > /dev/null 2>&1`
+  output=`make install 2>&1`
   if [[ $? == 0 ]]; then
     green "Done"
   else
@@ -823,6 +840,26 @@ install_redis() {
     exit 1
   fi
   cd $cur_dir
+  echo
+  green "Great! We are done with redis installation!"
+  echo
+  blue "Default redis configuration allows redis to bind to all IP addresses. We don't really want that."
+  echo
+
+  get_redis_config
+  if [[ $redis_conf == '' ]]; then
+    red "Please make sure that you configure redis to listen on 127.0.0.1 only."
+  else
+    ask_question "Do you want me two override redis configuration located at ${redis_conf}? (y/n): "
+    if [[ $? == 1 ]]; then
+      message_with_padding "Overriding redis.conf at $redis_conf"
+      cp redis.conf $redis_conf
+      green "Done"
+    else
+      red "Please make sure that you configure redis to listen on 127.0.0.1 only."
+    fi
+  fi
+  echo
 }
 
 check_redis() {
@@ -1107,5 +1144,6 @@ client_email=''
 cache_host=''
 this_proxy='127.0.0.1:3128'
 setup_command=''
+redis_conf=''
 
 main

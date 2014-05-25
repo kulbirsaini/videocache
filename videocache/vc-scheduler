@@ -556,7 +556,7 @@ def watch_log_hit():
             params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
             if website_id == 'android':
                 params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-            if timeout_exec(10, cache_remote_url, False, video_url, tmp_path, params):
+            if cache_remote_url(video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
                 move_file(tmp_path, video_path)
                 os.chmod(video_path, o.file_mode)
