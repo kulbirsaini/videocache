@@ -177,7 +177,7 @@ class VideocacheOptions:
 
             # Filesystem
             klass.base_dir = mainconf.base_dir
-            klass.base_dir_list = [dir.strip() for dir in mainconf.base_dir.split('|')]
+            klass.base_dir_list = [dir.strip().rstrip('/') for dir in mainconf.base_dir.split('|')]
             klass.temp_dir = mainconf.temp_dir.strip('/').split('/')[-1]
             klass.base_dir_selection = int(mainconf.base_dir_selection)
             klass.filelist_rebuild_interval = int(mainconf.filelist_rebuild_interval)

@@ -211,9 +211,9 @@ class VideoCacheRedis(object):
             self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
         return 0
 
-    def zrange(self, db_key, start, stop):
+    def zrange(self, db_key, start, stop, *args, **kwargs):
         try:
-            return self.redis.zrange(db_key, start, stop)
+            return self.redis.zrange(db_key, start, stop, args, kwargs)
         except ConnectionError, ce:
             self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
         except Exception, e:
@@ -258,9 +258,9 @@ class VideoCacheRedis(object):
             self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
         return 0
 
-    def zrevrange(self, db_key, start, stop):
+    def zrevrange(self, db_key, start, stop, *args, **kwargs):
         try:
-            return self.redis.zrevrange(db_key, start, stop)
+            return self.redis.zrevrange(db_key, start, stop, args, kwargs)
         except ConnectionError, ce:
             self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
         except Exception, e:
@@ -305,121 +305,100 @@ class VideoCacheRedis(object):
         return list(self._flatten(*args))
 
 class VideoFile(VideoCacheRedis):
+    #TODO FIXME use videocache:video_file_scores:cache_dir:website_id as redis key
 
     def __init__(self, o):
-        self.scores_key = 'videocache:video_file_scores'
-        self.info_key = 'videocache:video_file_info'
+        self.scores_key_prefix = 'videocache:video_files:'
         VideoCacheRedis.__init__(self, o)
         return
 
     # Scores
-    def get_score_by_key(self, key):
-        score = self.zscore(self.scores_key, key)
+    def get_score_by_key(self, redis_key, key):
+        score = self.zscore(redis_key, key)
         if score:
             return (int(score//1), int((score - score//1) * 10000000000))
         return (0,0)
 
-    def get_score(self, website_id, video_id):
-        return self.get_score_by_key(self.key(website_id, video_id))
+    def get_score(self, cache_dir, website_id, video_id):
+        return self.get_score_by_key(self.redis_key(cache_dir, website_id), video_id)
 
-    def set_score_by_key(self, key, score = 1, access_time = None):
+    def set_score_by_key(self, redis_key, key, score = 1, access_time = None):
         if not access_time:
             access_time = int(time.time())
         score = str(score) + '.' + str(access_time)
-        return self.zadd(self.scores_key, key, score)
+        return self.zadd(redis_key, key, score)
 
-    def set_score(self, website_id, video_id, score = 1, access_time = None):
-        return self.set_score_by_key(self.key(website_id, video_id), score, access_time)
+    def set_score(self, cache_dir, website_id, video_id, score = 1, access_time = None):
+        return self.set_score_by_key(self.redis_key(cache_dir, website_id), video_id, score, access_time)
 
-    def increment_score_by_key(self, key, incr = 1, access_time = None):
-        score, timestamp = self.get_score_by_key(key)
+    def increment_score_by_key(self, redis_key, key, incr = 1, access_time = None):
+        score, timestamp = self.get_score_by_key(redis_key, key)
         if not access_time: access_time = timestamp
-        return self.set_score_by_key(key, score + incr, access_time)
+        return self.set_score_by_key(redis_key, key, score + incr, access_time)
 
-    def increment_score(self, website_id, video_id, incr = 1, access_time = None):
-        return self.increment_score_by_key(self.key(website_id, video_id), incr, access_time)
+    def increment_score(self, cache_dir, website_id, video_id, incr = 1, access_time = None):
+        return self.increment_score_by_key(self.redis_key(cache_dir, website_id), video_id, incr, access_time)
 
-    def remove_score_by_key(self, key):
-        return self.zrem(self.scores_key, key)
+    def remove_score_by_key(self, redis_key, key):
+        return self.zrem(redis_key, key)
 
-    def remove_score(self, website_id, video_id):
-        return self.remove_score_by_key(self.key(website_id, video_id))
+    def remove_score(self, cache_dir, website_id, video_id):
+        return self.remove_score_by_key(self.redis_key(cache_dir, website_id), video_id)
 
-    def get_score_length(self):
-        return self.zcard(self.scores_key)
+    def length_by_website(self, website_id):
+        count = 0
+        for cache_dir in self.o.base_dir_list:
+            count += self.zcard(self.redis_key(cache_dir, website_id))
+        return count
 
-    def score_exists_for_key(self, key):
-        if self.zrank(self.scores_key, key) == None:
+    def length_by_cache_dir(self, cache_dir):
+        count = 0
+        for website_id in self.o.websites:
+            count += self.zcard(self.redis_key(cache_dir, website_id))
+        return count
+
+    def length(self):
+        count = 0
+        for website_id in self.o.websites:
+            for cache_dir in self.o.base_dir_list:
+                count += self.zcard(self.redis_key(cache_dir, website_id))
+        return count
+
+
+    def score_exists_for_key(self, redis_key, key):
+        if self.zrank(redis_key, key) == None:
             return False
         return True
 
-    def score_exists(self, website_id, video_id):
-        return score_exists_for_key(self.key(website_id, video_id))
+    def score_exists(self, cache_dir, website_id, video_id):
+        return self.score_exists_for_key(self.redis_key(cache_dir, website_id), video_id)
 
-    # Info
-    def get_info_by_key(self, key):
-        return self.hget(self.info_key, key)
+    def get_least_used(self, cache_dir, limit = 1000):
+        videos = []
+        for website_id in self.o.websites:
+            videos += [(v, k, website_id) for k, v in self.zrange(self.redis_key(cache_dir, website_id), 0, limit, withscores=True)]
+        if limit == -1:
+            return sorted(videos)
+        return sorted(videos)[:limit]
 
-    def get_info(self, website_id, video_id):
-        return self.get_info_by_key(self.key(website_id, video_id))
+    def get_most_used(self, cache_dir, limit = 1000):
+        videos = []
+        for website_id in self.o.websites:
+            videos += [(v, k, website_id) for k, v in self.zrange(self.redis_key(cache_dir, website_id), 0, limit, withscores=True)]
+        if limit == -1:
+            return sorted(videos, reverse = True)
+        return sorted(videos, reverse = True)[:limit]
 
-    def get_bulk_info_by_key(self, keys):
-        return self.hmget(self.info_key, keys)
+    def redis_key(self, cache_dir, website_id):
+        if not (cache_dir and website_id): return None
+        return self.scores_key_prefix + cache_dir + ":" + website_id
 
-    def get_bulk_info(self, keys):
-        return self.get_bulk_info_by_key(keys)
-
-    def set_info_by_key(self, key, info):
-        return self.hset(self.info_key, key, info)
-
-    def set_info(self, website_id, video_id, info):
-        return self.set_info_by_key(self.key(website_id, video_id), info)
-
-    def add_info_by_key(self, key, info):
-        self.increment_score_by_key(key)
-        return self.set_info_by_key(key, info)
-
-    def add_info(self, website_id, video_id, info):
-        return self.add_info_by_key(self.key(website_id, video_id), info)
-
-    # key can be single item or a list
-    def remove_info_by_key(self, key):
-        self.remove_score_by_key(key)
-        return self.hdel(self.info_key, key)
-
-    def remove_info(self, website_id, video_id):
-        return self.remove_info_by_key(self.key(website_id, video_id))
-
-    def get_info_length(self):
-        return self.hlen(self.info_key)
-
-    def info_exists_for_key(self, key, info):
-        return self.get_info_by_key(key) == info
-
-    def info_exists(self, website_id, video_id, info):
-        return self.info_exists_for_key(self.key(website_id, video_id), info)
-
-    # General
-    def exists_for_key(self, key, info):
-        return self.score_exists_for_key(key) and self.info_exists_for_key(key, info)
-
-    def exists(self, website_id, video_id, info):
-        return self.exists_for_key(self.key(website_id, video_id), info)
-
-    # key can be single item or a list
-    def remove_by_key(self, key):
-        return self.remove_info_by_key(key)
-
-    def remove(self, website_id, video_id):
-        return self.remove_info_by_key(self.key(website_id, video_id))
-
-    def get_least_used(self, limit = 1000, offset = 0):
-        if limit != -1: limit = offset + limit - 1
-        return self.zrange(self.scores_key, 0, limit)
-
-    def get_most_used(self, limit = 1000, offset = 0):
-        if limit != -1: limit = offset + limit - 1
-        return self.zrevrange(self.scores_key, 0, limit)
+    def decode_redis_key(self, key):
+        if not key: return (None, None)
+        parts = key.split(":")
+        if len(parts) == 4:
+            return (parts[2], parts[3])
+        return (None, None)
 
 
 class VideoQueue(VideoCacheRedis):

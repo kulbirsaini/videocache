@@ -166,7 +166,7 @@ def squid_part():
                         else:
                             if website_id == 'youtube': new_url += '?' + query
                             info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + request_id + new_url })
-                            video_file.add_info(website_id, filename, cache_dir)
+                            video_file.increment_score(cache_dir, website_id, filename)
                     break
         except Exception, e:
             wnt({ 'code' : 'VIDEOCACHE_UNKNOWN_ISSUE', 'message' : 'Unknown issue detected with videocache. Please report if you see this frequently.', 'debug' : str(e) })
