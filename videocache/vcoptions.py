@@ -123,8 +123,8 @@ class VideocacheOptions:
         try:
             # Options not in configuration file
             klass.queue_dump_file = mainconf.queue_dump_file
-            klass.version = '2.4'
-            klass.revision = 'c674f4c6e2ce9'
+            klass.version = '3.0'
+            klass.revision = 'e7f5d6e2f05'
             # General Options
             klass.enable_videocache = int(mainconf.enable_videocache)
             klass.videocache_user = mainconf.videocache_user

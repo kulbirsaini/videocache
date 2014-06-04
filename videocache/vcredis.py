@@ -54,6 +54,7 @@ class VideoCacheRedis(object):
             self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
         return False
 
+    # Keys methods
     def delete(self, key):
         try:
             return self.redis.delete(key)
@@ -62,6 +63,34 @@ class VideoCacheRedis(object):
         except Exception, e:
             self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
         return 0
+
+    def keys(self, pattern):
+        try:
+            return self.redis.keys(pattern)
+        except ConnectionError, ce:
+            self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
+        except Exception, e:
+            self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
+        return []
+
+    def exists(self, key):
+        try:
+            return self.redis.exists(key)
+        except ConnectionError, ce:
+            self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
+        except Exception, e:
+            self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
+        return False
+
+    def rename(self, old_key, new_key):
+        try:
+            return self.exists(old_key) and self.redis.renamex(old_key, new_key)
+        except ConnectionError, ce:
+            self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
+        except Exception, e:
+            self.ent({ 'code' : 'REDIS_COMMAND_ERR', 'message' : self.error_messages['general'], 'debug' : str(e) })
+        return False
+
 
     # Hash methods
     # Multiple fields as arguments
@@ -399,6 +428,9 @@ class VideoFile(VideoCacheRedis):
         if len(parts) == 4:
             return (parts[2], parts[3])
         return (None, None)
+
+    def get_keys(self):
+        return self.keys(self.scores_key_prefix + '*')
 
 
 class VideoQueue(VideoCacheRedis):

@@ -841,7 +841,17 @@ def cleanup_access_log_queue(from_command_line = False):
             print 'Error while cleaning up access log queue'
             print traceback.format_exc()
 
+def cleanup_video_files_namespace(from_command_line = False):
+    keys_in_db = set(video_file.get_keys())
+    keys_that_should_be_in_db = []
+    for cache_dir in o.base_dir_list:
+        for website_id in o.websites:
+            keys_that_should_be_in_db.append(video_file.redis_key(cache_dir, website_id))
+    for key_to_remove in list(keys_in_db - set(keys_that_should_be_in_db)):
+        video_file.exists(key_to_remove) and video_file.delete(key_to_remove)
+
 def cleanup_queues(from_command_line = False):
+    cleanup_video_files_namespace(from_command_line)
     cleanup_video_queue(from_command_line)
     cleanup_youtube(from_command_line)
     cleanup_access_log_queue(from_command_line)
