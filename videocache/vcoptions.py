@@ -76,6 +76,8 @@ class VideocacheOptions:
         klass.youtube_audio_only_itags = [ '140', '141' ]
         klass.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
         klass.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
+        klass.youtube_range_min_start = 128
+        #TODO map new formats
         klass.youtube_formats = {
             '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
             '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},
@@ -198,6 +200,7 @@ class VideocacheOptions:
             # Mail Videocache Logfile
             klass.enable_videocache_log = int(mainconf.enable_videocache_log)
             klass.logformat = mainconf.logformat
+            klass.calculate_file_size = '%b' in klass.logformat
             klass.logfile = mainconf.logfile
             klass.logfile_path = os.path.join(mainconf.logdir, mainconf.logfile)
             klass.max_logfile_size = int(mainconf.max_logfile_size)
@@ -256,7 +259,6 @@ class VideocacheOptions:
 
             klass.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
             klass.min_youtube_views = int(mainconf.min_youtube_views)
-            klass.enable_youtube_format_support = int(mainconf.enable_youtube_format_support)
             klass.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
             klass.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
             if generate_crossdomain_files:

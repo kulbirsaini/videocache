@@ -132,17 +132,24 @@ def squid_part():
                         break
 
                     if website_id == 'youtube':
-                        cpn = get_youtube_cpn_from_query_or_path(query, path)
-                        if cpn and is_valid_youtube_video_id(video_id): youtube.add_cpn(cpn, video_id)
+                        video_info = get_youtube_video_info_from_query_or_path(query, path, ['cpn', 'upn'])
+                        cpn, upn = video_info.get('upn', None), video_info.get('upn', None)
+                        if is_valid_youtube_video_id(video_id):
+                            if cpn: youtube.add_cpn(cpn, video_id)
+                            if upn: youtube.add_cpn(upn, video_id)
+                        elif is_long_youtube_video_id(video_id):
+                            if cpn: youtube.add_long_id(video_id, cpn)
+                            if upn: youtube.add_long_id(video_id, upn)
 
                     if search:
                         if website_id == 'youtube':
                             youtube_params = get_youtube_video_range_from_query_or_path(query, path)
-                            if youtube_params['start'] > 2048 and youtube_params['end'] > 0: youtube_params.update({ 'strict_mode' : True })
                             (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)
                             if not found:
                                 old_video_id = video_id
-                                video_id = youtube.get_video_id(cpn, video_id)
+                                video_id = youtube.get_video_id(cpn, old_video_id)
+                                if video_id == None:
+                                    video_id = youtube.get_video_id(upn, old_video_id)
                                 if video_id == None: video_id = old_video_id
                                 if old_video_id != video_id:
                                     (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)

@@ -17,6 +17,7 @@ from vcoptions import VideocacheOptions
 from vcsysinfo import get_all_info
 
 from optparse import OptionParser
+from Queue import Queue, Empty
 
 import cgi
 import cookielib
@@ -32,6 +33,13 @@ import time
 import traceback
 import urllib2
 import urlparse
+
+try:
+    import multiprocessing
+    from multiprocessing import synchronize
+    multiprocessing_enabled = True
+except:
+    multiprocessing_enabled = False
 
 # Cookie processor and default socket timeout
 cj = cookielib.CookieJar()
@@ -271,7 +279,7 @@ def cache_youtube_video(website_id, video_id, fmt = '', url = '', cur_cache_dir 
                 info({ 'code' : 'VIDEO_EXISTS', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists.' })
             else:
                 video_url = url_map[fmt]
-                filename = get_youtube_filename(o, video_id, fmt)
+                filename = get_youtube_filenames(o, video_id, fmt, { 'ext_opt' : False })[0]
                 video_path = os.path.join(cache_dir, filename)
                 tmp_path = os.path.join(tmp_dir, filename)
 
@@ -503,14 +511,23 @@ def watch_log_hit():
             if not (matched and search):
                 continue
 
-            if website_id == 'youtube' and not is_valid_youtube_video_id(video_id):
-                old_video_id = video_id
-                cpn = get_youtube_cpn_from_query_or_path(query, path)
-                if is_long_youtube_video_id(old_video_id): youtube.add_long_id(old_video_id, cpn)
-                video_id = youtube.get_video_id(cpn, old_video_id)
-                if video_id == None:
-                    warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
-                    continue
+            if website_id == 'youtube':
+                video_info = get_youtube_video_info_from_query_or_path(query, path, ['cpn', 'upn'])
+                cpn, upn = video_info.get('upn', None), video_info.get('upn', None)
+                if is_valid_youtube_video_id(video_id):
+                    if cpn: youtube.add_cpn(cpn, video_id)
+                    if upn: youtube.add_cpn(upn, video_id)
+                elif is_long_youtube_video_id(video_id):
+                    if cpn: youtube.add_long_id(video_id, cpn)
+                    if upn: youtube.add_long_id(video_id, upn)
+                if not is_valid_youtube_video_id(video_id):
+                    old_video_id = video_id
+                    video_id = youtube.get_video_id(cpn, old_video_id)
+                    if video_id == None:
+                        video_id = youtube.get_video_id(upn, old_video_id)
+                    if video_id == None:
+                        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
+                        continue
 
             if website_id != 'youtube' and not video_id:
                 warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
@@ -519,11 +536,10 @@ def watch_log_hit():
             if not video_id:
                 continue
 
-            expected_size = None
             if website_id == 'youtube':
                 youtube_range = get_youtube_video_range_from_query_or_path(query, path)
-                expected_size = youtube_range['end'] - youtube_range['start']
-                filename = get_youtube_filename(o, video_id, format, youtube_range)
+                youtube_range.update({ 'ext_opt' : False })
+                filename = get_youtube_filenames(o, video_id, format, youtube_range)[0]
             else:
                 filename = eval('get_' + website_id + '_filename(o, video_id, format)')
 
@@ -556,7 +572,7 @@ def watch_log_hit():
             params = { 'website_id' : website_id, 'video_id' : video_id, 'http_headers' : {'X-Requested-With' : 'Videocache'}, 'proxy' : o.this_proxy_server, 'max_cache_speed' : 0, 'socket_read_block_size' : 2097152, 'log_error' : log_error }
             if website_id == 'android':
                 params.update({ 'min_video_size' : o.min_android_app_size, 'max_video_size' : o.max_android_app_size })
-            if cache_remote_url(video_url, tmp_path, params):
+            if timeout_exec(10, cache_remote_url, False, video_url, tmp_path, params):
                 size = os.path.getsize(tmp_path)
                 move_file(tmp_path, video_path)
                 os.chmod(video_path, o.file_mode)
@@ -705,6 +721,14 @@ def cleanup_tmp():
         if remove_count: info({ 'code' : 'TMP_DIR_CLEANUP', 'message' : 'Removed ' + str(remove_count) + ' orphaned files from ' + tmp_dir })
         time.sleep(0.5)
 
+def write_pid_file(pids):
+    try:
+        fobject = open(o.pidfile_path, 'w')
+        fobject.write(','.join(map(lambda x: str(x), pids)))
+        fobject.close()
+    except Exception, e:
+        wnt({ 'code' : 'PIDFILE_WRITE_WARN', 'message' : 'Please check if ' + o.pidfile_path + ' is writable by Squid daemon user.', 'debug' : str(e) })
+
 def thread_starter(thread, func, cur_time, last_run_at, run_interval):
     try:
         if thread and thread.is_alive():
@@ -717,8 +741,32 @@ def thread_starter(thread, func, cur_time, last_run_at, run_interval):
         wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
     return False, last_run_at
 
+def multiprocess_starter(thread, func, cur_time, last_run_at, run_interval, process_list):
+    try:
+        if thread:
+            if thread.is_alive():
+                return thread, last_run_at
+            elif multiprocessing_enabled:
+                if thread.pid in process_list:
+                    process_list.remove(thread.pid)
+
+        if not (thread and thread.is_alive()) and cur_time - last_run_at > run_interval:
+            if multiprocessing_enabled:
+                thread = multiprocessing.Process(target = func, name = func.__name__)
+            else:
+                thread = LoggingThread(target = func, name = func.__name__)
+            thread.start()
+            if multiprocessing_enabled and thread.pid not in process_list:
+                process_list.append(thread.pid)
+            return thread, cur_time
+    except Exception, e:
+        wnt({ 'code' : 'TASK_SCHEDULE_WARN', 'message' : 'Error in scheduling a task. Please report is this occurs frequently.', 'debug' : str(e) })
+    return False, last_run_at
+
 def task_scheduler():
     global cleanup_cache_needed
+    process_list = []
+    write_pid_file(process_list)
     now = time.time()
     refine_cache_periods()
 
@@ -745,6 +793,7 @@ def task_scheduler():
 
     while True:
         cur_time = time.time()
+        write_pid_file(process_list)
         cq_thread, last_cq_at = thread_starter(cq_thread, cleanup_queues, cur_time, last_cq_at, cq_interval)
         ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_video_info, cur_time, last_ssi_at, ssi_interval)
         cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
@@ -753,7 +802,7 @@ def task_scheduler():
         hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)
         ct_thread, last_ct_at = thread_starter(ct_thread, cleanup_tmp, cur_time, last_ct_at, ct_interval)
         if filelist_rebuild_required():
-            rf_thread, last_rf_at = thread_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval)
+            rf_thread, last_rf_at = multiprocess_starter(rf_thread, rebuild_filelist, cur_time, last_rf_at, rf_interval, process_list)
         time.sleep(1)
 
 def cleanup_cache(from_command_line = False):
@@ -910,6 +959,20 @@ class VideoPoolDaemon(VideocacheDaemon):
         except Exception, e:
             ent({ 'code' : 'TASK_SCHEDULER_ERR', 'message' : 'Error while starting task scheduler.' })
 
+def cleanup_processes():
+    try:
+        for pid in map(lambda x: int(x), filter(lambda x: is_integer(x), open(o.pidfile_path, 'r').read().strip().split(','))):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+    except:
+        pass
+    try:
+        os.unlink(o.pidfile_path)
+    except:
+        pass
+
 if __name__ == '__main__':
     # Parse command line options.
     parser = OptionParser()
@@ -985,8 +1048,10 @@ if __name__ == '__main__':
         if options.sig == 'start':
             daemon.start()
         elif options.sig == 'stop':
+            cleanup_processes()
             daemon.stop()
         elif options.sig == 'restart':
+            cleanup_processes()
             daemon.restart()
         elif options.sig == 'status':
             daemon.status()

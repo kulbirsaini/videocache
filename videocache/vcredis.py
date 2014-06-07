@@ -14,6 +14,17 @@ os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 from common import *
 from redis.exceptions import ConnectionError
 
+try:
+    from websites.youtube import is_valid_youtube_video_id, is_long_youtube_video_id
+except Exception, e:
+    def is_valid_youtube_video_id(video_id):
+        if video_id and len(video_id) in [11, 16]: return True
+        return False
+
+    def is_long_youtube_video_id(video_id):
+        if video_id and len(video_id) > 16 and len(video_id) <= 56: return True
+        return False
+
 import redis
 import hiredis
 import time

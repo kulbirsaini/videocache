@@ -9,6 +9,8 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from fsop import *
+from functools import wraps
+from Queue import Queue, Empty
 
 import datetime
 import httplib
@@ -25,6 +27,98 @@ import traceback
 import urllib
 import urllib2
 import urlparse
+
+try:
+    import multiprocessing
+    from multiprocessing import synchronize
+
+    if sys.version_info < (2, 7):
+        class Popen(multiprocessing.forking.Popen):
+            def poll(self, flag = os.WNOHANG):
+                if self.returncode is None:
+                    while True:
+                        try:
+                            pid, sts = os.waitpid(self.pid, flag)
+                        except OSError, e:
+                            if e.errno == errno.EINTR:
+                                continue
+                            return None
+                        else:
+                            break
+                    if pid == self.pid:
+                        if os.WIFSIGNALED(sts):
+                            self.returncode = -os.WTERMSIG(sts)
+                        else:
+                            assert os.WIFEXITED(sts)
+                            self.returncode = os.WEXITSTATUS(sts)
+                return self.returncode
+        multiprocessing.Process._Popen = Popen
+
+    multiprocessing_enabled = True
+except:
+    print traceback.format_exc()
+    multiprocessing_enabled = False
+
+class TimeoutError(Exception):
+    pass
+
+def with_timeout(tmout, raise_exception = True):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if multiprocessing_enabled:
+                q = multiprocessing.Queue()
+                subproc = multiprocessing.Process(target=f, args=(q,) + args, kwargs=kwargs)
+                subproc.start()
+                subproc.join(tmout)
+                subproc.terminate()
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+            else:
+                q = Queue()
+                f(q, *args, **kwargs)
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+        return wrapper
+    return decorator
+
+def classmethod_with_timeout(tmout, raise_exception = True):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(klass, *args, **kwargs):
+            if multiprocessing_enabled:
+                q = multiprocessing.Queue()
+                subproc = multiprocessing.Process(target=f, args=(klass, q) + args, kwargs=kwargs)
+                subproc.start()
+                subproc.join(tmout)
+                subproc.terminate()
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+            else:
+                q = Queue()
+                f(klass, q, *args, **kwargs)
+                try:
+                    return q.get(timeout = 0.1)
+                except Empty:
+                    if raise_exception: raise TimeoutError
+                    return False
+        return wrapper
+    return decorator
+
+def timeout_exec(timeout, f, raise_exception, *args, **kwargs):
+    @with_timeout(timeout, raise_exception)
+    def _new_ret_method(q, *args, **kwargs):
+        q.put(f(*args, **kwargs))
+    return _new_ret_method(*args, **kwargs)
 
 # Alias urllib2.open to urllib2.urlopen
 urllib2.open = urllib2.urlopen
@@ -64,14 +158,6 @@ def refine_url(url, arg_drop_list = []):
     query = urlparse.urlsplit(url)[3]
     new_query = '&'.join(['='.join(j) for j in filter(lambda x: x[0] not in arg_drop_list, [i.split('=') for i in query.split('&')])])
     return (urllib.splitquery(url)[0] + '?' + new_query.rstrip('&')).rstrip('?')
-
-def is_valid_youtube_video_id(video_id):
-    if video_id and len(video_id) in [11, 16]: return True
-    return False
-
-def is_long_youtube_video_id(video_id):
-    if video_id and len(video_id) > 16: return True
-    return False
 
 def current_time():
     return int(time.time())
@@ -238,7 +324,7 @@ def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = 
   Order Allow,Deny
   Allow from all
   <IfModule mod_headers.c>
-    Header add Videocache "2.0.0"
+    Header add Videocache "3.x"
     Header add X-Cache "HIT from %s"
   </IfModule>
   <IfModule mod_mime.c>
