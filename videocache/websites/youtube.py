@@ -202,6 +202,11 @@ def get_youtube_filenames(o, video_id, fmt, params = {}):
 # cached_url
 def youtube_cached_url(o, video_id, website_id, fmt, params = {}):
     valid_fmts = [fmt]
+    if fmt in o.youtube_format_alts:
+        valid_fmts += [o.youtube_format_alts[fmt]]
+    if fmt in o.youtube_format_alts_rev:
+        valid_fmts += [o.youtube_format_alts_rev[fmt]]
+    valid_fmts = list(set(valid_fmts))
 
     if o.enable_youtube_html5_videos == 0:
         valid_fmts = filter(lambda fmt: o.youtube_formats[fmt]['cat'] not in ['webm', 'webm_3d'], valid_fmts)
@@ -241,13 +246,13 @@ def is_youtube_domain(host):
     return False
 
 def check_youtube_video(o, url, host = None, path = None, query = None):
-    matched, website_id, video_id, format, search, queue, report_hit = True, 'youtube', None, '', True, True, True
+    matched, website_id, video_id, fmt, search, queue, report_hit = True, 'youtube', None, '', True, True, True
 
     if not (host and path and query):
         fragments = urlparse.urlsplit(url)
         [host, path, query] = [fragments[1], fragments[2], fragments[3]]
 
-    format = get_youtube_video_format_from_query_or_path(query, path)
+    fmt = get_youtube_video_format_from_query_or_path(query, path)
 
     if is_youtube_domain(host):
         # Actual video content
@@ -280,7 +285,28 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
     else:
         matched = False
 
-    if format in o.youtube_skip_caching_itags:
+    if fmt in o.youtube_skip_caching_itags:
         queue = False
     queue = False #TODO Temporary disabling youtube background caching
-    return (matched, website_id, video_id, format, search, queue, report_hit)
+    return (matched, website_id, video_id, fmt, search, queue, report_hit)
+
+def itag_map(filename):
+    url_extract = re.compile(' (http://[^ ]+) ')
+    f = open(filename)
+    line = f.readline()
+    itag_map = {}
+    counter = 0
+    while line:
+        counter += 1
+        if '.googlevideo.com/' in line:
+            match = url_extract.search(line)
+            if match:
+                url = match.groups()[0]
+                fragments = urlparse.urlsplit(url)
+                [host, path, query] = [fragments[1], fragments[2], fragments[3]]
+                itag1 = get_youtube_video_format_from_query(query)
+                itag2 = get_youtube_video_format_from_path(path)
+                if itag1 and itag2: itag_map[itag2] = itag1
+            line = f.readline()
+        if counter % 100: print itag_map
+    return itag_map

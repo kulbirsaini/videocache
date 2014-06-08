@@ -77,7 +77,6 @@ class VideocacheOptions:
         klass.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
         klass.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
         klass.youtube_range_min_start = 128
-        #TODO map new formats
         klass.youtube_formats = {
             '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
             '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},
@@ -105,10 +104,24 @@ class VideocacheOptions:
             '135' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
             '136' : {'res': 720,  'ext': '.mp4',  'cat': 'regular'},
             '137' : {'res': 1080, 'ext': '.mp4',  'cat': 'regular'},
+            '139' : {'res': 360,  'ext': '.mp4',  'cat': 'regular'},
             '160' : {'res': 144,  'ext': '.mp4',  'cat': 'regular'},
             '140' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
             '141' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
+            '171' : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
+            '172' : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
+            '242' : {'res': 240,  'ext': '.webm', 'cat': 'webm'},
+            '243' : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
+            '244' : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
+            '247' : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
+            '248' : {'res': 1080, 'ext': '.webm', 'cat': 'webm'},
+            '264' : {'res': 1440, 'ext': '.mp4',  'cat': 'regular'}
         }
+        klass.youtube_format_alts = {'229': '133', '230': '134', '231': '135', '232': '136', '233': '139', '234': '140', '269': '160'}
+        klass.youtube_format_alts_rev = dict((v,k) for k, v in klass.youtube_format_alts.iteritems())
+        for k, v in klass.youtube_format_alts.items():
+            if v in klass.youtube_formats:
+                klass.youtube_formats[k] = klass.youtube_formats[v]
 
         klass.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'dailymotion', 'facebook', 'imdb', 'metacafe', 'myspace', 'rutube', 'veoh', 'videobash', 'vimeo', 'vkcom', 'vube', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         klass.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
