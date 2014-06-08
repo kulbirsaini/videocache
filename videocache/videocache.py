@@ -133,7 +133,7 @@ def squid_part():
 
                     if website_id == 'youtube':
                         video_info = get_youtube_video_info_from_query_or_path(query, path, ['cpn', 'upn'])
-                        cpn, upn = video_info.get('upn', None), video_info.get('upn', None)
+                        cpn, upn = video_info.get('cpn', None), video_info.get('upn', None)
                         if is_valid_youtube_video_id(video_id):
                             if cpn: youtube.add_cpn(cpn, video_id)
                             if upn: youtube.add_cpn(upn, video_id)

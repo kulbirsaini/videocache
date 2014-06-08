@@ -1147,3 +1147,4 @@ setup_command=''
 redis_conf=''
 
 main
+#TODO re-enable multiprocessing module installation

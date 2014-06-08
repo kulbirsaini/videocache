@@ -39,7 +39,7 @@ def is_long_youtube_video_id(video_id):
 def get_youtube_video_id_from_query(query):
     params = cgi.parse_qs(query)
     for key in ['video_id', 'id', 'v', 'docid']:
-        if key in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params[key][0]) and (is_valid_youtube_video_id(video_id) or is_long_youtube_video_id(video_id)):
+        if key in params and VALIDATE_YOUTUBE_VIDEO_ID_REGEX.match(params[key][0]) and (is_valid_youtube_video_id(params[key][0]) or is_long_youtube_video_id(params[key][0])):
             return params[key][0]
     return None
 
@@ -282,5 +282,5 @@ def check_youtube_video(o, url, host = None, path = None, query = None):
 
     if format in o.youtube_skip_caching_itags:
         queue = False
-    queue = False #FIXME Temporary disabling youtube background caching
+    queue = False #TODO Temporary disabling youtube background caching
     return (matched, website_id, video_id, format, search, queue, report_hit)

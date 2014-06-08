@@ -345,7 +345,6 @@ class VideoCacheRedis(object):
         return list(self._flatten(*args))
 
 class VideoFile(VideoCacheRedis):
-    #TODO FIXME use videocache:video_file_scores:cache_dir:website_id as redis key
 
     def __init__(self, o):
         self.scores_key_prefix = 'videocache:video_files:'
