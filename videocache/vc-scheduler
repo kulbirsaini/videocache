@@ -37,7 +37,7 @@ import urlparse
 try:
     import multiprocessing
     from multiprocessing import synchronize
-    multiprocessing_enabled = True
+    multiprocessing_enabled = False
 except:
     multiprocessing_enabled = False
 
@@ -672,35 +672,41 @@ def filelist_rebuild_required():
 def rebuild_filelist_for(cache_dir, website_id, cur_dir):
     letters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_#='
     os.chdir(cur_dir)
-    total_files_created = 0
+
+    files_on_disk = []
     for l_1 in letters:
         for l_2 in letters:
-            for filenames in chunks(glob.glob(l_1 + l_2 + '*'), 100):
-                for filename in filenames:
-                    if not video_file.score_exists(cache_dir, website_id, filename):
-                        video_file.increment_score(cache_dir, website_id, filename)
-                        total_files_created += 1
-                time.sleep(0.1)
-        time.sleep(0.1)
-    return total_files_created
+            length_before = len(files_on_disk)
+            files_on_disk += glob.glob(l_1 + l_2 + '*')
+            sleep_time = (len(files_on_disk) - length_before) / 10000.0
+            time.sleep(max(0.005, min(2, sleep_time)))
+
+    files_in_redis = set(video_file.get_filenames_for(cache_dir, website_id))
+    files_on_disk = set(files_on_disk)
+    files_to_remove = list(files_in_redis - files_on_disk)
+    files_to_create = list(files_on_disk - files_in_redis)
+    if files_to_create: video_file.remove_score(cache_dir, website_id, files_to_remove)
+    if files_to_remove: video_file.set_score(cache_dir, website_id, files_to_create)
+    return (len(files_to_create), len(files_to_remove))
 
 def rebuild_filelist():
     global filelist_rebuild
     for cache_dir in o.base_dir_list:
         if not filelist_rebuild_required_for(cache_dir): continue
         info({ 'code' : 'FILELIST_BUILD_START', 'message' : 'Starting filelist build for cache directory %s' % cache_dir })
-        total_files_created, started_at = 0, time.time()
+        total_files_created, total_files_removed, started_at = 0, 0, time.time()
         for website_id in o.websites:
             cur_dir = os.path.join(cache_dir, o.website_cache_dir[website_id])
             if not os.path.isdir(cur_dir):
                 create_dir(cur_dir, o.videocache_user)
                 continue
             try:
-                created = rebuild_filelist_for(cache_dir, website_id, cur_dir)
+                created, removed = rebuild_filelist_for(cache_dir, website_id, cur_dir)
                 total_files_created += created
+                total_files_removed += removed
             except Exception, e:
                 ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
-        info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'Created %s new entries in %s seconds for %s' % (total_files_created, int(time.time() - started_at), cache_dir) })
+        info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'Created %s new, removed %s obsolete entries in %s seconds for %s' % (total_files_created, total_files_removed, int(time.time() - started_at), cache_dir) })
         filelist_rebuild[cache_dir] = { 'last_buid_at' : int(time.time()), 'rebuild' : False }
 
 def cleanup_video():

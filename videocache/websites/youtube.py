@@ -129,8 +129,8 @@ def get_youtube_video_format_from_path(path):
     return fmt
 
 def get_youtube_video_format_from_query_or_path(query, path):
-    fmt = get_youtube_video_format_from_query(query)
-    if fmt == '': fmt = get_youtube_video_format_from_path(path)
+    fmt = get_youtube_video_format_from_path(path)
+    if fmt == '': fmt = get_youtube_video_format_from_query(query)
     return fmt
 
 def get_youtube_video_format(url):

@@ -232,10 +232,10 @@ class VideoCacheRedis(object):
         return 0
 
     # Sorted Set methods
-    def zadd(self, db_key, member, score):
+    def zadd(self, db_key, *args):
         if db_key == None: return 0
         try:
-            return self.redis.zadd(db_key, member, score)
+            return self.redis.zadd(db_key, *(args))
         except ConnectionError, ce:
             self.ent({ 'code' : 'REDIS_CONNECTION_ERR', 'message' : self.error_messages['connection'], 'debug' : str(ce) })
         except Exception, e:
@@ -365,7 +365,9 @@ class VideoFile(VideoCacheRedis):
         if not access_time:
             access_time = int(time.time())
         score = str(score) + '.' + str(access_time)
-        return self.zadd(redis_key, key, score)
+        key = self.flatten([[i, score] for i in self.flatten(key)])
+        if not key: return 0
+        return self.zadd(redis_key, *(key))
 
     def set_score(self, cache_dir, website_id, video_id, score = 1, access_time = None):
         return self.set_score_by_key(self.redis_key(cache_dir, website_id), video_id, score, access_time)
@@ -428,6 +430,13 @@ class VideoFile(VideoCacheRedis):
             return sorted(videos, reverse = True)
         return sorted(videos, reverse = True)[:limit]
 
+    def get_filenames_for_by_key(self, key, limit = -1):
+        return self.zrange(key, 0, limit)
+
+    def get_filenames_for(self, cache_dir, website_id):
+        if not (cache_dir and website_id): return None
+        return self.get_filenames_for_by_key(self.redis_key(cache_dir, website_id))
+
     def redis_key(self, cache_dir, website_id):
         if not (cache_dir and website_id): return None
         return self.scores_key_prefix + cache_dir + ":" + website_id
@@ -455,7 +464,7 @@ class VideoQueue(VideoCacheRedis):
     def set_score_by_key(self, key, score = 1, access_time = None):
         if not access_time: access_time = int(time.time())
         score = str(score) + '.' + str(access_time)
-        return self.zadd(self.scores_key, key, score)
+        return self.zadd(self.scores_key, *([key, score]))
 
     def set_score(self, website_id, video_id, fmt = '', score = 1, access_time = None):
         return self.set_score_by_key(self.key(website_id, video_id, fmt), score, access_time)
@@ -597,7 +606,7 @@ class Youtube(VideoCacheRedis):
     #CPN
     def set_cpn_score(self, cpn):
         if not cpn: return 0
-        return self.zadd(self.cpn_scores_key, cpn, int(time.time()))
+        return self.zadd(self.cpn_scores_key, *([cpn, int(time.time())]))
 
     def get_cpn_score(self, cpn):
         return self.zscore(self.cpn_scores_key, cpn)
@@ -637,7 +646,7 @@ class Youtube(VideoCacheRedis):
     #Long ID
     def set_long_id_score(self, long_id):
         if not long_id: return 0
-        return self.zadd(self.long_id_scores_key, long_id, int(time.time()))
+        return self.zadd(self.long_id_scores_key, *([long_id, int(time.time())]))
 
     def get_long_id_score(self, long_id):
         return self.zscore(self.long_id_scores_key, long_id)
@@ -705,7 +714,7 @@ class AccessLogQueue(VideoCacheRedis):
 
     def push(self, url):
         if not url: return 0
-        return self.zadd(self.queue_key, url, int(time.time()))
+        return self.zadd(self.queue_key, *([url, int(time.time())]))
 
     def pop(self):
         url = self.zrange(self.queue_key, 0, 0)
