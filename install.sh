@@ -11,6 +11,7 @@ HYPHENS='-----------------------------------------------------------------------
 REDIS_STABLE_URL='http://download.redis.io/redis-stable.tar.gz'
 REDIS_STABLE_PATH=/tmp/redis-stable.tar.gz
 REDIS_TMP_DIR=/tmp/redis-server-3300/
+PIP_INSTALLER='https://raw.githubusercontent.com/kulbirsaini/videocache-dependencies/master/get-pip.py'
 
 # Common Functions
 blue_without_newline() {
@@ -263,24 +264,25 @@ os_detection() {
 }
 
 # Check dependencies
-check_pip_or_easy_install() {
+install_pip_if_missing() {
   message_with_padding "Checking python-pip"
   which pip > /dev/null 2> /dev/null
   if [[ $? == 0 ]]; then
     green 'Installed'
     return 0
-  fi
-  which easy_install > /dev/null 2> /dev/null
-  if [[ $? == 0 ]]; then
-    output=`easy_install install pip 2>&1`
+  else
+    output=`wget --quiet $PIP_INSTALLER -O - | python 2>&1`
+    which pip > /dev/null 2> /dev/null
     if [[ $? == 0 ]]; then
       green 'Installed'
       return 0
     else
       red 'Missing'
+      echo
+      red 'Failed to install pip. Please visit http://pip.readthedocs.org/en/latest/installing.html#install-pip and install pip manually.'
+      echo
+      exit
     fi
-  else
-    red 'Missing'
   fi
   missing_commands="$missing_commands python-pip"
 }
@@ -311,15 +313,11 @@ check_dependencies() {
   check_command gcc
   check_command python
   check_command make
-  check_pip_or_easy_install
 }
 
 set_missing_packages_for_yum() {
   for command in `echo $missing_commands`; do
     case $command in
-      python-pip)
-        packages="$packages python-pip"
-        break;;
       python)
         packages="$packages python python-devel"
         break;;
@@ -348,9 +346,6 @@ set_missing_packages_for_yum() {
 set_missing_packages_for_apt_get() {
   for command in `echo $missing_commands`; do
     case $command in
-      python-pip)
-        packages="$packages python-pip"
-        break;;
       python)
         packages="$packages python python-dev"
         break;;
@@ -378,6 +373,7 @@ set_missing_packages_for_apt_get() {
 
 set_missing_packages() {
   check_dependencies
+  install_pip_if_missing
   check_squid
   check_apache
   case $installer in
@@ -575,6 +571,7 @@ python_code() {
   install_and_verify_python_module cloghandler ConcurrentLogHandler
   install_and_verify_python_module redis redis
   install_and_verify_python_module hiredis hiredis
+  install_and_verify_python_module multiprocessing multiprocessing
 
   message_with_padding "Checking other modules required"
   output=`python_import_test`
@@ -1147,4 +1144,3 @@ setup_command=''
 redis_conf=''
 
 main
-#TODO re-enable multiprocessing module installation
