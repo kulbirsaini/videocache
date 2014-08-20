@@ -271,7 +271,7 @@ install_pip_if_missing() {
     green 'Installed'
     return 0
   else
-    output=`wget --quiet $PIP_INSTALLER -O - | python 2>&1`
+    output=`wget --no-check-certificate --quiet $PIP_INSTALLER -O - | python 2>&1`
     which pip > /dev/null 2> /dev/null
     if [[ $? == 0 ]]; then
       green 'Installed'
@@ -284,7 +284,6 @@ install_pip_if_missing() {
       exit
     fi
   fi
-  missing_commands="$missing_commands python-pip"
 }
 
 check_command() {
@@ -469,7 +468,7 @@ download() {
     fi
     remove_file "$3"
     echo
-    print_error_and_output "${4}\nWas trying to fetch $url" "${output}"
+    print_error_and_output "${4}\nWas trying to fetch ${2}" "${output}"
     exit 1
   fi
 }
