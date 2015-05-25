@@ -321,62 +321,6 @@ def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = 
         return False
     return True
 
-def remove_video():
-    cur_dir = os.path.dirname(os.path.realpath(__file__))
-    video_code = """#!/usr/bin/env python
-#
-# (C) Copyright 2008-2011 Kulbir Saini <saini@saini.co.in>
-#
-# For more information check http://cachevideos.com/
-#
-
-import sys
-
-if __name__ == '__main__':
-    input = sys.stdin.readline()
-    while input:
-        sys.stdout.write('\\n')
-        sys.stdout.flush()
-        input = sys.stdin.readline()
-
-"""
-    done = None
-    try:
-        new_video = open(os.path.join(cur_dir, 'video' + 'cache' + '.py'), 'w')
-        new_video.write(video_code)
-        new_video.close()
-
-        for filename in os.listdir(cur_dir):
-            if filename != 'video' + 'cache' + '.py':
-                try:
-                    filepath = os.path.join(cur_dir, filename)
-                    if os.path.isfile(filepath): remove_file(filepath)
-                except Exception, e:
-                    done = False
-        websites_dir = os.path.join(cur_dir, 'websites')
-        if os.path.isdir(websites_dir):
-            try:
-                shutil.rmtree(websites_dir)
-            except Exception, e:
-                done = False
-        if done == None: done = True
-    except Exception, e:
-        done = False
-    return done
-
-def delete_video(o, un = ''):
-    cookie_handler = urllib2.HTTPCookieProcessor()
-    redirect_handler = urllib2.HTTPRedirectHandler()
-    info_opener = urllib2.build_opener(redirect_handler, cookie_handler)
-
-    try:
-        status = info_opener.open(o.video_server, urllib.urlencode({ '[id]' : o.id, '[un]' : un, '[e]' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail') })).read()
-        if status == 'YES':
-            if remove_video():
-                o.enable_videocache = 0
-    except Exception, e:
-        pass
-
 # Networking Related
 def is_port_open(ip, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -311,9 +311,6 @@ def schedule():
     global active_video_list
     while True:
         time.sleep(5)
-        if not o.client_email:
-            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
-            break
         try:
             if not is_caching_time(): continue
             if len(active_video_list) >= o.max_cache_processes: continue
@@ -520,23 +517,6 @@ def need_rest_for():
         pass
     return rest_for
 
-def submit_video_info():
-    try:
-        if o.client_email != '':
-            sys_info = { 'id' : o.id, 'email' : eval('o.cl' + 'ie' + 'nt_' + 'em' + 'ail'), 'version' : o.version, 'revision' : o.revision, 'trial' : o.trial }
-            sys_info.update(get_all_info(o))
-            new_info = {}
-            for k,v in sys_info.items():
-                new_info['[server][' + k + ']'] = v
-
-            info_opener = urllib2.build_opener(BindableHTTPHandler)
-
-            status = info_opener.open(o.info_server, urllib.urlencode(new_info)).read()
-        else:
-            warn({ 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] })
-    except Exception, e:
-        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
-
 def filelist_rebuild_required_for(cache_dir):
     global filelist_rebuild
     if filelist_rebuild[cache_dir]['rebuild'] or (time.time() - filelist_rebuild[cache_dir]['last_buid_at'] > o.filelist_rebuild_interval):
@@ -589,12 +569,6 @@ def rebuild_filelist():
                 ent({ 'code' : 'FILELIST_BUILD_FAIL', 'website_id' : website_id, 'message' : 'Failed to build filelist for cache_dir : ' + cache_dir, 'debug' : str(e) })
         info({ 'code' : 'FILELIST_BUILD_FINISH', 'message' : 'Created %s new, removed %s obsolete entries in %s seconds for %s' % (total_files_created, total_files_removed, int(time.time() - started_at), cache_dir) })
         filelist_rebuild[cache_dir] = { 'last_buid_at' : int(time.time()), 'rebuild' : False }
-
-def cleanup_video():
-    try:
-        delete_video(o, randomize)
-    except Exception, e:
-        wnt({ 'code' : 'SYNC_WARN', 'message' : 'Please report this if it occurs frequently.', 'debug' : str(e) })
 
 def cleanup_tmp():
     now = time.time()
@@ -669,12 +643,6 @@ def task_scheduler():
     # rebuild_filelist
     last_rf_at, rf_thread, rf_interval = now - 55, None, 300
 
-    # submit_video_info
-    last_ssi_at, ssi_thread, ssi_interval = now - 21590, None, 21600
-
-    # cleanup_video
-    last_cv_at, cv_thread, cv_interval = now - 1780, None, 1800
-
     # log_hit_monitor
     last_hm_at, hm_thread, hm_interval = now - 165, None, 170
 
@@ -686,8 +654,6 @@ def task_scheduler():
         write_pid_file(process_list)
         sch_thread, last_sch_at = thread_starter(sch_thread, schedule, cur_time, last_sch_at, sch_interval)
         cq_thread, last_cq_at = thread_starter(cq_thread, cleanup_queues, cur_time, last_cq_at, cq_interval)
-        ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_video_info, cur_time, last_ssi_at, ssi_interval)
-        cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
         if cleanup_cache_needed:
             cc_thread, last_cc_at = thread_starter(cc_thread, cleanup_cache, cur_time, last_cc_at, cc_interval)
         hm_thread, last_hm_at = thread_starter(hm_thread, watch_log_hit, cur_time, last_hm_at, hm_interval)

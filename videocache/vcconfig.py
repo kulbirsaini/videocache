@@ -233,9 +233,6 @@ class VideocacheConf:
     enable_youporn_cache = Option(1)
     youporn_cache_dir = Option('youporn')
 
-    info_server = Option('http://hascache.com/servers')
-    video_server = Option('http://hascache.com/videoid')
-
     def __init__(self):
         pass
 

@@ -109,9 +109,6 @@ def squid_part():
             wnt( { 'code' : 'INPUT_PARSE_ERR', 'message' : 'Could not get required informatoin after parsing the input. Skipping this URL ' + line, 'debug' : str(e) } )
             skip = True
 
-        if not o.client_email:
-            warn( { 'code' : 'RRE_LIAME_TNEILC'[::-1], 'message' : '.reludehcs-cv tratser ,oslA .diuqS tratser/daoler dna noitpo siht teS .tes ton si fnoc.ehcacoediv/cte/ ni liame_tneilc noitpo ehT'[::-1] } )
-
         if skip or not o.client_email or not o.enable_videocache:
             write_back(new_url, request_id)
             line = sys.stdin.readline()

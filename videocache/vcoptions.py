@@ -97,8 +97,6 @@ class VideocacheOptions:
             klass.force_video_size = int(mainconf.force_video_size)
             klass.client_email = mainconf.client_email
             klass.cache_periods = cache_period_s2lh(mainconf.cache_period)
-            klass.info_server = mainconf.info_server
-            klass.video_server = mainconf.video_server
             klass.this_proxy = mainconf.this_proxy.strip()
             klass.enable_access_log_monitoring = int(mainconf.enable_access_log_monitoring)
             klass.squid_access_log = mainconf.squid_access_log
