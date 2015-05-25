@@ -70,63 +70,10 @@ class VideocacheOptions:
         if klass.initialized:
             return
 
-        klass.youtube_res_order = [144, 224, 270, 360, 480, 720, 520, 540, 1080, 2304]
-        klass.youtube_itag_order = { 'regular' : ['38', '37', '22', '35', '34', '6', '5'], 'regular_3d' : ['84', '85', '82', '83'], 'webm' : ['46', '45', '44', '43'], 'webm_3d' : ['102', '101', '100'], '3gp' : ['17', '13'], 'mobile' : ['18'] }
-        klass.youtube_itag_groups = [ ['5', '6'], ['13', '17'], ['22', '37'], ['34', '35'], ['82', '83'], ['84', '85'], ['43', '44'], ['45', '46'], ['100', '101'] ]
-        klass.youtube_audio_only_itags = [ '140', '141' ]
-        klass.youtube_video_only_itags = [ '137', '136', '135', '134', '133', '160' ]
-        klass.youtube_skip_caching_itags = [ '140', '141', '137', '136', '135', '134', '133', '160' ]
-        klass.youtube_range_min_start = 128
-        klass.youtube_formats = {
-            '5'   : {'res': 224,  'ext': '.flv',  'cat': 'regular'},
-            '6'   : {'res': 270,  'ext': '.flv',  'cat': 'regular'},
-            '13'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
-            '17'  : {'res': 144,  'ext': '.3gp',  'cat': '3gp'},
-            '18'  : {'res': 360,  'ext': '.mp4',  'cat': 'mobile'},
-            '34'  : {'res': 360,  'ext': '.flv',  'cat': 'regular'},
-            '35'  : {'res': 480,  'ext': '.flv',  'cat': 'regular'},
-            '22'  : {'res': 720,  'ext': '.mp4',  'cat': 'regular'},
-            '37'  : {'res': 1080, 'ext': '.mp4',  'cat': 'regular'},
-            '38'  : {'res': 2304, 'ext': '.mp4',  'cat': 'regular'},
-            '83'  : {'res': 240,  'ext': '.mp4',  'cat': 'regular_3d'},
-            '82'  : {'res': 360,  'ext': '.mp4',  'cat': 'regular_3d'},
-            '85'  : {'res': 520,  'ext': '.mp4',  'cat': 'regular_3d'},
-            '84'  : {'res': 720,  'ext': '.mp4',  'cat': 'regular_3d'},
-            '43'  : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
-            '44'  : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
-            '45'  : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
-            '46'  : {'res': 1080, 'ext': '.webm', 'cat': 'webm'},
-            '100' : {'res': 360,  'ext': '.webm', 'cat': 'webm_3d'},
-            '101' : {'res': 480,  'ext': '.webm', 'cat': 'webm_3d'},
-            '102' : {'res': 720,  'ext': '.webm', 'cat': 'webm_3d'},
-            '133' : {'res': 240,  'ext': '.mp4',  'cat': 'regular'},
-            '134' : {'res': 360,  'ext': '.mp4',  'cat': 'regular'},
-            '135' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
-            '136' : {'res': 720,  'ext': '.mp4',  'cat': 'regular'},
-            '137' : {'res': 1080, 'ext': '.mp4',  'cat': 'regular'},
-            '139' : {'res': 360,  'ext': '.mp4',  'cat': 'regular'},
-            '160' : {'res': 144,  'ext': '.mp4',  'cat': 'regular'},
-            '140' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
-            '141' : {'res': 480,  'ext': '.mp4',  'cat': 'regular'},
-            '171' : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
-            '172' : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
-            '242' : {'res': 240,  'ext': '.webm', 'cat': 'webm'},
-            '243' : {'res': 360,  'ext': '.webm', 'cat': 'webm'},
-            '244' : {'res': 480,  'ext': '.webm', 'cat': 'webm'},
-            '247' : {'res': 720,  'ext': '.webm', 'cat': 'webm'},
-            '248' : {'res': 1080, 'ext': '.webm', 'cat': 'webm'},
-            '264' : {'res': 1440, 'ext': '.mp4',  'cat': 'regular'}
-        }
-        klass.youtube_format_alts = {'229': '133', '230': '134', '231': '135', '232': '136', '233': '139', '234': '140', '269': '160'}
-        klass.youtube_format_alts_rev = dict((v,k) for k, v in klass.youtube_format_alts.iteritems())
-        for k, v in klass.youtube_format_alts.items():
-            if v in klass.youtube_formats:
-                klass.youtube_formats[k] = klass.youtube_formats[v]
-
-        klass.websites = ['android', 'youtube', 'aol', 'bing', 'bliptv', 'breakcom', 'dailymotion', 'facebook', 'imdb', 'metacafe', 'myspace', 'rutube', 'veoh', 'videobash', 'vimeo', 'vkcom', 'vube', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
+        klass.websites = ['android', 'aol', 'bing', 'bliptv', 'breakcom', 'dailymotion', 'imdb', 'metacafe', 'myspace', 'rutube', 'veoh', 'videobash', 'vimeo', 'vkcom', 'vube', 'weather', 'wrzuta', 'youku', 'extremetube', 'hardsextube', 'keezmovies', 'pornhub', 'redtube', 'slutload', 'spankwire', 'tube8', 'xhamster', 'xtube', 'xvideos', 'youporn']
         klass.trace_logformat = '%(localtime)s %(process_id)s %(client_ip)s %(website_id)s %(code)s %(video_id)s\n%(message)s'
         klass.format_map = { '%ts' : '%(timestamp)s', '%tu' : '%(timestamp_ms)s', '%tl' : '%(localtime)s', '%tg' : '%(gmt_time)s', '%p' : '%(process_id)s', '%s' : '%(levelname)s', '%i' : '%(client_ip)s', '%w' : '%(website_id)s', '%c' : '%(code)s', '%v' : '%(video_id)s', '%b' : '%(size)s', '%m' : '%(message)s', '%d' : '%(debug)s' }
-        klass.arg_drop_list = {'android' : [], 'youtube': ['noflv', 'begin'], 'aol': ['timeoffset', 'set', 'aktimeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'dailymotion': ['start'], 'facebook': [], 'imdb' : [], 'metacafe': [], 'myspace': [], 'rutube' : [], 'veoh' : ['ms'], 'videobash' : ['start'], 'vimeo': ['aktimeoffset'], 'vkcom' : [], 'vube' : [], 'weather': [], 'wrzuta': ['sec-offset'], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start', 'fs', 'ms'], 'redtube': ['ec_seek'], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start', 'ms'], 'xhamster': ['start'], 'xtube': ['start', 'fs', 'ms'], 'xvideos': ['fs'], 'youporn': ['fs', 'ms']}
+        klass.arg_drop_list = {'android' : [], 'aol': ['timeoffset', 'set', 'aktimeoffset'], 'bing': [], 'bliptv': ['start'], 'breakcom': ['ec_seek'], 'dailymotion': ['start'], 'imdb' : [], 'metacafe': [], 'myspace': [], 'rutube' : [], 'veoh' : ['ms'], 'videobash' : ['start'], 'vimeo': ['aktimeoffset'], 'vkcom' : [], 'vube' : [], 'weather': [], 'wrzuta': ['sec-offset'], 'youku': ['start', 'preview_ts', 'preview_num'], 'extremetube': ['start'], 'hardsextube': ['start'], 'keezmovies': ['start'], 'pornhub': ['start', 'fs', 'ms'], 'redtube': ['ec_seek'], 'slutload': ['ec_seek'], 'spankwire': ['start'], 'tube8': ['start', 'ms'], 'xhamster': ['start'], 'xtube': ['start', 'fs', 'ms'], 'xvideos': ['fs'], 'youporn': ['fs', 'ms']}
         klass.log_hit_uncertain_exceptions = [ 'imdb', 'vimeo' ]
 
         try:
@@ -270,13 +217,6 @@ class VideocacheOptions:
                 setattr(klass, 'enable_' + website_id + '_cache', klass.enabled_websites[website_id])
             klass.enabled_website_keys = filter(lambda x: klass.enabled_websites[x], klass.enabled_websites.keys())
 
-            klass.max_youtube_video_quality = int(mainconf.max_youtube_video_quality.strip('p'))
-            klass.min_youtube_views = int(mainconf.min_youtube_views)
-            klass.enable_youtube_html5_videos = int(mainconf.enable_youtube_html5_videos)
-            klass.enable_youtube_3d_videos = int(mainconf.enable_youtube_3d_videos)
-            if generate_crossdomain_files:
-                for dir in klass.base_dir_list:
-                    generate_youtube_crossdomain(os.path.join(dir, 'youtube_crossdomain.xml'), klass.videocache_user, True)
         except Exception, e:
             syslog_msg('Could not set website specific options. Debug: ' + traceback.format_exc().replace('\n', ''))
             return None

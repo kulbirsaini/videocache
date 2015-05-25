@@ -9,7 +9,7 @@ __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
 from common import *
-from vcredis import VideoFile, VideoQueue, Youtube, AccessLogQueue
+from vcredis import VideoFile, VideoQueue, AccessLogQueue
 from fsop import *
 from store import *
 from vcdaemon import VideocacheDaemon
@@ -126,15 +126,6 @@ class LoggingThread(threading.Thread):
 def get_random_user_agent():
     return o.std_headers[random.randint(0, o.num_std_headers - 1)]
 
-def migrate_to_new_youtube_video_ids(website_id, old_video_id, new_video_id):
-    if old_video_id and new_video_id:
-        for youtube_dir in o.base_dirs[website_id]:
-            for filename in glob.glob(os.path.join(youtube_dir, old_video_id + '*')):
-                try:
-                    move_file(filename, filename.replace(old_video_id, new_video_id))
-                except:
-                    pass
-
 def cache_remote_url(remote_url, target_file, params = {}):
     try:
         video_id = params.get('video_id', '-')
@@ -216,85 +207,6 @@ def cache_remote_url(remote_url, target_file, params = {}):
         return False
     return True
 
-def cache_youtube_video(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
-    try:
-        if not fmt: fmt = '34'
-        if not cur_cache_dir:
-            warn({ 'code' : 'VIDEO_INFO_WARN', 'message' : 'Enough video information was not available in cache thread.', 'website_id' : website_id, 'video_id' : video_id })
-            return
-
-        proxy = o.proxy_server
-        http_headers = get_random_user_agent()
-
-        opener = urllib2
-        if proxy:
-            opener = urllib2.build_opener(BindableHTTPHandler, urllib2.ProxyHandler({ 'http' : proxy, 'https' : proxy, 'ftp' : proxy }))
-
-        video_info = None
-        for el in ['&el=detailpage', '&el=embedded', '&el=vevo', '']:
-            info_url = 'http://www.youtube.com/get_video_info?video_id=%s%s&ps=default&eurl=&gl=US&hl=en' % (video_id, el)
-            request = urllib2.Request(info_url, None, http_headers)
-            try:
-                video_info = cgi.parse_qs(opener.open(request).read())
-                try:
-                    if int(video_info.get('view_count', [0])[0]) < o.min_youtube_views:
-                        info({ 'code' : 'VIEW_COUNT_LOW', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Video has not received enough views and will not be cached.' })
-                        return
-                except Exception, e:
-                    pass
-
-                if 'url_encoded_fmt_stream_map' in video_info:
-                    break
-            except Exception, e:
-                ent({'code' : 'VIDEO_INFO_FETCH_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error occured while fetching video info from ' + info_url, 'debug' : str(e) })
-        else:
-            warn({ 'code' : 'VIDEO_INFO_FETCH_WARN', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Could not fetch required info to cache video. Please report this if it happens very frequently.' })
-            return
-
-        try:
-            url_map = {}
-            [url_map.update({i['itag'][0] : i['url'][0] + '&signature=' + i['sig'][0]}) for i in [cgi.parse_qs(i) for i in video_info['url_encoded_fmt_stream_map'][0].split(',')]]
-            alternate_vid = get_youtube_video_id(url_map.values()[0])
-            if alternate_vid and len(alternate_vid) == 16:
-                migrate_to_new_youtube_video_ids(website_id, alternate_vid, video_id)
-        except Exception, e:
-            ent({ 'code' : 'URL_EXTRACTION_ERROR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error while extracting video urls.', 'debug' : str(e) })
-            return
-
-        cache_dir = os.path.join(cur_cache_dir, o.website_cache_dir[website_id])
-        tmp_dir = os.path.join(cur_cache_dir, o.temp_dir)
-
-        if url_map.has_key(fmt):
-            stop = False
-            if o.youtube_formats.has_key(fmt) and o.youtube_formats[fmt]['res'] > o.max_youtube_video_quality:
-                stop = True
-            if not stop and o.enable_youtube_html5_videos == 0 and o.youtube_formats[fmt]['cat'] in ['webm', 'webm_3d']:
-                stop = True
-            if not stop and o.enable_youtube_3d_videos == 0 and o.youtube_formats[fmt]['cat'] in ['regular_3d', 'webm_3d']:
-                stop = True
-            if stop:
-                return
-
-            if youtube_cached_url(o, video_id, website_id, fmt)[0]:
-                info({ 'code' : 'VIDEO_EXISTS', 'website_id' : website_id, 'video_id' : video_id, 'message' : 'FORMAT ' + fmt + ' Video already exists.' })
-            else:
-                video_url = url_map[fmt]
-                filename = get_youtube_filenames(o, video_id, fmt, { 'ext_opt' : False })[0]
-                video_path = os.path.join(cache_dir, filename)
-                tmp_path = os.path.join(tmp_dir, filename)
-
-                if cache_remote_url(video_url, tmp_path, {'http_headers' : http_headers, 'video_id' : video_id, 'website_id' : website_id}):
-                    size = os.path.getsize(tmp_path)
-                    move_file(tmp_path, video_path)
-                    os.chmod(video_path, o.file_mode)
-                    os.utime(video_path, None)
-                    info({ 'code' : 'VIDEO_CACHED', 'video_id' : video_id, 'website_id' : website_id, 'size' : size, 'message' : 'FORMAT ' + fmt + ' Video was cached successfully at ' + video_path })
-                    video_file.increment_score(cur_cache_dir, website_id, filename)
-        else:
-            info({ 'code' : 'UNSUPPORTED_FORMAT', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Background caching of format ' + str(fmt) + ' is not supported' })
-    except Exception, e:
-        ent({'code' : 'CACHE_THREAD_ERR', 'video_id' : video_id, 'website_id' : website_id, 'message' : 'Error in cache thread.'})
-
 def cache_generalized(website_id, video_id, fmt = '', url = '', cur_cache_dir = None):
     try:
         if not (url and cur_cache_dir):
@@ -333,7 +245,6 @@ cache_aol_video = cache_generalized
 cache_bing_video = cache_generalized
 cache_bliptv_video = cache_generalized
 cache_breakcom_video = cache_generalized
-cache_facebook_video = cache_generalized
 cache_imdb_video = cache_generalized
 cache_metacafe_video = cache_generalized
 cache_myspace_video = cache_generalized
@@ -457,8 +368,6 @@ def is_cached(video_url):
     return False
 
 def arg_drop_exception(website_id, params, arg):
-    if website_id == 'youtube' and arg == 'begin' and params[arg][0] == '0':
-        return True
     if website_id == 'hardsextube' and arg == 'start' and params[arg][0] == '0':
         return True
     if website_id == 'dailymotion' and arg == 'seek' and params[arg][0] == '0':
@@ -478,7 +387,7 @@ def arg_drop_exception(website_id, params, arg):
     return False
 
 def watch_log_hit():
-    global access_log_queue, youtube
+    global access_log_queue
 
     if not o.this_proxy_server:
         warn({ 'code': 'LOCAL_PROXY_NOT_SPECIFIED', 'message' : 'No value specified for option this_proxy in /etc/videocache.conf. Videocache will not be able to fetch videos from Squid cache to optimize bandwidth. Please specify a value for this_proxy option and restart vc-scheduler.' })
@@ -511,37 +420,10 @@ def watch_log_hit():
             if not (matched and search):
                 continue
 
-            if website_id == 'youtube':
-                video_info = get_youtube_video_info_from_query_or_path(query, path, ['cpn', 'upn'])
-                cpn, upn = video_info.get('cpn', None), video_info.get('upn', None)
-                if is_valid_youtube_video_id(video_id):
-                    if cpn: youtube.add_cpn(cpn, video_id)
-                    if upn: youtube.add_cpn(upn, video_id)
-                elif is_long_youtube_video_id(video_id):
-                    if cpn: youtube.add_long_id(video_id, cpn)
-                    if upn: youtube.add_long_id(video_id, upn)
-                if not is_valid_youtube_video_id(video_id):
-                    old_video_id = video_id
-                    video_id = youtube.get_video_id(cpn, old_video_id)
-                    if video_id == None:
-                        video_id = youtube.get_video_id(upn, old_video_id)
-                    if video_id == None:
-                        warn({ 'code' : 'MIGRATION_ISSUE', 'website_id' : website_id, 'message' : 'Youtube migration not fully effective in your country/region yet. Please ignore this issue if it doesnt occur for all the videos. URL ' + video_url })
-                        continue
-
-            if website_id != 'youtube' and not video_id:
+            if not video_id:
                 warn({ 'code' : 'VIDEO_ID_NOT_FOUND', 'website_id' : website_id, 'message' : 'Most probably you have set strip_query_terms to on in your squid.conf. Please set it to off and restart squid and vc-scheduler. URL ' + video_url })
                 continue
-
-            if not video_id:
-                continue
-
-            if website_id == 'youtube':
-                youtube_range = get_youtube_video_range_from_query_or_path(query, path)
-                youtube_range.update({ 'ext_opt' : False })
-                filename = get_youtube_filenames(o, video_id, format, youtube_range)[0]
-            else:
-                filename = eval('get_' + website_id + '_filename(o, video_id, format)')
+            filename = eval('get_' + website_id + '_filename(o, video_id, format)')
 
             cached = False
             for directory in o.base_dirs[website_id]:
@@ -776,6 +658,9 @@ def task_scheduler():
     now = time.time()
     refine_cache_periods()
 
+    # schedule
+    last_sch_at, sch_thread, sch_interval = 0, None, 15
+
     # cleanup_queues
     last_cq_at, cq_thread, cq_interval = 0, None, 180
 
@@ -800,6 +685,7 @@ def task_scheduler():
     while True:
         cur_time = time.time()
         write_pid_file(process_list)
+        sch_thread, last_sch_at = thread_starter(sch_thread, schedule, cur_time, last_sch_at, sch_interval)
         cq_thread, last_cq_at = thread_starter(cq_thread, cleanup_queues, cur_time, last_cq_at, cq_interval)
         ssi_thread, last_ssi_at = thread_starter(ssi_thread, submit_video_info, cur_time, last_ssi_at, ssi_interval)
         cv_thread, last_cv_at = thread_starter(cv_thread, cleanup_video, cur_time, last_cv_at, cv_interval)
@@ -872,18 +758,6 @@ def cleanup_video_queue(from_command_line = False):
             print 'Error while cleaning up video queue'
             print traceback.format_exc()
 
-def cleanup_youtube(from_command_line = False):
-    global youtube
-    try:
-        #info({ 'code' : 'YOUTUBE_METADATA_CLEANUP', 'message' : 'Cleaning up stale Youtube metadata' })
-        if from_command_line: print 'Cleaning up stale Youtube metadata'
-        youtube.expire()
-    except Exception, e:
-        ent({ 'code' : 'YOUTUBE_METADATA_CLEANUP_ERR', 'message' : 'Error while cleaning up Youtube metadata', 'debug' : str(e) })
-        if from_command_line:
-            print 'Error while cleaning up Youtube metadata'
-            print traceback.format_exc()
-
 def cleanup_access_log_queue(from_command_line = False):
     global access_log_queue
     try:
@@ -908,7 +782,6 @@ def cleanup_video_files_namespace(from_command_line = False):
 def cleanup_queues(from_command_line = False):
     cleanup_video_files_namespace(from_command_line)
     cleanup_video_queue(from_command_line)
-    cleanup_youtube(from_command_line)
     cleanup_access_log_queue(from_command_line)
 
 def flush_video_queue(from_command_line = False):
@@ -920,17 +793,6 @@ def flush_video_queue(from_command_line = False):
         ent({ 'code' : 'VIDEO_QUEUE_FLUSH_ERR', 'message' : 'Error while flushing videos queued for background caching', 'debug' : str(e) })
         if from_command_line:
             print 'Error while flushing videos queued for background caching'
-            print traceback.format_exc()
-
-def flush_youtube(from_command_line = False):
-    global youtube
-    try:
-        if from_command_line: print 'Flushing Youtube metadata'
-        youtube.flush()
-    except Exception, e:
-        ent({ 'code' : 'YOUTUBE_METADATA_FLUSH_ERR', 'message' : 'Error while flushing Youtube metadata', 'debug' : str(e) })
-        if from_command_line:
-            print 'Error while flushing Youtube metadata'
             print traceback.format_exc()
 
 def flush_access_log_queue(from_command_line = False):
@@ -946,7 +808,6 @@ def flush_access_log_queue(from_command_line = False):
 
 def flush_queues(from_command_line = False):
     flush_video_queue(from_command_line)
-    flush_youtube(from_command_line)
     flush_access_log_queue(from_command_line)
 
 class VideoPoolDaemon(VideocacheDaemon):
@@ -1022,7 +883,6 @@ if __name__ == '__main__':
         video_file = VideoFile(o)
         video_queue = VideoQueue(o)
         access_log_queue = AccessLogQueue(o)
-        youtube = Youtube(o)
         active_video_list = []
         this_opener = None
 

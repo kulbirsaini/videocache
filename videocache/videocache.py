@@ -8,7 +8,7 @@
 __author__ = """Kulbir Saini <saini@saini.co.in>"""
 __docformat__ = 'plaintext'
 
-from vcredis import VideoFile, VideoQueue, Youtube, AccessLogQueue
+from vcredis import VideoFile, VideoQueue, AccessLogQueue
 from common import *
 from store import generalized_cached_url, get_generalized_filename
 from vcoptions import VideocacheOptions
@@ -59,7 +59,7 @@ def write_back(new_url = '', request_id = ''):
         wnt( { 'code' : 'WRITEBACK_ERR', 'message' : 'Could not send a reply message to Squid server.', 'debug' : str(e) } )
 
 def squid_part():
-    global video_queue, video_file, youtube, access_log_queue
+    global video_queue, video_file, access_log_queue
 
     concurrent = None
     request_id = ''
@@ -131,47 +131,22 @@ def squid_part():
                         non_ascci_video_id_warning(website_id, video_id, client_ip)
                         break
 
-                    if website_id == 'youtube':
-                        video_info = get_youtube_video_info_from_query_or_path(query, path, ['cpn', 'upn'])
-                        cpn, upn = video_info.get('cpn', None), video_info.get('upn', None)
-                        if is_valid_youtube_video_id(video_id):
-                            if cpn: youtube.add_cpn(cpn, video_id)
-                            if upn: youtube.add_cpn(upn, video_id)
-                        elif is_long_youtube_video_id(video_id):
-                            if cpn: youtube.add_long_id(video_id, cpn)
-                            if upn: youtube.add_long_id(video_id, upn)
-
                     if search:
-                        if website_id == 'youtube':
-                            youtube_params = get_youtube_video_range_from_query_or_path(query, path)
-                            (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)
-                            if not found:
-                                old_video_id = video_id
-                                video_id = youtube.get_video_id(cpn, old_video_id)
-                                if video_id == None:
-                                    video_id = youtube.get_video_id(upn, old_video_id)
-                                if video_id == None: video_id = old_video_id
-                                if old_video_id != video_id:
-                                    (found, filename, cache_dir, size, index, new_url) = youtube_cached_url(o, video_id, website_id, fmt, youtube_params)
-                        else:
-                            (found, filename, cache_dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, fmt)')
+                        (found, filename, cache_dir, size, index, new_url) = eval(website_id + '_cached_url(o, video_id, website_id, fmt)')
 
                         if new_url == '':
                             info({ 'code' : 'CACHE_MISS', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'message' : 'Requested video was not found in cache.' })
                             if queue:
                                 queue_url = url
                                 shall_queue = True
-                                if website_id == 'android' or (website_id == 'youtube' and len(video_id) != 11):
+                                if website_id == 'android':
                                     shall_queue = False
 
-                                if website_id == 'youtube':
-                                    queue_url = ''
                                 if shall_queue:
                                     video_queue.add_info(website_id, video_id, fmt, queue_url)
                             if search:
                                 access_log_queue.push(url)
                         else:
-                            if website_id == 'youtube': new_url += '?' + query
                             info({ 'code' : 'CACHE_HIT', 'website_id' : website_id, 'client_ip' : client_ip, 'video_id' : video_id, 'size' : size, 'message' : 'Video was served from cache using the URL ' + request_id + new_url })
                             video_file.increment_score(cache_dir, website_id, filename)
                     break
@@ -191,7 +166,6 @@ if __name__ == '__main__':
         o.set_loggers()
         video_file = VideoFile(o)
         video_queue = VideoQueue(o)
-        youtube = Youtube(o)
         access_log_queue = AccessLogQueue(o)
     except Exception, e:
         syslog_msg( halt_message + ' Debug: '  + traceback.format_exc().replace('\n', ''))

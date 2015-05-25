@@ -117,14 +117,6 @@ class VideocacheConf:
     min_android_app_size = Option(1024)
     max_android_app_size = Option(0)
 
-    # Youtube.com & Google.com Specific Options
-    enable_youtube_cache = Option(1)
-    enable_youtube_html5_videos = Option(1)
-    enable_youtube_3d_videos = Option(1)
-    max_youtube_video_quality = Option('720')
-    min_youtube_views = Option(100)
-    youtube_cache_dir = Option('youtube')
-
     # AOL.com Specific Options
     enable_aol_cache = Option(1)
     aol_cache_dir = Option('aol')
@@ -144,10 +136,6 @@ class VideocacheConf:
     # Dailymotion.com Specific Options
     enable_dailymotion_cache = Option(1)
     dailymotion_cache_dir = Option('dailymotion')
-
-    # Facebook.com Specific Options
-    enable_facebook_cache = Option(1)
-    facebook_cache_dir = Option('facebook')
 
     # www.imdb.com
     enable_imdb_cache = Option(1)

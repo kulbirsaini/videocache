@@ -14,17 +14,6 @@ os.environ['PYTHON_EGG_CACHE'] = '/tmp/.python-eggs/'
 from common import *
 from redis.exceptions import ConnectionError
 
-try:
-    from websites.youtube import is_valid_youtube_video_id, is_long_youtube_video_id
-except Exception, e:
-    def is_valid_youtube_video_id(video_id):
-        if video_id and len(video_id) in [11, 16]: return True
-        return False
-
-    def is_long_youtube_video_id(video_id):
-        if video_id and len(video_id) > 16 and len(video_id) <= 56: return True
-        return False
-
 import redis
 import hiredis
 import time
@@ -591,118 +580,6 @@ class ActiveVideoQueue(VideoCacheRedis):
 
     def flush(self):
         return self.delete(self.info_key)
-
-
-class Youtube(VideoCacheRedis):
-
-    def __init__(self, o):
-        self.cpn_scores_key = 'videocache:youtube:cpn_scores'
-        self.long_id_scores_key = 'videocache:youtube:long_id_scores'
-        self.cpn_map_key = 'videocache:youtube:cpn_map'
-        self.long_id_map_key = 'videocache:youtube:long_id_map'
-        VideoCacheRedis.__init__(self, o)
-        return
-
-    #CPN
-    def set_cpn_score(self, cpn):
-        if not cpn: return 0
-        return self.zadd(self.cpn_scores_key, *([cpn, int(time.time())]))
-
-    def get_cpn_score(self, cpn):
-        return self.zscore(self.cpn_scores_key, cpn)
-
-    def remove_cpn_score(self, cpn):
-        return self.zrem(self.cpn_scores_key, cpn)
-
-    def get_cpn_scores_length(self):
-        return self.zcard(self.cpn_scores_key)
-
-    def add_cpn(self, cpn, video_id):
-        if not is_valid_youtube_video_id(video_id): return 0
-        if not cpn: return 0
-        self.set_cpn_score(cpn)
-        return self.hset(self.cpn_map_key, cpn, video_id)
-
-    def remove_cpn(self, cpn):
-        self.remove_cpn_score(cpn)
-        return self.hdel(self.cpn_map_key, cpn)
-
-    def get_cpn_length(self):
-        return self.hlen(self.cpn_map_key)
-
-    def get_video_id_by_cpn(self, cpn):
-        video_id = self.hget(self.cpn_map_key, cpn)
-        if is_valid_youtube_video_id(video_id):
-            self.set_cpn_score(cpn)
-            return video_id
-        else:
-            self.remove_cpn(cpn)
-        return None
-
-    def expire_cpns(self):
-        before_time = int(time.time()) - self.o.cpn_lifetime
-        return self.remove_cpn(self.zrangebyscore(self.cpn_scores_key, 0, before_time))
-
-    #Long ID
-    def set_long_id_score(self, long_id):
-        if not long_id: return 0
-        return self.zadd(self.long_id_scores_key, *([long_id, int(time.time())]))
-
-    def get_long_id_score(self, long_id):
-        return self.zscore(self.long_id_scores_key, long_id)
-
-    def remove_long_id_score(self, long_id):
-        return self.zrem(self.long_id_scores_key, long_id)
-
-    def get_long_id_scores_length(self):
-        return self.zcard(self.long_id_scores_key)
-
-    def add_long_id(self, long_id, cpn):
-        if not (long_id and cpn): return 0
-        self.set_long_id_score(long_id)
-        return self.hset(self.long_id_map_key, long_id, cpn)
-
-    def remove_long_id(self, long_id):
-        self.remove_long_id_score(long_id)
-        return self.hdel(self.long_id_map_key, long_id)
-
-    def get_long_id_length(self):
-        return self.hlen(self.long_id_map_key)
-
-    def get_cpn_by_long_id(self, long_id):
-        cpn = self.hget(self.long_id_map_key, long_id)
-        if cpn:
-            self.set_long_id_score(long_id)
-        else:
-            self.remove_long_id(long_id)
-        return cpn
-
-    def expire_long_ids(self):
-        before_time = int(time.time()) - self.o.cpn_lifetime
-        return self.remove_long_id(self.zrangebyscore(self.long_id_scores_key, 0, before_time))
-
-    # Video ID
-    def get_video_id(self, cpn, long_id):
-        if cpn:
-            video_id = self.get_video_id_by_cpn(cpn)
-            if video_id: return video_id
-
-        if long_id:
-            return self.get_video_id_by_cpn(self.get_cpn_by_long_id(long_id))
-
-        return None
-
-    def expire(self):
-        self.expire_cpns()
-        self.expire_long_ids()
-        return True
-
-    def flush(self):
-        self.delete(self.cpn_scores_key)
-        self.delete(self.long_id_scores_key)
-        self.delete(self.cpn_map_key)
-        self.delete(self.long_id_map_key)
-        return True
 
 
 class AccessLogQueue(VideoCacheRedis):

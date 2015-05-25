@@ -270,27 +270,6 @@ def log_traceback():
     print traceback.format_exc(),
     print blue('-' * 25 + 'Traceback End' + '-' * 27 + '\n')
 
-def generate_youtube_crossdomain(xdomain_file, user, quiet = False):
-    youtube_crossdomain = """<?xml version="1.0"?>
-<!DOCTYPE cross-domain-policy SYSTEM "http://www.macromedia.com/xml/dtds/cross-domain-policy.dtd">
-<cross-domain-policy>
-<allow-access-from domain="s.ytimg.com" />
-<allow-access-from domain="*.youtube.com" />
-<allow-access-from domain="*" />
-</cross-domain-policy>
-    """
-    try:
-        file = open(xdomain_file, 'w')
-        file.write(youtube_crossdomain)
-        file.close()
-        set_permissions_and_ownership(xdomain_file, user)
-        if not quiet: print "Generated youtube crossdomain file : " + xdomain_file
-    except:
-        if not quiet: print "Failed to generate youtube crossdomain file : " + xdomain_file
-        log_traceback()
-        return False
-    return True
-
 def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = False, quiet = False):
     """Generates /etc/httpd/conf.d/videocache.conf for apache web server for serving videos."""
     cache_host_ip = cache_host.split(':')[0]
@@ -311,7 +290,6 @@ def generate_httpd_conf(conf_file, base_dir_list, cache_host, hide_cache_dirs = 
 # Use /etc/videocache.conf to configure Videocache.                          #
 #                                                                            #
 ##############################################################################\n\n"""
-    videocache_conf += "\nAlias /crossdomain.xml " + os.path.join(base_dir_list[0], "youtube_crossdomain.xml")
     for dir in base_dir_list:
         if len(base_dir_list) == 1:
             videocache_conf += "\nAlias /videocache " + dir
