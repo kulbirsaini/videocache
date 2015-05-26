@@ -4,6 +4,12 @@
 
 Squid can not cache the dynamically served videos. VideoCache fits into squid to help it cache the videos as well. The cached videos are stored on your proxy server’s local storage or on a storage server in your network. These cached videos can be served to your clients at a very fast speed saving you significant upstream bandwidth.
 
+## Related Projects
+
+* [DocVC](https://github.com/kulbirsaini/docvc)
+* [VCSIDB](https://github.com/kulbirsaini/vcsidb)
+* [Videocache-Ruby](https://github.com/kulbirsaini/videocache-ruby)
+
 ## Documentation
 
 [Full Documentation](http://cachevideos.com/documentation/)
